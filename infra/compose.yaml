@@ -1,0 +1,20 @@
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: fiscalgraph-neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: "${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:?Defina NEO4J_PASSWORD no arquivo .env}"
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1G
+      NEO4J_server_memory_pagecache_size: 512m
+    volumes:
+      - fiscalgraph_neo4j_data:/data
+      - fiscalgraph_neo4j_logs:/logs
+
+volumes:
+  fiscalgraph_neo4j_data:
+  fiscalgraph_neo4j_logs:
