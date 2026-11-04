@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.streamlit/secrets.toml
+.DS_Store
+# Não versionar os arquivos brutos das bases públicas; documentar as URLs e o processo de obtenção.
+data/raw/*
+!data/raw/.gitkeep
