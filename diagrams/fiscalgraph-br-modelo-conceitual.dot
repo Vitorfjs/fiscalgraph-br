@@ -1,0 +1,57 @@
+digraph FiscalGraphBR {
+  graph [
+    rankdir=LR,
+    bgcolor="white",
+    pad="0.28",
+    nodesep="0.48",
+    ranksep="0.72",
+    splines=polyline,
+    fontname="Arial",
+    fontsize=20,
+    labelloc="t",
+    label="FiscalGraph BR — Modelo conceitual LPG\nNúcleo inicial baseado nos CSVs canônicos do Dev 2",
+    compound=true
+  ];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10, margin="0.16,0.12", color="#416b9a", fillcolor="#deebf7", fontcolor="#20364f", penwidth=1.4];
+  edge [fontname="Arial", fontsize=9, color="#53677d", fontcolor="#334b63", penwidth=1.25, arrowsize=0.8];
+
+  subgraph cluster_cadastro {
+    label="A. Cadastro empresarial e vínculos societários";
+    fontname="Arial"; fontsize=13; fontcolor="#263e55";
+    style="rounded,filled"; color="#c8dced"; fillcolor="#f5faff"; penwidth=1.2;
+    Socio [label="Socio\nsocio_id · nome · tipo_pessoa\nqualificacao · data_entrada", fillcolor="#e0f2e6", color="#43845b", fontcolor="#183b28"];
+    Empresa [label="Empresa\ncnpj_basico · razao_social\nnatureza_juridica · porte · capital_social"];
+    Estabelecimento [label="Estabelecimento\ncnpj · cnpj_basico · nome_fantasia\nsituacao_cadastral · data_inicio_atividade\nuf · municipio"];
+    CNAE [label="CNAE\ncodigo · descricao", fillcolor="#e0f2e6", color="#43845b", fontcolor="#183b28"];
+    Socio -> Empresa [label="PARTICIPA_DE\nqualificacao · data_entrada"];
+    Empresa -> Estabelecimento [label="POSSUI_ESTABELECIMENTO\nraiz CNPJ compatível"];
+    Estabelecimento -> CNAE [label="EXERCE_CNAE\nprincipal · registro_origem"];
+  }
+
+  subgraph cluster_compliance {
+    label="B. Compliance empresarial";
+    fontname="Arial"; fontsize=13; fontcolor="#543030";
+    style="rounded,filled"; color="#eed0d0"; fillcolor="#fff8f8"; penwidth=1.2;
+    Sancao [label="Sancao\nregistro_id · tipo_registro (CEIS/CNEP)\norgao_responsavel · numero_processo\ndata_inicio · data_fim · situacao\ndescricao · fundamentacao_legal\ncnpj_sancionado · url_fonte", fillcolor="#f9dfdf", color="#bd5b5b", fontcolor="#542626"];
+    Regra [label="Regra de associação\nCNPJ completo normalizado\nCorrespondência exata\nSem associação por nome", fillcolor="#fff0d8", color="#bd8127", fontcolor="#523a16", fontsize=9];
+    Sancao -> Estabelecimento [label="APLICADA_A\nCNPJ completo exato", ltail=cluster_compliance, lhead=cluster_cadastro, minlen=1];
+    Regra -> Sancao [style=dashed, label="critério obrigatório", color="#bd8127", fontcolor="#80591c", arrowhead=none];
+  }
+
+  subgraph cluster_proveniencia {
+    label="C. Proveniência e rastreabilidade";
+    fontname="Arial"; fontsize=13; fontcolor="#433452";
+    style="rounded,filled"; color="#ded2ef"; fillcolor="#faf7ff"; penwidth=1.2;
+    Fonte [label="Fonte\nfonte_id · nome\norgao_responsavel · url\ncompetencia · data_coleta\narquivo_origem", shape=component, fillcolor="#eee5fa", color="#8066a8", fontcolor="#382b50"];
+  }
+
+  Empresa -> Fonte [style=dashed, label="ORIGINADO_DE", color="#8066a8", fontcolor="#604c7c", constraint=false];
+  Estabelecimento -> Fonte [style=dashed, label="ORIGINADO_DE", color="#8066a8", fontcolor="#604c7c", constraint=false];
+  Socio -> Fonte [style=dashed, label="ORIGINADO_DE", color="#8066a8", fontcolor="#604c7c", constraint=false];
+  CNAE -> Fonte [style=dashed, label="ORIGINADO_DE", color="#8066a8", fontcolor="#604c7c", constraint=false];
+  Sancao -> Fonte [style=dashed, label="ORIGINADO_DE", color="#8066a8", fontcolor="#604c7c", constraint=false];
+
+  Nota [shape=note, style="filled", fillcolor="#fffdf2", color="#c9b86a", fontname="Arial", fontsize=9,
+        label="Interpretação: vínculo societário, coincidência de nome ou registro em cadastro público, isoladamente, não prova fraude, sonegação ou irregularidade atual.\nA ausência de registro no recorte também não comprova inexistência de ocorrência em outras bases ou competências."];
+  Nota -> Fonte [style=invis];
+}
