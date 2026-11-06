@@ -133,7 +133,7 @@ Resultado observado:
 Os resultados das consultas de conferência de schema, índices e integridade foram exportados e versionados no diretório `docs/evidencias/`:
 
 - `docs/evidencias/neo4j_query_table_data_2026-11-6-indexes.csv`: resultado de `SHOW INDEXES`, comprovando os 15 índices com estado `ONLINE`, incluindo `fiscalgraph_text_fulltext` cobrindo `texto` e `fundamentacao_legal`, e os índices de filtro `empresa_porte_idx` e `sancao_numero_processo_idx`.
-- `docs/evidencias/neo4j_query_table_data_2026-11-6.csv`: resultado das contagens e checagens estruturais no Neo4j Browser (156 nós, 295 relacionamentos e zero registros órfãos).
+- `docs/evidencias/neo4j_query_table_data_2026-11-6-constraints.csv`: resultado das contagens e checagens estruturais no Neo4j Browser (156 nós, 295 relacionamentos e zero registros órfãos).
 
 Caso capturas visuais em formato de imagem (`.png`) sejam disponibilizadas no ambiente local, devem ser salvas sem conter credenciais, tokens ou variáveis de ambiente.
 
