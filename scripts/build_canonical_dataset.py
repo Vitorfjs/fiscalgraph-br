@@ -2,7 +2,8 @@
 """Geração dos CSVs canônicos do FiscalGraph BR para Dev2.
 
 Combina os registros reais do CEIS e CNEP baixados em data/raw/
-com os dados cadastrais oficiais do CNPJ (espelho oficial da Receita Federal).
+com os dados cadastrais oficiais do CNPJ (dados públicos cadastrais da RFB, consultados por meio
+do serviço intermediário de terceiros Minha Receita.).
 Preserva CNPJ como string, normaliza datas para YYYY-MM-DD e cria hashes
 técnicos de sócios sem expor CPF.
 """
