@@ -309,9 +309,9 @@ def main():
             "nome": "Classificação Nacional de Atividades Econômicas",
             "orgao_responsavel": "Instituto Brasileiro de Geografia e Estatística (IBGE)",
             "url": "https://concla.ibge.gov.br",
-            "data_coleta": "2026-11-05T10:42:00-03:00",
+            "data_coleta": "2026-11-05T10:44:00-03:00",
             "competencia": "2026-11-04",
-            "arquivo_origem": "Tabela CNAE Oficial"
+            "arquivo_origem": "Retorno JSON (API Minha Receita)",
         }
     ]
     
