@@ -20,6 +20,7 @@ import hashlib
 import json
 import re
 import sys
+import unicodedata
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,25 @@ METODO_ORG = "spacy_ner_pt_core_news_sm"
 def normalize_cnpj(value: str) -> str:
     """Remove pontuação e converte para maiúsculas, preservando zeros à esquerda."""
     return re.sub(r"[^A-Z0-9]", "", (value or "").upper())
+
+
+def normalize_organization_name(value: str) -> str:
+    """Normaliza o nome da organização para fins de agrupamento semântico/resolução leve.
+
+    Converte para maiúsculas, remove acentuação, caracteres especiais e sufixos
+    empresariais comuns (LTDA, S/A, EIRELI, ME, EPP), preservando o radical empresarial.
+    """
+    if not value:
+        return ""
+    # Remove acentos
+    text = unicodedata.normalize("NFKD", value)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = text.upper()
+    # Remove pontuações e símbolos
+    text = re.sub(r"[^\w\s]", " ", text)
+    # Remove sufixos jurídicos frequentes
+    text = re.sub(r"\b(LTDA|SA|S A|EIRELI|ME|EPP|CIA|COMPANHIA)\b", " ", text)
+    return " ".join(text.split())
 
 
 def structural_cnpj(value: str) -> bool:
@@ -153,6 +173,7 @@ def extract_mentions(text: str, nlp: Any = None) -> list[dict[str, Any]]:
             mentions.append({
                 "tipo": "ORGANIZACAO",
                 "valor": value,
+                "valor_normalizado": normalize_organization_name(value),
                 "inicio": ent.start_char,
                 "fim": ent.end_char,
                 "metodo": METODO_ORG,

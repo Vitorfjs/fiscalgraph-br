@@ -20,6 +20,7 @@ from pipeline.text_to_graph.extractor import (  # noqa: E402
     extract_mentions,
     mask_cpf,
     normalize_cnpj,
+    normalize_organization_name,
     process_csv,
     stable_id,
     structural_cnpj,
@@ -108,7 +109,12 @@ class MentionTests(unittest.TestCase):
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0]["tipo"], "ORGANIZACAO")
         self.assertEqual(found[0]["status"], "CANDIDATA")
+        self.assertEqual(found[0]["valor_normalizado"], "EMPRESA FICTICIA")
         self.assertEqual(text[found[0]["inicio"]:found[0]["fim"]], "Empresa Ficticia Ltda")
+
+    def test_normalize_organization_name(self):
+        self.assertEqual(normalize_organization_name("Galvão Engenharia S/A"), "GALVAO ENGENHARIA")
+        self.assertEqual(normalize_organization_name("Agroservice EIRELI"), "AGROSERVICE")
 
     def test_ner_discards_noise(self):
         nlp = FakeNLP([("UN", "ORG"), ("123", "ORG"), ("DOU", "ORG")])

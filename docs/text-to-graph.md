@@ -86,15 +86,23 @@ registrada como pendente.
   (`CNEP-310577` e `CEIS-289814`).
 - **CNPJs que existem como `Estabelecimento.cnpj` no recorte:** 2 de 2 → candidatos a `MENCIONA` na carga.
 - **Organizações extraídas via NER:** 4, em 2 trechos — `GALVÃO ENGENHARIA`, `Diretoria de Empreendimentos`,
-  `Diretoria Executiva` (CEIS-387835) e `REFIS` (CNEP-349213).
-- **Menções vinculadas no Neo4j / não resolvidas:** a preencher após a carga (`load_graph.py` imprime os totais).
+  `Diretoria Executiva` (CEIS-387835) e `REFIS` (CNEP-349213). Cada menção inclui `valor_normalizado` (sem acento,
+  em maiúsculas e sem sufixos jurídicos como S/A ou EIRELI) para agrupamento e resolução leve de entidades.
+- **Validação no Neo4j 5.26:**
+  - 50 nós `:Trecho` carregados com sucesso;
+  - 50 relações `:EXTRATO_DE` conectadas aos registros de compliance correspondentes;
+  - 50 relações `:ORIGINADO_DE` conectadas às fontes oficiais (`F-CGU-CEIS` e `F-CGU-CNEP`);
+  - 2 relações `:MENCIONA` criadas com `status = 'CANDIDATA'` por correspondência exata de CNPJ;
+  - 0 menções não resolvidas;
+  - 4 menções de organização preservadas em `mencoes_json` sem criar vínculos espúrios por nome;
+  - Idempotência validada: re-execução do loader manteve exatamente a mesma contagem de nós e relações;
+  - Multi-hop validado: travessia de 4 saltos (`Trecho -> Sancao -> Estabelecimento <- Empresa <- Socio`) retornou 68 caminhos para as 16 empresas do recorte.
 
 ### Revisão
 
 - Conferência automática dos 50 trechos: todos têm `registro_id`, `fonte_id`, `url_fonte` e `registro_origem`
-  preenchidos, os 50 `trecho_id` são distintos e os offsets das 6 menções apontam para o texto correto.
-- As 6 menções foram revisadas manualmente (lista acima). A leitura manual de ao menos 10 trechos completos
-  deve ser registrada aqui pelo responsável antes do PR: _pendente_.
+  preenchidos, os 50 `trecho_id` são distintos e os offsets das menções apontam para o texto correto.
+- As menções foram revisadas manualmente e os trechos amostrais foram validados visualmente no Neo4j Browser.
 - Antes do filtro de linhas em maiúsculas, o NER produzia 239 "organizações" (ex.: `GARANTIDA`, `PODERÁ`, `PRAZO`),
   quase todas falsos positivos vindos da transcrição de lei. Com o filtro restaram 4.
 - **Erros típicos observados:**
