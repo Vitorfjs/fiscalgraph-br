@@ -1,0 +1,27 @@
+digraph FiscalGraphBR {
+  graph [rankdir=LR, bgcolor="white", label="FiscalGraph BR — Modelo conceitual LPG", labelloc=t, fontsize=20, nodesep=0.55, ranksep=0.8];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=10, margin="0.16,0.10", color="#526579", fillcolor="#eef4fa"];
+  edge [fontname="Arial", fontsize=9, color="#526579", arrowsize=0.8];
+
+  Socio [label="Socio\nsocio_id · nome · qualificacao", fillcolor="#e5f3e8"];
+  Empresa [label="Empresa\ncnpj_basico · razao_social"];
+  Estabelecimento [label="Estabelecimento\ncnpj · situacao_cadastral · UF · municipio"];
+  CNAE [label="CNAE\ncodigo · descricao"];
+  Sancao [label="Sancao\nregistro_id · tipo_registro · datas · descricao", fillcolor="#fae8e8"];
+  Trecho [label="Trecho\ntrecho_id · texto · metodo_extracao", fillcolor="#fff2d9", style="rounded,filled,dashed"];
+  Fonte [label="Fonte\nfonte_id · URL · competencia · data_coleta", shape=folder, fillcolor="#eee8fa"];
+
+  Socio -> Empresa [label="PARTICIPA_DE"];
+  Empresa -> Estabelecimento [label="POSSUI_ESTABELECIMENTO"];
+  Estabelecimento -> CNAE [label="EXERCE_CNAE\nprincipal"];
+  Sancao -> Estabelecimento [label="APLICADA_A\nCNPJ exato", color="#a44b4b"];
+  Trecho -> Sancao [label="EXTRATO_DE\nregistro_id exato", color="#9a6b20"];
+  Trecho -> Estabelecimento [label="MENCIONA\nCNPJ exato · CANDIDATA", style=dashed, color="#9a6b20"];
+
+  Empresa -> Fonte [label="ORIGINADO_DE", style=dashed, color="#8267a8"];
+  Estabelecimento -> Fonte [label="ORIGINADO_DE", style=dashed, color="#8267a8"];
+  Socio -> Fonte [label="ORIGINADO_DE", style=dashed, color="#8267a8"];
+  CNAE -> Fonte [label="ORIGINADO_DE", style=dashed, color="#8267a8"];
+  Sancao -> Fonte [label="ORIGINADO_DE", style=dashed, color="#8267a8"];
+  Trecho -> Fonte [label="ORIGINADO_DE", style=dashed, color="#8267a8"];
+}
