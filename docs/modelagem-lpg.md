@@ -46,7 +46,7 @@ Os identificadores internos `fonte_id` são preservados e usados para conectar o
 
 ### 2.3. Recorte da amostra
 
-A documentação de fontes do Dev 2 e o relatório de execução `build_report.json` registam uma amostra canónica representativa de **18 empresas completas**, com estabelecimentos, sócios, CNAEs e registos de compliance associados (54 sanções, sendo 38 do CEIS e 16 do CNEP), com 100% de correspondência cadastral pelo CNPJ completo.
+A documentação de fontes do Dev 2 e o relatório de execução `build_report.json` registam uma amostra canónica representativa de **18 empresas completas**, com estabelecimentos, sócios, CNAEs e registos de compliance associados (54 sanções, sendo 30 do CEIS e 24 do CNEP), com 100% de correspondência cadastral pelo CNPJ completo.
 
 Registos de sanções aplicadas a pessoas físicas foram excluídos do conjunto canónico para cumprimento estrito das diretrizes de privacidade e minimização.
 
@@ -155,11 +155,13 @@ Representa uma passagem textual delimitada (parágrafo, ementa, despacho ou extr
 | Propriedade | Tipo | Obrigatório? | Descrição / Exemplo |
 |---|---|---|---|
 | `trecho_id` | String | Sim | Identificador único estável do trecho (ex: `TR-CEIS-132342-01`). Chave exclusiva. |
-| `conteudo` | String | Sim | Texto bruto ou normalizado do trecho/extrato. |
-| `ordem` | Integer | Não | Posição sequencial do trecho no documento/registo de origem (ex: `1`, `2`). |
-| `pagina` | Integer | Não | Número da página no documento fonte, se aplicável. |
-| `data_extracao`| Datetime | Sim | Timestamp em formato ISO-8601 do momento da extração textual. |
-| `fonte_id` | String | Sim | Identificador da fonte primária mantenedora do documento. |
+| `texto` | String | Sim | Conteúdo textual extraído da publicação ou registo oficial de compliance. |
+| `registro_id` | String | Sim | Identificador do registo de sanção de origem ao qual o trecho pertence. |
+| `fonte_id` | String | Sim | Identificador da fonte primária mantenedora do documento (ex: `F-CGU-CEIS`). |
+| `url_fonte` | String | Não | URL pública direta ou de consulta do conjunto de dados de origem. |
+| `registro_origem` | String | Não | Identificador ou linha de referência original na fonte. |
+| `metodo_extracao` | String | Sim | Identificação da estratégia/algoritmo utilizado para extração do trecho. |
+| `mencoes_json` | String | Não | Serialização JSON das menções textuais estruturadas extraídas da passagem. |
 
 ---
 
@@ -189,9 +191,9 @@ Representa uma passagem textual delimitada (parágrafo, ementa, despacho ou extr
 - **`POSSUI_ESTABELECIMENTO`:** `registro_origem`, procedência.
 - **`EXERCE_CNAE`:** `principal` (booleano), `registro_origem`.
 - **`APLICADA_A`:** `registro_origem`, `cnpj_sancionado`.
-- **`ORIGINADO_DE`:** `registro_origem`.
-- **`EXTRATO_DE`:** data da vinculação, contexto do extrato.
-- **`MENCIONA`:** `status` (definido como `"CANDIDATA"`), `offset_inicio`, `offset_fim` (posições no texto).
+- **`ORIGINADO_DE`:** `registro_origem` (não atribui propriedades excedentes).
+- **`EXTRATO_DE`:** sem propriedades excedentes gravadas pelo loader (vínculo estrutural puro).
+- **`MENCIONA`:** `status` (ex: `"CANDIDATA"`), `inicio` (posição de início do offset textual), `fim` (posição final do offset textual), `metodo` (método de reconhecimento textual).
 
 ### 5.2. Cardinalidades conceituais
 
@@ -253,9 +255,9 @@ Esse caminho não equivale a uma sanção aplicada automaticamente a todos os es
 MATCH (s:Sancao {registro_id: $registro_id})<-[:EXTRATO_DE]-(t:Trecho)-[:ORIGINADO_DE]->(f:Fonte)
 OPTIONAL MATCH (t)-[m:MENCIONA]->(e:Estabelecimento)
 RETURN t.trecho_id AS trecho,
-       t.conteudo AS texto,
+       t.texto AS texto,
        f.nome AS fonte,
-       collect({cnpj: e.cnpj, status: m.status}) AS mencoes_candidatas;
+       collect({cnpj: e.cnpj, status: m.status, inicio: m.inicio, fim: m.fim}) AS mencoes_candidatas;
 ```
 
 ---
