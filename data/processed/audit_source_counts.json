@@ -1,0 +1,30 @@
+{
+  "ceis": {
+    "arquivo": "20261105_CEIS.csv",
+    "total_registros": 23765,
+    "distribuicao_tipo_pessoa": {
+      "F": 9151,
+      "J": 14603,
+      "VAZIO": 11
+    },
+    "registros_com_cnpj_em_formato_estrutural": 14605,
+    "cnpjs_distintos_em_formato_estrutural_qualquer_tipo": 9680,
+    "registros_pj_com_cnpj_em_formato_estrutural": 14603,
+    "cnpjs_pj_distintos_em_formato_estrutural": 9678,
+    "registros_sem_cnpj_em_formato_estrutural": 9160
+  },
+  "cnep": {
+    "arquivo": "20261105_CNEP.csv",
+    "total_registros": 1854,
+    "distribuicao_tipo_pessoa": {
+      "F": 28,
+      "J": 1814,
+      "VAZIO": 12
+    },
+    "registros_com_cnpj_em_formato_estrutural": 1814,
+    "cnpjs_distintos_em_formato_estrutural_qualquer_tipo": 1032,
+    "registros_pj_com_cnpj_em_formato_estrutural": 1814,
+    "cnpjs_pj_distintos_em_formato_estrutural": 1032,
+    "registros_sem_cnpj_em_formato_estrutural": 40
+  }
+}

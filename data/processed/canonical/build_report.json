@@ -1,0 +1,16 @@
+{
+  "execucao_em": "2026-11-06T11:34:58-03:00",
+  "cnpjs_planejados": 18,
+  "empresas_geradas": 18,
+  "cnpjs_sem_resposta_cadastral": [],
+  "execucao_parcial": false,
+  "arquivos_gerados": [
+    "fontes.csv",
+    "empresas.csv",
+    "estabelecimentos.csv",
+    "cnaes.csv",
+    "estabelecimento_cnaes.csv",
+    "socios.csv",
+    "compliance.csv"
+  ]
+}
