@@ -117,7 +117,7 @@ def summarize(items: list[dict[str, Any]]) -> dict[str, int]:
     return {"trechos": len(items), "mencoes_cnpj": cnpj, "mencoes_org": org}
 
 
-def load(items: list[dict[str, Any]], driver: Any, batch_size: int = 200) -> dict[str, int]:
+def load(items: list[dict[str, Any]], driver: Any, batch_size: int = 200, database: str | None = None) -> dict[str, int]:
     stats = {
         "trechos_carregados": 0,
         "registros_nao_encontrados": 0,
@@ -126,7 +126,7 @@ def load(items: list[dict[str, Any]], driver: Any, batch_size: int = 200) -> dic
         "mencoes_cnpj_nao_resolvidas": 0,
         "mencoes_org_nao_ligadas": 0,
     }
-    with driver.session() as session:
+    with driver.session(database=database) as session:
         for batch in batched(items, batch_size):
             records = session.run(UPSERT_CHUNKS, rows=[chunk_row(i) for i in batch]).data()
             stats["trechos_carregados"] += len(records)
@@ -148,6 +148,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Carrega trechos.jsonl no Neo4j")
     parser.add_argument("--input", type=Path, required=True, help="Arquivo trechos.jsonl gerado pelo extractor")
     parser.add_argument("--batch-size", type=int, default=200)
+    parser.add_argument("--database", type=str, default=None, help="Nome do banco de dados no Neo4j (padrão: NEO4J_DATABASE ou 'neo4j')")
     parser.add_argument("--dry-run", action="store_true", help="Apenas lê e resume o JSONL, sem conectar ao banco")
     args = parser.parse_args(argv)
 
@@ -172,6 +173,7 @@ def main(argv: list[str] | None = None) -> int:
     uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     user = os.getenv("NEO4J_USER", "neo4j")
     password = os.getenv("NEO4J_PASSWORD")
+    database = args.database or os.getenv("NEO4J_DATABASE", "neo4j")
     if not password or password == "change_this_password_before_starting":
         print("Configure NEO4J_PASSWORD no .env local antes de executar.", file=sys.stderr)
         return 2
@@ -179,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         with GraphDatabase.driver(uri, auth=(user, password)) as driver:
             driver.verify_connectivity()
-            stats = load(items, driver, args.batch_size)
+            stats = load(items, driver, args.batch_size, database=database)
     except AuthError:
         print("Falha de autenticação. Confira NEO4J_USER e NEO4J_PASSWORD no .env.", file=sys.stderr)
         return 1

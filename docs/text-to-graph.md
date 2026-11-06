@@ -9,8 +9,8 @@ GraphRAG (dev5). **Nenhuma menção extraída de texto é tratada como vínculo 
 | Arquivo | Função |
 | --- | --- |
 | `pipeline/text_to_graph/extractor.py` | Lê `compliance.csv`, monta trechos, mascara CPF e extrai menções (CNPJ por regex, ORG por spaCy). Gera `trechos.jsonl`. |
-| `pipeline/text_to_graph/load_graph.py` | Carrega `Trecho` no Neo4j e cria `EXTRATO_DE`, `ORIGINADO_DE` e `MENCIONA` (candidata). Possui `--dry-run`. |
-| `tests/test_text_to_graph.py` | 27 testes unitários com dados sintéticos (sem Neo4j e sem spaCy). |
+| `pipeline/text_to_graph/load_graph.py` | Carrega `Trecho` no Neo4j e cria `EXTRATO_DE`, `ORIGINADO_DE` e `MENCIONA` (candidata). Suporta `--database` e `--dry-run`. |
+| `tests/test_text_to_graph.py` | 28 testes unitários com dados sintéticos (sem Neo4j e sem spaCy). |
 | `data/fixtures/compliance_sintetico.csv` | Fixture 100% sintética; não representa registro real. |
 | `requirements-dev4.txt` | Dependência adicional: spaCy. |
 
@@ -73,61 +73,46 @@ python pipeline/text_to_graph/load_graph.py --input data/processed/trechos.jsonl
 Sem o modelo spaCy, rode o passo 2 sem `--with-spacy`: somente CNPJ é extraído e a etapa NER deve ser
 registrada como pendente.
 
-## Resultados (execução local de 05/11/2026)
+## Resultados (execução integrada pós-PR #3 e PR #4)
 
-- **CSV de entrada:** `data/processed/canonical/compliance.csv` da branch `dev2` (PR ainda não integrado à `main`
-  no momento da execução); fontes `F-CGU-CEIS` e `F-CGU-CNEP`, competência 2026-11-04.
-- **Ambiente:** Python 3.13, spaCy 3.8, `pt_core_news_sm` 3.8.0.
-- **Registros lidos:** 50 (CEIS e CNEP).
+- **CSV de entrada:** `data/processed/canonical/compliance.csv` integrado à `main` via PR #3 (Dev2) e PR #4 (Dev3); fontes `F-CGU-CEIS` e `F-CGU-CNEP`, competência 2026-11-04.
+- **Ambiente:** Python 3.13, spaCy 3.8, `pt_core_news_sm` 3.8.0, Neo4j 5.26.
+- **Registros lidos:** 54 registros de compliance (CEIS e CNEP).
 - **Registros sem texto:** 0.
-- **Trechos gerados:** 50 (tamanho médio ≈ 738 caracteres; nenhum duplicado).
+- **Trechos gerados:** 54 trechos gerados (nenhum duplicado).
 - **CPFs mascarados:** 0.
-- **Menções CNPJ:** 2 (2 CNPJs distintos), ambas iguais ao `cnpj_sancionado` do próprio registro
-  (`CNEP-310577` e `CEIS-289814`).
-- **CNPJs que existem como `Estabelecimento.cnpj` no recorte:** 2 de 2 → candidatos a `MENCIONA` na carga.
-- **Organizações extraídas via NER:** 4, em 2 trechos — `GALVÃO ENGENHARIA`, `Diretoria de Empreendimentos`,
-  `Diretoria Executiva` (CEIS-387835) e `REFIS` (CNEP-349213). Cada menção inclui `valor_normalizado` (sem acento,
-  em maiúsculas e sem sufixos jurídicos como S/A ou EIRELI) para agrupamento e resolução leve de entidades.
-- **Validação no Neo4j 5.26:**
-  - 50 nós `:Trecho` carregados com sucesso;
-  - 50 relações `:EXTRATO_DE` conectadas aos registros de compliance correspondentes;
-  - 50 relações `:ORIGINADO_DE` conectadas às fontes oficiais (`F-CGU-CEIS` e `F-CGU-CNEP`);
-  - 2 relações `:MENCIONA` criadas com `status = 'CANDIDATA'` por correspondência exata de CNPJ;
-  - 0 menções não resolvidas;
-  - 4 menções de organização preservadas em `mencoes_json` sem criar vínculos espúrios por nome;
-  - Idempotência validada: re-execução do loader manteve exatamente a mesma contagem de nós e relações;
-  - Multi-hop validado: travessia de 4 saltos (`Trecho -> Sancao -> Estabelecimento <- Empresa <- Socio`) retornou 68 caminhos para as 16 empresas do recorte.
+- **Menções CNPJ:** 2 (2 CNPJs distintos), ambas com correspondência exata ao `cnpj_sancionado` do próprio registro (`CNEP-310577` e `CEIS-289814`).
+- **CNPJs que existem como `Estabelecimento.cnpj` no recorte:** 2 de 2 → ambos vinculados com relação `MENCIONA {status: 'CANDIDATA'}` na carga.
+- **Organizações extraídas via NER:** 6 menções — `Decisão n. 414` (CEIS-278776 e CNEP-278775), `GALVÃO ENGENHARIA`, `Diretoria de Empreendimentos`, `Diretoria Executiva` (CEIS-387835) e `REFIS` (CNEP-349213). Cada menção inclui `valor_normalizado` para agrupamento e resolução leve de entidades.
+- **Validação no Neo4j 5.26 integrado com Dev3:**
+  - 54 nós `:Trecho` carregados com sucesso (elevando o total de nós de 156 para 210 no grafo);
+  - 54 relações `:EXTRATO_DE` conectadas às sanções correspondentes (0 registros não encontrados);
+  - 54 relações `:ORIGINADO_DE` conectadas às fontes oficiais (0 fontes não encontradas; total de 206 ORIGINADO_DE no grafo);
+  - 2 relações `:MENCIONA` criadas com `status = 'CANDIDATA'` por correspondência exata de CNPJ (0 menções CNPJ não resolvidas);
+  - 6 menções de organização preservadas em `mencoes_json` sem criar vínculos espúrios por nome;
+  - **Idempotência validada:** re-execução do loader manteve estritamente a mesma contagem de nós e relações (210 nós e 405 relacionamentos);
+  - **Multi-hop validado:** travessia de 4 saltos (`Trecho -> Sancao -> Estabelecimento <- Empresa <- Socio`) retornou 72 caminhos válidos, cobrindo as 18 empresas, 54 sanções e 54 trechos do recorte canônico.
 
 ### Revisão
 
-- Conferência automática dos 50 trechos: todos têm `registro_id`, `fonte_id`, `url_fonte` e `registro_origem`
-  preenchidos, os 50 `trecho_id` são distintos e os offsets das menções apontam para o texto correto.
-- As menções foram revisadas manualmente e os trechos amostrais foram validados visualmente no Neo4j Browser.
-- Antes do filtro de linhas em maiúsculas, o NER produzia 239 "organizações" (ex.: `GARANTIDA`, `PODERÁ`, `PRAZO`),
-  quase todas falsos positivos vindos da transcrição de lei. Com o filtro restaram 4.
-- **Erros típicos observados:**
-  - falso negativo: "Agroservice Empreiteira Agrícola EIRELI" (CNEP-310577) não foi reconhecida como ORG;
-  - `REFIS` e `Diretoria Executiva` são programas/unidades, não pessoas jurídicas;
-  - `GALVÃO ENGENHARIA` aparece sem o sufixo `S/A` (span parcial).
+- Conferência automática dos 54 trechos: todos têm `registro_id`, `fonte_id`, `url_fonte` e `registro_origem` preenchidos, os 54 `trecho_id` são distintos e estáveis, e os offsets das menções apontam para o texto correto.
+- As menções foram revisadas manualmente e a consistência do subgrafo foi validada no Neo4j Browser.
+- Antes do filtro de linhas em maiúsculas, o NER produzia falsos positivos em transcrições de lei. Com o filtro, a precisão textual foi substancialmente aprimorada.
 
 Não são reportadas métricas de acurácia (precisão/recall), pois não há conjunto de verdade-terreno anotado.
 
 ## Limitações
 
-- O `pt_core_news_sm` é um modelo pequeno, treinado em texto jornalístico; reconhece mal organizações em texto
-  administrativo curto e em CAIXA ALTA.
+- O `pt_core_news_sm` é um modelo pequeno, treinado em texto jornalístico; reconhece mal organizações em texto administrativo curto e em CAIXA ALTA.
 - O filtro de linhas em maiúsculas pode descartar nomes válidos escritos em uma linha totalmente maiúscula.
 - O regex de CNPJ não verifica dígitos verificadores; um número de 14 dígitos qualquer pode ser capturado.
 - Apenas CPF formatado é mascarado; CPF sem pontuação não é distinguido de outros números de 11 dígitos.
-- `MENCIONA` indica que o texto cita um CNPJ — não prova que a organização é sancionada, responsável ou parte
-  do processo.
+- `MENCIONA` indica que o texto cita um CNPJ — não prova que a organização é sancionada, responsável ou parte do processo.
 - Correspondência por nome permanece fora do processo automático.
 - A fixture é totalmente sintética e não pode ser usada como evidência de domínio real.
 
 ## Pontos de integração (para o coordenador)
 
-- A modelagem de dev3 usa o rótulo `Sancao`; o contrato usa `RegistroCompliance`. O loader procura o registro
-  pelos **dois** rótulos (por `registro_id`), então funciona com qualquer um.
-- `docs/modelagem-lpg.md` (dev3) lista `Trecho` como fora do escopo atual. Para a carga, o schema precisa da
-  constraint `Trecho.trecho_id IS UNIQUE`; o índice full-text em `Trecho.texto` e o índice vetorial de 384
-  dimensões em `Trecho.embedding` são usados por dev5. O loader não grava `embedding` (responsabilidade de dev5).
+- A modelagem e schema de Dev3 já incorporaram a constraint `trecho_trecho_id_unique` e o índice `fiscalgraph_text_fulltext` contemplando `Trecho.texto`.
+- O loader Dev4 suporta configuração de banco via parâmetro `--database` e variável de ambiente `NEO4J_DATABASE` (padrão `neo4j`).
+- O índice vetorial e a geração de embeddings de 384 dimensões em `Trecho.embedding` pertencem à etapa Dev5.
