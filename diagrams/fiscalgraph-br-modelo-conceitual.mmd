@@ -1,0 +1,21 @@
+---
+title: FiscalGraph BR — Modelo conceitual LPG
+---
+flowchart LR
+    S["Socio<br/>socio_id · nome · qualificacao"] -->|PARTICIPA_DE| E["Empresa<br/>cnpj_basico · razao_social"]
+    E -->|POSSUI_ESTABELECIMENTO| EST["Estabelecimento<br/>cnpj · situacao_cadastral · UF · municipio"]
+    EST -->|EXERCE_CNAE<br/>principal| C["CNAE<br/>codigo · descricao"]
+    SAN["Sancao<br/>registro_id · tipo_registro · datas · descricao"] -->|APLICADA_A<br/>CNPJ exato| EST
+
+    T["Trecho<br/>trecho_id · texto · metodo_extracao"] -->|EXTRATO_DE<br/>registro_id exato| SAN
+    T -->|MENCIONA<br/>CNPJ exato · CANDIDATA| EST
+
+    E -.->|ORIGINADO_DE| F[("Fonte<br/>fonte_id · URL · competencia · data_coleta")]
+    EST -.->|ORIGINADO_DE| F
+    S -.->|ORIGINADO_DE| F
+    C -.->|ORIGINADO_DE| F
+    SAN -.->|ORIGINADO_DE| F
+    T -.->|ORIGINADO_DE| F
+
+    classDef candidate stroke-dasharray: 5 5;
+    class T candidate;
