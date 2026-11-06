@@ -2,4 +2,4 @@
 F-CGU-CEIS,Cadastro de Empresas Inidôneas e Suspensas,Controladoria-Geral da União (CGU),https://portaldatransparencia.gov.br/download-de-dados/ceis,2026-11-05T10:34:00-03:00,2026-11-04,20261105_CEIS.csv
 F-CGU-CNEP,Cadastro Nacional de Empresas Punidas,Controladoria-Geral da União (CGU),https://portaldatransparencia.gov.br/download-de-dados/cnep,2026-11-05T10:34:00-03:00,2026-11-04,20261105_CNEP.csv
 F-RFB-CNPJ,Cadastro Nacional da Pessoa Jurídica,Secretaria Especial da Receita Federal do Brasil,https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj,2026-11-05T10:44:00-03:00,2026-11-04,Receita Federal (Espelho de Dados Abertos)
-F-IBGE-CNAE,Classificação Nacional de Atividades Econômicas,Instituto Brasileiro de Geografia e Estatística (IBGE),https://concla.ibge.gov.br,2026-11-05T10:42:00-03:00,2026-11-04,Tabela CNAE Oficial
+F-IBGE-CNAE,Classificação Nacional de Atividades Econômicas,Instituto Brasileiro de Geografia e Estatística (IBGE),https://concla.ibge.gov.br,2026-11-05T10:44:00-03:00,2026-11-04,Retorno JSON (API Minha Receita)l

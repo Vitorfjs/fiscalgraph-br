@@ -87,7 +87,7 @@ Este documento regista a proveniência, metadados, regras de recorte e correspon
   - Registos com CNPJ em formato estrutural: 14.605 (sendo 14.603 do tipo J).
   - CNPJs PJ distintos em formato estrutural: 9.678.
   - Registos sem CNPJ em formato estrutural: 9.160.
-  - No recorte canónico consolidado: 38 sanções do CEIS vinculadas às empresas da amostra.
+  - No recorte canónico consolidado: 30 sanções do CEIS vinculadas às empresas da amostra.
 - **Limitações/observações:**
   - Registos de pessoas físicas foram descartados para cumprir as diretrizes de minimização e proteção de dados.
   - Datas nulas ou descritas como "Sem Informação" foram transformadas em cadeias de carateres vazias.
@@ -125,7 +125,7 @@ Este documento regista a proveniência, metadados, regras de recorte e correspon
   - Registos com CNPJ em formato estrutural: 1.814 (todos do tipo J).
   - CNPJs PJ distintos em formato estrutural: 1.032.
   - Registos sem CNPJ em formato estrutural: 40 (28 PF + 12 VAZIO).
-  - No recorte canónico consolidado: 16 sanções do CNEP vinculadas às empresas da amostra (totalizando 54 sanções no arquivo `compliance.csv`).
+  - No recorte canónico consolidado: 24 sanções do CNEP vinculadas às empresas da amostra (totalizando 54 sanções no arquivo `compliance.csv`).
 - **Limitações/observações:**
   - O CNEP foca estritamente em sanções administrativas no âmbito da Lei 12.846/2013, apresentando frequentemente penalidades de multa e publicação extraordinária em conjunto sob o mesmo processo.
 
@@ -147,7 +147,7 @@ Este documento regista a proveniência, metadados, regras de recorte e correspon
   - CNPJs presentes em ambas as bases (interseção CEIS e CNEP): 282 empresas.
 - **Quantos foram ligados exatamente ao cadastro CNPJ na amostra:**
   - Amostra canónica: 18 empresas completas com todos os vínculos (estabelecimentos, sócios, CNAEs e compliance).
-  - Total de registos de sanção ligados às empresas da amostra: 54 sanções (38 do CEIS e 16 do CNEP).
+  - Total de registos de sanção ligados às empresas da amostra: 54 sanções (30 do CEIS e 24 do CNEP).
 - **Quantos permaneceram sem correspondência na amostra:**
   - 0 registos da amostra canónica: 100% dos registos de compliance em `data/processed/canonical/compliance.csv` possuem o respetivo `cnpj_sancionado` cadastrado em `estabelecimentos.csv` e `empresas.csv`.
 - **Regra usada para ligar os registos:**
