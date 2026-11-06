@@ -1,55 +1,54 @@
 # FiscalGraph BR — Modelagem conceitual LPG
 
-> **Status:** versão de trabalho consolidada para a Tarefa 3, baseada no contrato canônico de dados documentado pelo Dev 2.  
-> **Escopo:** núcleo inicial do grafo para rastreabilidade societária, consulta cadastral e associação explicável de registros CEIS/CNEP.  
+> **Status:** versão de trabalho consolidada para a Tarefa 3, baseada no contrato canónico de dados documentado pelo Dev 2.  
+> **Escopo:** núcleo do grafo para rastreabilidade societária, consulta cadastral, associação explicável de registos CEIS/CNEP e extensão Text-to-Graph com trechos textuais.  
 > **Integração:** antes do merge, conferir este documento com os CSVs versionados em `data/processed/canonical/` e com o schema Cypher da implementação.
 
 ---
 
 ## 1. Finalidade
 
-O FiscalGraph BR utiliza um grafo de conhecimento para conectar informações públicas cadastrais de pessoas jurídicas a registros públicos de sanções administrativas, preservando a origem dos dados e os critérios utilizados para estabelecer cada ligação.
+O FiscalGraph BR utiliza um grafo de conhecimento para conectar informações públicas cadastrais de pessoas jurídicas a registos públicos de sanções administrativas, preservando a origem dos dados e os critérios utilizados para estabelecer cada ligação.
 
-A modelagem separa a pessoa jurídica, identificada pela raiz do CNPJ, de seus estabelecimentos, identificados pelo CNPJ completo. Também representa os registros do Quadro de Sócios e Administradores (QSA), as atividades econômicas CNAE, os registros de compliance provenientes do CEIS e do CNEP e as fontes utilizadas na coleta.
+A modelagem separa a pessoa jurídica, identificada pela raiz do CNPJ, dos seus estabelecimentos, identificados pelo CNPJ completo. Também representa os registos do Quadro de Sócios e Administradores (QSA), as atividades económicas CNAE, os registos de compliance provenientes do CEIS e do CNEP, as passagens textuais de fundamentação/publicação (`Trecho`) e as fontes utilizadas na recolha.
 
 O grafo deve permitir consultas explicáveis: para cada informação ou caminho apresentado, o sistema deve indicar os nós, os relacionamentos, os identificadores usados e as fontes que sustentam a conexão.
 
-**Limite interpretativo:** vínculo societário, coincidência de nome ou presença em cadastro público não constitui, isoladamente, prova de fraude, sonegação, responsabilidade de terceiros ou irregularidade atual. O grafo organiza fatos publicados nas fontes e caminhos entre registros; não substitui análise jurídica ou investigação.
+**Limite interpretativo:** vínculo societário, coincidência de nome, presença em cadastro público ou menção textual não constitui, isoladamente, prova de fraude, sonegação, responsabilidade de terceiros ou irregularidade atual. O grafo organiza factos publicados nas fontes e caminhos entre registos; não substitui análise jurídica ou investigação.
 
 ## 2. Escopo e base de dados
 
-### 2.1. Arquivos canônicos
+### 2.1. Arquivos canónicos e dados textuais
 
-O modelo considera os sete arquivos CSV produzidos pelo pipeline do Dev 2:
+O modelo considera os sete ficheiros CSV produzidos pelo pipeline do Dev 2, complementados pela modelagem de evidências textuais:
 
-| Arquivo | Conteúdo | Papel no grafo |
+| Arquivo / Origem | Conteúdo | Papel no grafo |
 |---|---|---|
 | `empresas.csv` | Dados cadastrais da pessoa jurídica pela raiz do CNPJ | Nós `Empresa` |
 | `estabelecimentos.csv` | Matriz e filiais, identificadas pelo CNPJ completo | Nós `Estabelecimento` |
-| `socios.csv` | Registros do QSA associados à raiz do CNPJ | Nós `Socio` e relações `PARTICIPA_DE` |
-| `cnaes.csv` | Códigos e descrições de atividades econômicas | Nós `CNAE` |
+| `socios.csv` | Registos do QSA associados à raiz do CNPJ | Nós `Socio` e relações `PARTICIPA_DE` |
+| `cnaes.csv` | Códigos e descrições de atividades económicas | Nós `CNAE` |
 | `estabelecimento_cnaes.csv` | Associação entre CNPJ do estabelecimento e código CNAE | Relações `EXERCE_CNAE` |
-| `compliance.csv` | Registros de pessoa jurídica extraídos do CEIS e do CNEP | Nós `Sancao` e relações `APLICADA_A` |
-| `fontes.csv` | Identificação, URL, competência e dados de coleta das bases | Nós `Fonte` |
+| `compliance.csv` | Registos de pessoa jurídica extraídos do CEIS e do CNEP | Nós `Sancao` e relações `APLICADA_A` |
+| `fontes.csv` | Identificação, URL, competência e dados de recolha das bases | Nós `Fonte` |
+| Extratos / Publicações (Dev 4) | Passagens textuais e fundamentações de sanções | Nós `Trecho` e relações `EXTRATO_DE`, `ORIGINADO_DE`, `MENCIONA` |
 
-`estabelecimento_cnaes.csv` representa uma associação entre entidades. Seus registros são convertidos em relacionamentos com propriedades, não em nós independentes.
+`estabelecimento_cnaes.csv` representa uma associação entre entidades. Os seus registos são convertidos em relacionamentos com propriedades, não em nós independentes.
 
 ### 2.2. Fontes documentadas
 
-- **Receita Federal do Brasil (RFB):** dados cadastrais de empresas, estabelecimentos e QSA. A documentação do Dev 2 registra o uso dos dados abertos da RFB e de um espelho público para a consulta cadastral da amostra.
-- **Controladoria-Geral da União (CGU) — CEIS:** Cadastro de Empresas Inidôneas e Suspensas.
+- **Receita Federal do Brasil (RFB):** dados cadastrais de empresas, estabelecimentos e QSA consumidos via serviço intermediário de espelho de dados abertos.
+- **Controladoria-Geral da União (CGU) — CEIS:** Cadastro de Empresas Inidóneas e Suspensas.
 - **Controladoria-Geral da União (CGU) — CNEP:** Cadastro Nacional de Empresas Punidas.
 - **Instituto Brasileiro de Geografia e Estatística (IBGE/CONCLA):** códigos e descrições da CNAE.
 
-Os identificadores internos `fonte_id` são preservados e usados para conectar os registros ao nó `Fonte`. URL, competência, data de coleta e arquivo de origem devem ser mantidos para auditoria da procedência.
+Os identificadores internos `fonte_id` são preservados e usados para conectar os registos ao nó `Fonte`. URL, competência, data de recolha e ficheiro de origem devem ser mantidos para auditoria da procedência.
 
 ### 2.3. Recorte da amostra
 
-A documentação de fontes do Dev 2 informa uma amostra canônica de **16 empresas completas**, com estabelecimentos, sócios, CNAEs e registros de compliance associados. O script de construção descreve uma seleção inicial de 18 CNPJs — 10 presentes simultaneamente em CEIS e CNEP, 4 exclusivos do CEIS e 4 exclusivos do CNEP —, mas informa que registros sem retorno cadastral foram ignorados durante a coleta. Portanto, a quantidade efetivamente disponível nos CSVs canônicos prevalece sobre a quantidade inicialmente selecionada pelo script.
+A documentação de fontes do Dev 2 e o relatório de execução `build_report.json` registam uma amostra canónica representativa de **18 empresas completas**, com estabelecimentos, sócios, CNAEs e registos de compliance associados (54 sanções, sendo 38 do CEIS e 16 do CNEP), com 100% de correspondência cadastral pelo CNPJ completo.
 
-A documentação registra 50 registros de sanção ligados à amostra canônica: 38 provenientes do CEIS e 12 do CNEP. Também registra que, no recorte final, todos os registros de `compliance.csv` possuem correspondência cadastral pelo CNPJ completo. Esses números descrevem o recorte documentado e devem ser atualizados se os CSVs forem regenerados.
-
-Registros de sanções aplicadas a pessoas físicas foram excluídos do conjunto canônico. Também foram excluídos CNPJs cuja consulta cadastral sofreu indisponibilidade transitória, para evitar registros empresariais incompletos no recorte.
+Registos de sanções aplicadas a pessoas físicas foram excluídos do conjunto canónico para cumprimento estrito das diretrizes de privacidade e minimização.
 
 ---
 
@@ -57,21 +56,21 @@ Registros de sanções aplicadas a pessoas físicas foram excluídos do conjunto
 
 1. **Granularidade empresarial:** `Empresa` representa a pessoa jurídica pela raiz do CNPJ; `Estabelecimento` representa cada unidade identificada pelo CNPJ completo.
 2. **Identificadores como texto:** CNPJ básico, CNPJ completo e códigos que possam conter zeros à esquerda devem ser armazenados como strings.
-3. **CNPJ alfanumérico:** aceitar oito caracteres alfanuméricos para o CNPJ básico e doze caracteres alfanuméricos seguidos de dois dígitos numéricos para o CNPJ completo. A validação estrutural não substitui a validação oficial dos dígitos verificadores.
-4. **Identidade de sócios conservadora:** `socio_id` é uma chave técnica do registro de sócio no contexto da empresa; não é um identificador nacional da pessoa. Não deduplicar sócios por nome nem presumir identidade comum entre empresas.
-5. **Associação de sanções por identificador:** criar `APLICADA_A` somente quando `cnpj_sancionado` corresponder exatamente a `Estabelecimento.cnpj`, após normalização formal. Não usar similaridade de nome ou razão social.
-6. **Proveniência preservada:** manter `fonte_id`, `registro_origem`, competência, data de coleta, URL e arquivo de origem conforme disponíveis.
-7. **Ausência não é evidência negativa:** a ausência de registro no recorte CEIS/CNEP não prova inexistência de sanções ou de qualquer outra irregularidade.
-8. **Fato e inferência separados:** distinguir dados publicados pela fonte das conclusões obtidas ao percorrer múltiplos relacionamentos.
-9. **Escopo temporal explícito:** os arquivos representam uma coleta/snapshot com competência indicada em `Fonte`. Não apresentar a amostra como histórico completo nem inferir vigência atual apenas pela ausência de `data_fim`.
+3. **CNPJ alfanumérico:** aceitar oito carateres alfanuméricos para o CNPJ básico e doze carateres alfanuméricos seguidos de dois dígitos numéricos para o CNPJ completo.
+4. **Identidade de sócios conservadora:** `socio_id` é uma chave técnica da ocorrência no QSA com escopo restrito à empresa; não deduplica sócios entre empresas.
+5. **Associação de sanções por identificador:** criar `APLICADA_A` somente quando `cnpj_sancionado` corresponder exatamente a `Estabelecimento.cnpj`. Não usar similaridade textual.
+6. **Integração Text-to-Graph cautelosa:** o nó `Trecho` referencia passagens textuais oficiais. A relação `MENCIONA` indica exclusivamente citação textual candidata de CNPJ, não configurando presunção de responsabilidade.
+7. **Proveniência preservada:** manter `fonte_id`, `registro_origem`, competência, data de recolha, URL e ficheiro de origem em todas as entidades.
+8. **Ausência não é evidência negativa:** a ausência de registo no recorte não prova inexistência de sanções em toda a base pública.
+9. **Fato e inferência separados:** distinguir dados publicados pela fonte das conclusões obtidas ao percorrer múltiplos relacionamentos.
+
+---
 
 ## 4. Entidades (nós) e propriedades
 
-Os nomes das propriedades seguem, sempre que possível, os campos dos CSVs canônicos, reduzindo ambiguidades entre ingestão, documentação e consultas.
-
 ### 4.1. `Empresa`
 
-**Identificador:** `cnpj_basico` (oito caracteres). Representa a pessoa jurídica identificada pela raiz do CNPJ, independentemente da quantidade de estabelecimentos.
+**Identificador:** `cnpj_basico` (oito carateres).
 
 | Propriedade | Origem | Descrição |
 |---|---|---|
@@ -81,85 +80,86 @@ Os nomes das propriedades seguem, sempre que possível, os campos dos CSVs canô
 | `porte` | `empresas.csv` | Porte empresarial |
 | `capital_social` | `empresas.csv` | Capital social declarado |
 
-A procedência é representada por uma relação com `Fonte`. `fonte_id` e `registro_origem` do CSV são usados para construir essa relação e preservar a referência original; não precisam ser duplicados como atributos de negócio do nó.
-
 ### 4.2. `Estabelecimento`
 
-**Identificador:** `cnpj` (14 caracteres no formato estrutural do CNPJ). Representa uma unidade da pessoa jurídica, como matriz ou filial.
+**Identificador:** `cnpj` (14 carateres no formato estrutural do CNPJ).
 
 | Propriedade | Origem | Descrição |
 |---|---|---|
 | `cnpj` | `estabelecimentos.csv` | Chave do estabelecimento |
 | `cnpj_basico` | `estabelecimentos.csv` | Raiz da pessoa jurídica à qual pertence |
-| `nome_fantasia` | `estabelecimentos.csv` | Nome fantasia, quando informado |
+| `nome_fantasia` | `estabelecimentos.csv` | Nome de fantasia, quando informado |
 | `situacao_cadastral` | `estabelecimentos.csv` | Situação cadastral publicada |
 | `data_inicio_atividade` | `estabelecimentos.csv` | Data de início da atividade |
 | `uf` | `estabelecimentos.csv` | Unidade federativa |
-| `municipio` | `estabelecimentos.csv` | Município conforme o dado canônico |
-
-A relação com `Empresa` é estabelecida pela igualdade entre `Estabelecimento.cnpj_basico` e `Empresa.cnpj_basico`. Não presumir que `municipio` seja código IBGE: conservar o conteúdo e a semântica definidos pelo dataset.
+| `municipio` | `estabelecimentos.csv` | Município conforme o dado canónico |
 
 ### 4.3. `Socio`
 
-**Identificador técnico:** `socio_id`. Representa um registro de sócio obtido do QSA para uma empresa específica. No contrato do Dev 2, `socio_id` é gerado com escopo limitado à empresa, considerando `cnpj_basico`, posição do registro e nome. Portanto, identifica a ocorrência canônica do sócio no recorte, e não uma pessoa de forma global.
+**Identificador técnico:** `socio_id`. Identifica a ocorrência local do sócio no snapshot da empresa.
 
 | Propriedade | Origem | Descrição |
 |---|---|---|
-| `socio_id` | `socios.csv` | Identificador técnico do registro |
+| `socio_id` | `socios.csv` | Identificador técnico do registo (`SOC-` + hash) |
 | `nome` | `socios.csv` | Nome publicado no QSA |
-| `tipo_pessoa` | `socios.csv` | Tipo de pessoa informado |
+| `tipo_pessoa` | `socios.csv` | `PESSOA FISICA` ou `PESSOA JURIDICA` |
 | `qualificacao` | `socios.csv` | Qualificação do sócio no QSA |
-| `data_entrada` | `socios.csv` | Data de entrada, quando disponível |
-
-`cnpj_basico` do CSV é utilizado para estabelecer `PARTICIPA_DE`; `fonte_id` e `registro_origem` preservam a procedência. **Não armazenar CPF bruto.** Não fundir nós `Socio` apenas por coincidência de nome. Uma ligação de um mesmo sócio entre empresas diferentes só poderá ser introduzida mediante identificador estável, permitido e validado.
+| `data_entrada` | `socios.csv` | Data de entrada na sociedade |
 
 ### 4.4. `CNAE`
 
-**Identificador:** `codigo`. Representa uma atividade econômica da Classificação Nacional de Atividades Econômicas.
+**Identificador:** `codigo`.
 
 | Propriedade | Origem | Descrição |
 |---|---|---|
 | `codigo` | `cnaes.csv` | Código CNAE |
-| `descricao` | `cnaes.csv` | Descrição da atividade |
-
-A associação entre CNAE e estabelecimento é obtida de `estabelecimento_cnaes.csv`, e não apenas do catálogo `cnaes.csv`.
+| `descricao` | `cnaes.csv` | Descrição oficial da atividade económica |
 
 ### 4.5. `Sancao`
 
-**Identificador:** `registro_id`. Representa um registro de pessoa jurídica importado do CEIS ou do CNEP. O rótulo `Sancao` é uma simplificação conceitual para os registros desses cadastros; os dados devem continuar identificando a base de origem e a categoria/modalidade descrita pela fonte.
+**Identificador:** `registro_id`.
 
 | Propriedade | Origem | Descrição |
 |---|---|---|
-| `registro_id` | `compliance.csv` | Identificador do registro canônico |
-| `tipo_registro` | `compliance.csv` | Cadastro de origem: CEIS ou CNEP |
-| `orgao_responsavel` | `compliance.csv` | Órgão sancionador/responsável informado |
-| `numero_processo` | `compliance.csv` | Número do processo, quando disponível |
-| `data_inicio` | `compliance.csv` | Data de início registrada |
+| `registro_id` | `compliance.csv` | Identificador do registo canónico (ex: `CEIS-132342`) |
+| `tipo_registro` | `compliance.csv` | Cadastro de origem: `CEIS` ou `CNEP` |
+| `orgao_responsavel` | `compliance.csv` | Órgão sancionador informado |
+| `numero_processo` | `compliance.csv` | Número do processo administrativo |
+| `data_inicio` | `compliance.csv` | Data de início da penalidade |
 | `data_fim` | `compliance.csv` | Data final, quando informada |
 | `situacao` | `compliance.csv` | Abrangência da sanção conforme a fonte |
 | `descricao` | `compliance.csv` | Categoria/modalidade da sanção |
 | `observacoes` | `compliance.csv` | Observações publicadas |
-| `fundamentacao_legal` | `compliance.csv` | Fundamentação legal informada |
-| `cnpj_sancionado` | `compliance.csv` | CNPJ da pessoa jurídica indicada no registro |
+| `fundamentacao_legal` | `compliance.csv` | Dispositivo legal referenciado |
+| `cnpj_sancionado` | `compliance.csv` | CNPJ da pessoa jurídica sancionada |
 | `url_fonte` | `compliance.csv` | URL pública do conjunto de dados |
-
-`fonte_id` e `registro_origem` também devem ser preservados por meio da relação com `Fonte` e dos metadados de procedência. `data_fim` vazio não confirma, isoladamente, que a sanção está vigente na data da consulta. A situação temporal deve ser apresentada com as informações e limitações fornecidas pela fonte.
 
 ### 4.6. `Fonte`
 
-**Identificador:** `fonte_id`. Representa uma base ou conjunto de dados utilizado na construção do grafo.
+**Identificador:** `fonte_id`.
 
 | Propriedade | Origem | Descrição |
 |---|---|---|
-| `fonte_id` | `fontes.csv` | Identificador interno da fonte |
+| `fonte_id` | `fontes.csv` | Identificador interno da fonte (ex: `F-CGU-CEIS`) |
 | `nome` | `fontes.csv` | Nome do conjunto de dados |
 | `orgao_responsavel` | `fontes.csv` | Órgão responsável |
 | `url` | `fontes.csv` | URL de consulta ou obtenção |
-| `data_coleta` | `fontes.csv` | Data e hora da coleta |
+| `data_coleta` | `fontes.csv` | Data e hora da recolha (ISO-8601) |
 | `competencia` | `fontes.csv` | Competência ou referência temporal |
-| `arquivo_origem` | `fontes.csv` | Arquivo utilizado na ingestão |
+| `arquivo_origem` | `fontes.csv` | Ficheiro utilizado na ingestão |
 
-A entidade permite rastrear a procedência de empresas, estabelecimentos, sócios, CNAEs e sanções, bem como a competência e o momento da coleta.
+### 4.7. Trecho
+
+Representa uma passagem textual delimitada (parágrafo, ementa, despacho ou extrato) originada de um documento, publicação ou registo oficial de compliance. Esse nó viabiliza a integração Text-to-Graph, servindo de base para auditoria explicável e recuperação contextual via GraphRAG.
+
+| Propriedade | Tipo | Obrigatório? | Descrição / Exemplo |
+|---|---|---|---|
+| `trecho_id` | String | Sim | Identificador único estável do trecho (ex: `TR-CEIS-132342-01`). Chave exclusiva. |
+| `conteudo` | String | Sim | Texto bruto ou normalizado do trecho/extrato. |
+| `ordem` | Integer | Não | Posição sequencial do trecho no documento/registo de origem (ex: `1`, `2`). |
+| `pagina` | Integer | Não | Número da página no documento fonte, se aplicável. |
+| `data_extracao`| Datetime | Sim | Timestamp em formato ISO-8601 do momento da extração textual. |
+| `fonte_id` | String | Sim | Identificador da fonte primária mantenedora do documento. |
 
 ---
 
@@ -167,7 +167,7 @@ A entidade permite rastrear a procedência de empresas, estabelecimentos, sócio
 
 | Origem | Relacionamento | Destino | Fonte de construção | Regra |
 |---|---|---|---|---|
-| `Socio` | `PARTICIPA_DE` | `Empresa` | `socios.csv` | `Socio` pertence ao registro de QSA cujo `cnpj_basico` corresponde ao da empresa |
+| `Socio` | `PARTICIPA_DE` | `Empresa` | `socios.csv` | `Socio` pertence ao registo de QSA cujo `cnpj_basico` corresponde ao da empresa |
 | `Empresa` | `POSSUI_ESTABELECIMENTO` | `Estabelecimento` | `estabelecimentos.csv` | `Empresa.cnpj_basico` = `Estabelecimento.cnpj_basico` |
 | `Estabelecimento` | `EXERCE_CNAE` | `CNAE` | `estabelecimento_cnaes.csv` | Correspondência conjunta de `cnpj` e `codigo` |
 | `Sancao` | `APLICADA_A` | `Estabelecimento` | `compliance.csv` | `Sancao.cnpj_sancionado` = `Estabelecimento.cnpj` |
@@ -176,16 +176,22 @@ A entidade permite rastrear a procedência de empresas, estabelecimentos, sócio
 | `Socio` | `ORIGINADO_DE` | `Fonte` | `socios.csv` | Correspondência de `fonte_id` |
 | `CNAE` | `ORIGINADO_DE` | `Fonte` | `cnaes.csv` | Correspondência de `fonte_id` |
 | `Sancao` | `ORIGINADO_DE` | `Fonte` | `compliance.csv` | Correspondência de `fonte_id` |
+| `Trecho` | `EXTRATO_DE` | `Sancao` | Pipeline Dev 4 | `registro_id` exato do registo de compliance ao qual o trecho pertence |
+| `Trecho` | `ORIGINADO_DE` | `Fonte` | Pipeline Dev 4 | `fonte_id` exato da fonte institucional catalogada |
+| `Trecho` | `MENCIONA` | `Estabelecimento` | Pipeline Dev 4 | CNPJ de 14 posições citado no texto idêntico a `Estabelecimento.cnpj`; atributo `status: "CANDIDATA"` |
+
+> **Nota Metodológica sobre o relacionamento `MENCIONA`:**  
+> A relação `MENCIONA` representa estritamente uma ocorrência textual candidata extraída da publicação, não constituindo por si só prova de vínculo jurídico, responsabilidade civil, administrativa ou solidariedade.
 
 ### 5.1. Propriedades dos relacionamentos
 
-- **`PARTICIPA_DE`:** preservar `qualificacao`, `data_entrada` e, quando necessário para auditoria, `registro_origem`. Representa o que está registrado no QSA na competência coletada; não comprova, por si só, controle societário atual.
-- **`POSSUI_ESTABELECIMENTO`:** pode preservar `registro_origem` e a referência da fonte do registro cadastral que sustenta a associação.
-- **`EXERCE_CNAE`:** preservar `principal` (booleano ou representação equivalente do CSV), `registro_origem` e a referência da fonte. `principal` distingue a atividade principal das secundárias.
-- **`APLICADA_A`:** preservar a referência ao registro de origem e o identificador utilizado na associação. A regra de criação é a igualdade exata do CNPJ completo após normalização formal; não utilizar similaridade textual.
-- **`ORIGINADO_DE`:** preservar, quando necessário, o identificador do registro original (`registro_origem`). `Fonte` fornece URL, órgão, competência, data de coleta e arquivo de origem.
-
-A implementação pode armazenar `fonte_id` como propriedade auxiliar da relação, mas a ligação com o nó `Fonte` deve continuar sendo a representação explícita da proveniência no grafo.
+- **`PARTICIPA_DE`:** `qualificacao`, `data_entrada`, `registro_origem`.
+- **`POSSUI_ESTABELECIMENTO`:** `registro_origem`, procedência.
+- **`EXERCE_CNAE`:** `principal` (booleano), `registro_origem`.
+- **`APLICADA_A`:** `registro_origem`, `cnpj_sancionado`.
+- **`ORIGINADO_DE`:** `registro_origem`.
+- **`EXTRATO_DE`:** data da vinculação, contexto do extrato.
+- **`MENCIONA`:** `status` (definido como `"CANDIDATA"`), `offset_inicio`, `offset_fim` (posições no texto).
 
 ### 5.2. Cardinalidades conceituais
 
@@ -196,8 +202,8 @@ A implementação pode armazenar `fonte_id` como propriedade auxiliar da relaç�
 | `Estabelecimento` — `EXERCE_CNAE` — `CNAE` | Um estabelecimento pode estar associado a várias atividades; um CNAE pode estar associado a vários estabelecimentos |
 | `Sancao` — `APLICADA_A` — `Estabelecimento` | Cada registro canônico de sanção aponta para o estabelecimento identificado pelo CNPJ informado |
 | Entidade — `ORIGINADO_DE` — `Fonte` | Uma fonte pode originar muitos registros; cada registro canônico possui a fonte indicada em seu `fonte_id` |
-
-A cardinalidade geral de participação societária pode ser N:N no domínio, mas a amostra atual não permite identificar globalmente a mesma pessoa entre empresas. A modelagem não deve criar essa conexão apenas por nome.
+| `Trecho` — `EXTRATO_DE` — `Sancao` | Uma sanção pode conter múltiplos trechos/extratos textuais; cada trecho referencia uma sanção de origem |
+| `Trecho` — `MENCIONA` — `Estabelecimento` | Um trecho pode citar zero, um ou mais estabelecimentos (candidatos); um estabelecimento pode ser mencionado em múltiplos trechos |
 
 ---
 
@@ -205,163 +211,135 @@ A cardinalidade geral de participação societária pode ser N:N no domínio, ma
 
 ### 6.1. CNPJ
 
-- `cnpj_basico`: oito caracteres, armazenados como string.
-- `cnpj`: quatorze caracteres, armazenados como string.
-- CNPJ completo: doze caracteres alfanuméricos seguidos de dois dígitos numéricos.
-- Remover pontuação e espaços externos para comparação, preservando letras em caixa alta.
-- Não remover zeros à esquerda.
-- A checagem de formato não substitui a validação oficial dos dígitos verificadores.
+- `cnpj_basico`: oito carateres alfanuméricos como string.
+- `cnpj`: 14 carateres estruturais como string.
+- Remoção de pontuações, manutenção estrita de zeros à esquerda.
+- CNPJ completo: doze carateres alfanuméricos seguidos de dois dígitos numéricos.
 
-### 6.2. Associação entre sanção e estabelecimento
+### 6.2. Associação de Sanção e Estabelecimento
 
-O vínculo é criado exclusivamente quando:
+O vínculo é criado exclusivamente quando `compliance.csv.cnpj_sancionado == estabelecimentos.csv.cnpj`. O caminho para alcançar a entidade legal básica é:
 
 ```text
-compliance.csv.cnpj_sancionado
-    ==
-estabelecimentos.csv.cnpj
-```
-
-A associação deve ocorrer após a normalização formal do CNPJ. No recorte documentado pelo Dev 2, todos os registros canônicos de compliance possuem correspondência cadastral. Se uma futura carga apresentar registro sem correspondência, ele deve permanecer sem ligação ou ser encaminhado para análise; não deve ser associado por nome.
-
-A empresa correspondente pode ser alcançada pelo caminho:
-
-```text
-(Sancao)-[:APLICADA_A]->(Estabelecimento)
-(Estabelecimento)<-[:POSSUI_ESTABELECIMENTO]-(Empresa)
+(Sancao)-[:APLICADA_A]->(Estabelecimento)<-[:POSSUI_ESTABELECIMENTO]-(Empresa)
 ```
 
 Esse caminho não equivale a uma sanção aplicada automaticamente a todos os estabelecimentos da raiz, nem autoriza inferir responsabilidade de sócios ou de outras empresas relacionadas.
 
-### 6.3. Identidade dos sócios
+### 6.3. Identidade dos Sócios
 
-- Não armazenar CPF bruto.
-- Não deduplicar registros por nome.
-- Tratar `socio_id` como chave técnica de ocorrência, com escopo limitado à empresa conforme o algoritmo do Dev 2.
-- Não afirmar que dois registros de mesmo nome em empresas diferentes representam a mesma pessoa.
-- Não criar relacionamentos societários indiretos ou compartilhados sem identificador estável, permitido e validado.
+- Sem armazenamento de CPF bruto.
+- `socio_id` é chave técnica local ao QSA da empresa (`cnpj_basico + index + nome`). Não fundir registos por homonímia nem afirmar identidade entre pessoas de empresas distintas sem identificador nacional validado.
 
 ### 6.4. Dados ausentes e temporalidade
 
 - Campos vazios permanecem ausentes; não devem ser substituídos por valores inferidos.
 - A ausência de `data_fim` não comprova vigência atual.
-- A ausência de uma empresa ou sanção no recorte não comprova inexistência do registro em toda a base pública.
-- A competência e a data de coleta devem ser consultadas em `Fonte`.
-- O modelo inicial representa o snapshot coletado. Histórico de alterações cadastrais ou societárias exige snapshots sucessivos e estratégia de versionamento, não contemplados automaticamente pelos CSVs atuais.
+- A competência e a data de recolha devem ser consultadas em `Fonte`.
+
+---
 
 ## 7. Consultas que o modelo deve suportar
 
 1. **Perfil empresarial:** recuperar uma empresa por `cnpj_basico` e listar estabelecimentos, situação cadastral, localização e CNAEs.
-2. **Quadro societário:** listar os registros de sócios associados a uma empresa, com qualificação, data de entrada quando disponível e fonte.
-3. **Registros de compliance:** identificar registros CEIS/CNEP associados a um estabelecimento por correspondência exata do CNPJ, apresentando categoria, órgão, datas, processo e fonte.
-4. **Caminho societário explicável:** verificar se uma empresa consultada está conectada, por meio de registros de sócios cuja identidade seja efetivamente confirmada, a outra empresa associada a registro CEIS/CNEP. Com o identificador de sócio atualmente descrito pelo Dev 2, essa consulta entre empresas não deve ser habilitada por simples igualdade de nome.
-5. **Proveniência:** recuperar fonte, URL, competência, data de coleta, arquivo e registro de origem que sustentam um nó ou relacionamento.
-6. **Atividades econômicas:** listar CNAEs principais e secundários de cada estabelecimento, preservando o indicador `principal`.
+2. **Quadro societário:** listar os registos de sócios associados a uma empresa, com qualificação, data de entrada e fonte.
+3. **Registros de compliance:** identificar registos CEIS/CNEP associados a um estabelecimento por correspondência exata do CNPJ, apresentando modalidade, processo e fonte.
+4. **Caminho societário explicável:** rastreabilidade de vínculos comprovados sem deduplicação arbitrária de nomes.
+5. **Proveniência:** recuperar fonte, URL, competência, data de recolha e ficheiro que sustentam qualquer nó ou relação.
+6. **Atividades económicas:** listar CNAEs principais e secundários de cada estabelecimento.
+7. **Evidências textuais e menções candidatas:** recuperar trechos textuais relacionados a um registo de compliance (`Sancao`), exibir a fonte oficial e validar menções a estabelecimentos classificadas como candidatas:
 
-Toda consulta que apresente um caminho de múltiplos saltos deve exibir os nós e relacionamentos intermediários, além dos identificadores e fontes que justificam cada ligação.
+```cypher
+MATCH (s:Sancao {registro_id: $registro_id})<-[:EXTRATO_DE]-(t:Trecho)-[:ORIGINADO_DE]->(f:Fonte)
+OPTIONAL MATCH (t)-[m:MENCIONA]->(e:Estabelecimento)
+RETURN t.trecho_id AS trecho,
+       t.conteudo AS texto,
+       f.nome AS fonte,
+       collect({cnpj: e.cnpj, status: m.status}) AS mencoes_candidatas;
+```
+
+---
 
 ## 8. Constraints e índices
 
-As restrições de unicidade devem refletir as chaves do contrato canônico:
+As restrições de unicidade refletem as chaves do contrato canónico e da extensão Text-to-Graph:
 
-| Label / relação | Chave candidata |
-|---|---|
-| `Empresa` | `cnpj_basico` |
-| `Estabelecimento` | `cnpj` |
-| `Socio` | `socio_id` |
-| `CNAE` | `codigo` |
-| `Sancao` | `registro_id` |
-| `Fonte` | `fonte_id` |
+| Label / relação | Chave candidata | Tipo de Restrição |
+|---|---|---|
+| `Empresa` | `cnpj_basico` | `IS UNIQUE` |
+| `Estabelecimento` | `cnpj` | `IS UNIQUE` |
+| `Socio` | `socio_id` | `IS UNIQUE` |
+| `CNAE` | `codigo` | `IS UNIQUE` |
+| `Sancao` | `registro_id` | `IS UNIQUE` |
+| `Fonte` | `fonte_id` | `IS UNIQUE` |
+| `Trecho` | `trecho_id` | `IS UNIQUE` |
 
-Para `EXERCE_CNAE`, a combinação `cnpj` + `codigo` é a chave composta do arquivo de associação; a implementação deve evitar duplicar a mesma relação para o mesmo par de nós.
+Para `EXERCE_CNAE`, a combinação `cnpj` + `codigo` forma a chave composta do vínculo.
 
-Índices adicionais devem ser criados apenas quando houver consultas que os justifiquem. Candidatos para avaliação:
-
-- `Estabelecimento.situacao_cadastral`, `uf` e `municipio`;
-- `Empresa.porte`;
-- `Sancao.tipo_registro`, `numero_processo` e `situacao`;
-- índices full-text para `Empresa.razao_social`, `Socio.nome` e campos textuais de `Sancao`, caso a busca textual seja necessária.
-
-A busca textual por nome deve servir à descoberta de candidatos, nunca como critério suficiente para estabelecer identidade ou criar relacionamentos.
-
-Não há, no contrato canônico atual, campos `embedding` ou `modeloEmbedding`. Portanto, índice vetorial e recuperação semântica por embeddings não fazem parte do núcleo desta modelagem. Poderão ser adicionados quando houver corpus textual, processo de geração de embeddings e modelo/dimensão definidos.
-
-As constraints e sintaxes devem ser conferidas na versão e edição do Neo4j utilizadas pelo grupo.
+---
 
 ## 9. Entidades e funcionalidades fora do núcleo inicial
 
-As entidades abaixo apareciam em rascunhos anteriores, mas não são sustentadas diretamente pelos sete CSVs canônicos atuais. Por isso, não integram o modelo inicial:
-
-| Entidade/funcionalidade | Motivo para não integrar o núcleo atual | Condição para inclusão futura |
+| Entidade / Funcionalidade | Situação no Modelo | Condição / Responsabilidade |
 |---|---|---|
-| `Documento` | Os CSVs preservam URLs, arquivos e referências de origem, mas não constituem corpus documental modelado como nós independentes | Ingestão e catalogação efetiva de documentos, com identificadores e metadados próprios |
-| `Trecho` | Não há tabela canônica de trechos extraídos nem embeddings no contrato atual | Extração de trechos, vínculo com documentos/registros e definição do modelo de embeddings |
-| `RegimeTributario` | Não há dataset canônico específico de regime tributário nesta amostra; `porte` não equivale a regime | Fonte oficial específica e campos que comprovem opção, enquadramento e períodos |
-| `RegraTributaria` | Não há corpus normativo selecionado e estruturado nesta entrega | Seleção de normas oficiais, extração de regras, vigência e validação documental/jurídica |
-| Identidade global de sócios | `socio_id` possui escopo por empresa e não identifica a mesma pessoa entre empresas | Identificador estável, legalmente utilizável e processo de resolução validado |
+| `Trecho` | **Integrado ao modelo conceitual** como parte da extensão Text-to-Graph | Produzido pelo pipeline do marco Dev 4, ligando-se a `Sancao`, `Fonte` e `Estabelecimento`; embeddings e busca vetorial são responsabilidade posterior do Dev 5 |
+| `Documento` | Preservado como metadados de fonte e arquivo de origem | Ingestão futura de arquivos binários completos (PDFs na íntegra) |
+| `RegimeTributario` | Não integra o núcleo atual; porte não equivale a regime tributário | Disponibilização de base pública oficial específica com histórico de enquadramento |
+| `RegraTributaria` | Não integra o núcleo atual | Corpus normativo estruturado e validação jurídica |
+| Identidade global de sócios | `socio_id` possui escopo estrito por empresa | Identificador desidentificado nacional oficial ou resolução de entidades comprovada |
 
-Esses itens podem ser apresentados como possibilidades de evolução, sem afirmar que já foram coletados, implementados ou validados.
+---
 
 ## 10. Limitações e cuidados de interpretação
 
-1. **Cobertura da amostra:** os resultados representam o recorte canônico documentado, não a totalidade das empresas brasileiras nem a totalidade dos registros CEIS/CNEP.
-2. **Temporalidade:** os dados refletem a competência e o momento de coleta registrados em `Fonte`. Alterações posteriores podem não estar representadas.
-3. **Identidade societária:** a chave técnica atual de sócios não permite deduplicação confiável entre empresas distintas.
-4. **Correspondência de compliance:** o vínculo depende da disponibilidade e compatibilidade do CNPJ completo. Registros sem identificador confiável não devem ser associados.
-5. **Interpretação de sanções:** os campos do cadastro devem ser exibidos com sua terminologia de origem. Não concluir automaticamente que uma sanção está vigente, que representa fraude ou que alcança sócios, empresas relacionadas ou todos os estabelecimentos.
-6. **Dados cadastrais:** situação cadastral, porte, natureza jurídica e CNAE descrevem informações cadastrais; isoladamente, não demonstram regularidade ou irregularidade fiscal.
-7. **Ausência de registro:** não encontrar uma empresa no recorte consultado não prova que ela não possua registros em outras bases ou competências.
+1. **Cobertura da amostra:** representa o recorte canónico representativo documentado.
+2. **Temporalidade:** reflete a competência e o momento de recolha registados em `Fonte`.
+3. **Identidade societária:** `socio_id` não deve ser usado para deduplicar pessoas nem para presumir identidade entre empresas distintas.
+4. **Caráter das menções textuais:** a relação `MENCIONA` é candidata e meramente textual, não indicando corresponsabilidade ou irregularidade da pessoa jurídica mencionada.
+5. **Interpretação de sanções:** sanções devem ser exibidas com sua terminologia original, sem presunção de vigência além dos dados publicados.
+
+---
 
 ## 11. Alinhamento com a implementação
 
-Antes da integração, conferir:
+Antes da integração no Neo4j, conferir:
+- Se as constraints de unicidade (incluindo `Trecho.trecho_id`) foram aplicadas via scripts Cypher;
+- Se a ingestão preserva o formato de string dos identificadores;
+- Se os scripts de carga conectam adequadamente os nós às suas respetivas fontes;
+- Se as consultas multi-hop utilizam as convenções nominais estabelecidas neste documento.
 
-- se os cabeçalhos e tipos dos sete CSVs em `data/processed/canonical/` correspondem às propriedades descritas;
-- se as chaves únicas são aplicadas conforme a seção 8;
-- se a ingestão preserva zeros à esquerda e o formato alfanumérico do CNPJ;
-- se `PARTICIPA_DE`, `POSSUI_ESTABELECIMENTO`, `EXERCE_CNAE` e `APLICADA_A` obedecem às regras de associação deste documento;
-- se `ORIGINADO_DE` preserva a procedência de cada registro;
-- se o diagrama conceitual e o schema Cypher representam o mesmo conjunto de entidades, relações e propriedades;
-- se a quantidade de registros carregados corresponde à versão efetiva dos CSVs, sem assumir que a seleção inicial de 18 CNPJs foi integralmente carregada.
-
-O validador estrutural do Dev 2 verifica cabeçalhos, chaves e formatos básicos, mas a documentação ressalta que a qualidade semântica deve ser revisada manualmente. A validação estrutural não substitui a conferência das correspondências e da interpretação dos dados.
+---
 
 ## 12. Referências e documentação de apoio
 
 - Receita Federal do Brasil — Dados abertos: <https://www.gov.br/receitafederal/dados>
-- Receita Federal do Brasil — Layout e metadados do CNPJ: <https://www.gov.br/receitafederal/dados/cnpj-metadados.pdf>
-- Receita Federal do Brasil — CNPJ alfanumérico: <https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/cnpj-alfanumerico/cnpj-alfa>
 - Portal da Transparência — Download CEIS: <https://portaldatransparencia.gov.br/download-de-dados/ceis>
-- Portal da Transparência — Dicionário CEIS: <https://portaldatransparencia.gov.br/dicionario-de-dados/ceis>
 - Portal da Transparência — Download CNEP: <https://portaldatransparencia.gov.br/download-de-dados/cnep>
-- Portal da Transparência — Dicionário CNEP: <https://portaldatransparencia.gov.br/dicionario-de-dados/cnep>
-- IBGE/CONCLA — Classificação Nacional de Atividades Econômicas: <https://concla.ibge.gov.br/>
-- Neo4j — Constraints: <https://neo4j.com/docs/cypher-manual/current/schema/constraints/>
-- Neo4j — Full-text indexes: <https://neo4j.com/docs/cypher-manual/current/indexes/semantic-indexes/full-text-indexes/>
+- IBGE/CONCLA — Classificação Nacional de Atividades Económicas: <https://concla.ibge.gov.br/>
+- Documentos internos de base: `docs/fontes-datasets.md`, `docs/dicionario-dados.md`, `docs/ADENDO_MODELO_TRECHO.md`, `cypher/01_schema_fiscalgraph.cypher`.
 
-**Documentos internos que fundamentam esta modelagem:**
-- `docs/fontes-datasets.md`
-- `docs/dicionario-dados.md`
-- `scripts/build_canonical_dataset.py`
-- `scripts/validate_canonical_data.py`
-- CSVs em `data/processed/canonical/`
+---
 
 ## 13. Diagrama lógico em Mermaid (referência textual)
 
-O diagrama visual da entrega deve representar o núcleo inicial abaixo. A sintaxe pode ser reutilizada como base para o arquivo em `diagrams/`.
+O diagrama visual atualizado abaixo representa a arquitetura integrada do FiscalGraph BR, incluindo a extensão documental/textual:
 
 ```mermaid
 flowchart LR
     S[Socio] -->|PARTICIPA_DE| E[Empresa]
     E -->|POSSUI_ESTABELECIMENTO| EST[Estabelecimento]
     EST -->|EXERCE_CNAE| C[CNAE]
-    SAN[Sancao] -->|APLICADA_A por CNPJ exato| EST
+    SAN[Sancao] -->|APLICADA_A| EST
 
-    E -->|ORIGINADO_DE| F[Fonte]
+    T[Trecho] -->|EXTRATO_DE| SAN
+    T -->|MENCIONA| EST
+    T -->|ORIGINADO_DE| F[Fonte]
+
+    E -->|ORIGINADO_DE| F
     EST -->|ORIGINADO_DE| F
     S -->|ORIGINADO_DE| F
     C -->|ORIGINADO_DE| F
     SAN -->|ORIGINADO_DE| F
 ```
 
-O diagrama é uma representação resumida. As propriedades dos nós, regras de associação, cardinalidades e limitações estão definidas nas seções anteriores.
+Propriedades dos nós, regras de associação, cardinalidades e limitações metodológicas estão detalhadas nas seções anteriores.

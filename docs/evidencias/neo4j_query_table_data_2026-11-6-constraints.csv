@@ -1,0 +1,8 @@
+id,name,type,entityType,labelsOrTypes,properties,ownedIndex,propertyType
+10,cst_cnae_codigo,UNIQUENESS,NODE,[CNAE],[codigo],cst_cnae_codigo,null
+4,cst_empresa_cnpj_basico,UNIQUENESS,NODE,[Empresa],[cnpj_basico],cst_empresa_cnpj_basico,null
+6,cst_estabelecimento_cnpj,UNIQUENESS,NODE,[Estabelecimento],[cnpj],cst_estabelecimento_cnpj,null
+14,cst_fonte_id,UNIQUENESS,NODE,[Fonte],[fonte_id],cst_fonte_id,null
+12,cst_sancao_registro_id,UNIQUENESS,NODE,[Sancao],[registro_id],cst_sancao_registro_id,null
+8,cst_socio_id,UNIQUENESS,NODE,[Socio],[socio_id],cst_socio_id,null
+16,cst_trecho_id,UNIQUENESS,NODE,[Trecho],[trecho_id],cst_trecho_id,null

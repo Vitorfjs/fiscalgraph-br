@@ -2,56 +2,20 @@
 title: FiscalGraph BR — Modelo conceitual LPG
 ---
 flowchart LR
-    %% =====================================================
-    %% Núcleo conceitual do FiscalGraph BR
-    %% Base: CSVs canônicos documentados pelo Dev 2
-    %% =====================================================
+    S["Socio<br/>socio_id · nome · qualificacao"] -->|PARTICIPA_DE| E["Empresa<br/>cnpj_basico · razao_social"]
+    E -->|POSSUI_ESTABELECIMENTO| EST["Estabelecimento<br/>cnpj · situacao_cadastral · UF · municipio"]
+    EST -->|EXERCE_CNAE<br/>principal| C["CNAE<br/>codigo · descricao"]
+    SAN["Sancao<br/>registro_id · tipo_registro · datas · descricao"] -->|APLICADA_A<br/>CNPJ exato| EST
 
-    subgraph CAD["A. Cadastro empresarial e vínculos societários"]
-        direction LR
-        S["**Socio**<br/>socio_id · nome · tipo_pessoa<br/>qualificacao · data_entrada"]
-        E["**Empresa**<br/>cnpj_basico · razao_social<br/>natureza_juridica · porte · capital_social"]
-        EST["**Estabelecimento**<br/>cnpj · cnpj_basico · nome_fantasia<br/>situacao_cadastral · data_inicio_atividade<br/>uf · municipio"]
-        C["**CNAE**<br/>codigo · descricao"]
+    T["Trecho<br/>trecho_id · texto · metodo_extracao"] -->|EXTRATO_DE<br/>registro_id exato| SAN
+    T -->|MENCIONA<br/>CNPJ exato · CANDIDATA| EST
 
-        S -->|PARTICIPA_DE<br/>qualificacao · data_entrada| E
-        E -->|POSSUI_ESTABELECIMENTO<br/>raiz CNPJ compatível| EST
-        EST -->|EXERCE_CNAE<br/>principal · registro_origem| C
-    end
-
-    subgraph COMP["B. Compliance empresarial"]
-        direction LR
-        SAN["**Sancao**<br/>registro_id · tipo_registro (CEIS/CNEP)<br/>orgao_responsavel · numero_processo<br/>data_inicio · data_fim · situacao<br/>descricao · fundamentacao_legal<br/>cnpj_sancionado · url_fonte"]
-        REGRA["**Regra de associação**<br/>CNPJ completo normalizado<br/>correspondência exata<br/>sem associação por nome"]
-        SAN -->|APLICADA_A| EST
-        REGRA -.->|critério obrigatório| SAN
-    end
-
-    subgraph PROV["C. Proveniência e rastreabilidade"]
-        direction TB
-        F[("**Fonte**<br/>fonte_id · nome<br/>orgao_responsavel · url<br/>competencia · data_coleta<br/>arquivo_origem")]
-    end
-
-    %% Proveniência: cada tipo de registro mantém a fonte indicada por fonte_id.
-    E -.->|ORIGINADO_DE| F
+    E -.->|ORIGINADO_DE| F[("Fonte<br/>fonte_id · URL · competencia · data_coleta")]
     EST -.->|ORIGINADO_DE| F
     S -.->|ORIGINADO_DE| F
     C -.->|ORIGINADO_DE| F
     SAN -.->|ORIGINADO_DE| F
+    T -.->|ORIGINADO_DE| F
 
-    %% Estilos
-    classDef pessoa fill:#e0f2e6,stroke:#43845b,color:#183b28,stroke-width:1.5px;
-    classDef cadastro fill:#deebf7,stroke:#416b9a,color:#20364f,stroke-width:1.5px;
-    classDef compliance fill:#f9dfdf,stroke:#bd5b5b,color:#542626,stroke-width:1.5px;
-    classDef fonte fill:#eee5fa,stroke:#8066a8,color:#382b50,stroke-width:1.5px;
-    classDef regra fill:#fff0d8,stroke:#bd8127,color:#523a16,stroke-width:1.3px;
-
-    class S pessoa;
-    class E,EST,C cadastro;
-    class SAN compliance;
-    class F fonte;
-    class REGRA regra;
-
-    style CAD fill:#f5faff,stroke:#c8dced,stroke-width:1.2px
-    style COMP fill:#fff8f8,stroke:#eed0d0,stroke-width:1.2px
-    style PROV fill:#faf7ff,stroke:#ded2ef,stroke-width:1.2px
+    classDef candidate stroke-dasharray: 5 5;
+    class T candidate;
