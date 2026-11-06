@@ -21,8 +21,8 @@ from pathlib import Path
 RAW_DIR = Path("data/raw")
 OUT_DIR = Path("data/processed/canonical")
 
-CEIS_FILE = RAW_DIR / "20261104_CEIS.csv"
-CNEP_FILE = RAW_DIR / "20261104_CNEP.csv"
+CEIS_FILE = RAW_DIR / "20261105_CEIS.csv"
+CNEP_FILE = RAW_DIR / "20261105_CNEP.csv"
 
 def parse_date(date_str: str) -> str:
     date_str = (date_str or "").strip().strip("'\"")
@@ -85,7 +85,7 @@ def main():
                 "cnpj_sancionado": doc,
                 "fonte_id": "F-CGU-CEIS",
                 "url_fonte": "https://portaldatransparencia.gov.br/download-de-dados/ceis",
-                "registro_origem": f"20261104_CEIS.csv:L{line_num}"
+                "registro_origem": f"20261105_CEIS.csv:L{line_num}"
             }
             ceis_records_by_cnpj.setdefault(doc, []).append(rec)
             
@@ -119,7 +119,7 @@ def main():
                 "cnpj_sancionado": doc,
                 "fonte_id": "F-CGU-CNEP",
                 "url_fonte": "https://portaldatransparencia.gov.br/download-de-dados/cnep",
-                "registro_origem": f"20261104_CNEP.csv:L{line_num}"
+                "registro_origem": f"20261105_CNEP.csv:L{line_num}"
             }
             cnep_records_by_cnpj.setdefault(doc, []).append(rec)
 
@@ -144,6 +144,7 @@ def main():
     compliance_rows = []
     
     print("3. Coletando dados cadastrais oficiais e montando tabelas canônicas...")
+    skipped_cnpjs = []
     for idx, cnpj in enumerate(selected_cnpjs, start=1):
         cnpj_str = str(cnpj).zfill(14)
         cnpj_basico = cnpj_str[:8]
@@ -163,7 +164,10 @@ def main():
                 time.sleep(3)
                 
         if not data:
-            print(f"   Não foi possível obter dados cadastrais para {cnpj_str}; pulando.")
+            skipped_cnpjs.append({
+                "cnpj": cnpj_str,
+                "motivo": "API de consulta cadastral não retornou dados após as tentativas"
+            })
             continue
             
         razao = clean_text(data.get("razao_social", ""))
@@ -233,7 +237,12 @@ def main():
             s_nome = clean_text(socio.get("nome_socio", ""))
             s_qualif = clean_text(socio.get("qualificacao_socio", ""))
             s_data_ent = parse_date(socio.get("data_entrada_sociedade", ""))
-            s_tipo = "PESSOA FISICA" if socio.get("identificador_de_socio") == 2 else "PESSOA JURIDICA"
+            try:
+                identificador_socio = int(socio.get("identificador_de_socio") or 0)
+            except (TypeError, ValueError):
+                identificador_socio = -1
+
+            s_tipo = "PESSOA FISICA" if identificador_socio == 2 else "PESSOA JURIDICA"
             
             socio_id = generate_socio_id(cnpj_basico, s_nome, s_idx)
             socios_rows.append({
@@ -275,7 +284,7 @@ def main():
             "url": "https://portaldatransparencia.gov.br/download-de-dados/ceis",
             "data_coleta": "2026-11-05T10:34:00-03:00",
             "competencia": "2026-11-04",
-            "arquivo_origem": "20261104_CEIS.csv"
+            "arquivo_origem": "20261105_CEIS.csv"
         },
         {
             "fonte_id": "F-CGU-CNEP",
@@ -284,14 +293,14 @@ def main():
             "url": "https://portaldatransparencia.gov.br/download-de-dados/cnep",
             "data_coleta": "2026-11-05T10:34:00-03:00",
             "competencia": "2026-11-04",
-            "arquivo_origem": "20261104_CNEP.csv"
+            "arquivo_origem": "20261105_CNEP.csv"
         },
         {
             "fonte_id": "F-RFB-CNPJ",
             "nome": "Cadastro Nacional da Pessoa Jurídica",
             "orgao_responsavel": "Secretaria Especial da Receita Federal do Brasil",
             "url": "https://dados.gov.br/dados/conjuntos-dados/cadastro-nacional-da-pessoa-juridica---cnpj",
-            "data_coleta": "2026-11-05T10:42:00-03:00",
+            "data_coleta": "2026-11-05T10:44:00-03:00",
             "competencia": "2026-11-04",
             "arquivo_origem": "Receita Federal (Espelho de Dados Abertos)"
         },
@@ -327,6 +336,26 @@ def main():
     write_canonical("compliance.csv", ["registro_id", "tipo_registro", "orgao_responsavel", "numero_processo", "data_inicio", "data_fim", "situacao", "descricao", "observacoes", "fundamentacao_legal", "cnpj_sancionado", "fonte_id", "url_fonte", "registro_origem"], compliance_rows)
     
     print("Processamento concluído com sucesso!")
+    
+    build_report = {
+        "execucao_em": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "cnpjs_planejados": len(selected_cnpjs),
+        "empresas_geradas": len(empresas_rows),
+        "cnpjs_sem_resposta_cadastral": skipped_cnpjs,
+        "execucao_parcial": bool(skipped_cnpjs),
+        "arquivos_gerados": [
+            "fontes.csv", "empresas.csv", "estabelecimentos.csv",
+            "cnaes.csv", "estabelecimento_cnaes.csv", "socios.csv", "compliance.csv"
+        ]
+    }
+    (OUT_DIR / "build_report.json").write_text(
+        json.dumps(build_report, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8"
+    )
+    print(f"Empresas geradas: {len(empresas_rows)} de {len(selected_cnpjs)} selecionadas.")
+    print(f"Consultas cadastrais sem retorno: {len(skipped_cnpjs)}.")
+    if skipped_cnpjs:
+        print("ATENÇÃO: amostra parcial. Consulte build_report.json.")
 
 if __name__ == "__main__":
     main()
