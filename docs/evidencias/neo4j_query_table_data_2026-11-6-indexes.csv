@@ -6,10 +6,11 @@ id,name,state,populationPercent,type,entityType,labelsOrTypes,properties,indexPr
 11,cst_sancao_registro_id,ONLINE,100.0,RANGE,NODE,[Sancao],[registro_id],range-1.0,cst_sancao_registro_id,null,0
 7,cst_socio_id,ONLINE,100.0,RANGE,NODE,[Socio],[socio_id],range-1.0,cst_socio_id,null,0
 15,cst_trecho_id,ONLINE,100.0,RANGE,NODE,[Trecho],[trecho_id],range-1.0,cst_trecho_id,null,0
-21,idx_busca_textual,ONLINE,100.0,FULLTEXT,NODE,"[Empresa, Socio, Sancao, Trecho]","[razao_social, nome, descricao, observacoes, conteudo]",fulltext-1.0,null,null,0
+22,empresa_porte_idx,ONLINE,100.0,RANGE,NODE,[Empresa],[porte],range-1.0,null,null,0
+21,fiscalgraph_text_fulltext,ONLINE,100.0,FULLTEXT,NODE,"[Empresa, Socio, Sancao, Trecho]","[razao_social, nome, descricao, observacoes, fundamentacao_legal, texto]",fulltext-1.0,null,null,0
 18,idx_estabelecimento_situacao,ONLINE,100.0,RANGE,NODE,[Estabelecimento],[situacao_cadastral],range-1.0,null,null,0
 17,idx_estabelecimento_uf_municipio,ONLINE,100.0,RANGE,NODE,[Estabelecimento],"[uf, municipio]",range-1.0,null,null,0
-20,idx_sancao_orgao,ONLINE,100.0,RANGE,NODE,[Sancao],[orgao_responsavel],range-1.0,null,null,0
 19,idx_sancao_tipo_registro,ONLINE,100.0,RANGE,NODE,[Sancao],[tipo_registro],range-1.0,null,null,0
 1,index_343aff4e,ONLINE,100.0,LOOKUP,NODE,null,null,token-lookup-1.0,null,null,0
 2,index_f7700477,ONLINE,100.0,LOOKUP,RELATIONSHIP,null,null,token-lookup-1.0,null,null,0
+23,sancao_numero_processo_idx,ONLINE,100.0,RANGE,NODE,[Sancao],[numero_processo],range-1.0,null,null,0

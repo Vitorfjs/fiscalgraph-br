@@ -79,7 +79,7 @@ Executar as consultas do arquivo `cypher/02_validacao_schema.cypher`, uma por ve
 | Verificação | Resultado observado | Esperado |
 | --- | --- | --- |
 | Constraints de unicidade | 7 constraints ativas | 7 constraints nomeadas |
-| Índices | 14 índices (7 RANGE de apoio, índices de filtro, 1 FULLTEXT e 2 LOOKUP); estado ONLINE | Índices criados; estado ONLINE |
+| Índices | 15 índices (7 RANGE de apoio a constraints, 5 RANGE de filtro, 1 FULLTEXT com texto e fundamentacao_legal, e 2 LOOKUP); estado `ONLINE` | 15 índices criados; estado `ONLINE` |
 | Estabelecimentos sem Empresa | 0 | 0 |
 | Sócios sem Empresa | 0 | 0 |
 | Sanções sem Estabelecimento de CNPJ exato | 0 | 0 |
@@ -130,15 +130,12 @@ Resultado observado:
 
 ## 7. Evidências
 
-As capturas de ecrã do Neo4j Browser comprovando os resultados foram armazenadas em `docs/evidencias/`:
+Os resultados das consultas de conferência de schema, índices e integridade foram exportados e versionados no diretório `docs/evidencias/`:
 
-* `docs/evidencias/01_constraints.png`: `SHOW CONSTRAINTS` exibindo as 7 restrições ativas.
-* `docs/evidencias/02_indexes_online.png`: `SHOW INDEXES` comprovando o estado ONLINE a 100%.
-* `docs/evidencias/03_contagem_nos.png`: contagens de nós (156 no total).
-* `docs/evidencias/04_contagem_relacionamentos.png`: contagens de arestas (295 no total).
-* `docs/evidencias/05_integridade_orfas.png`: verificações de integridade com retorno zero para entidades órfãs.
+- `docs/evidencias/neo4j_query_table_data_2026-11-6-indexes.csv`: resultado de `SHOW INDEXES`, comprovando os 15 índices com estado `ONLINE`, incluindo `fiscalgraph_text_fulltext` cobrindo `texto` e `fundamentacao_legal`, e os índices de filtro `empresa_porte_idx` e `sancao_numero_processo_idx`.
+- `docs/evidencias/neo4j_query_table_data_2026-11-6.csv`: resultado das contagens e checagens estruturais no Neo4j Browser (156 nós, 295 relacionamentos e zero registros órfãos).
 
-Nenhuma credencial, token ou ficheiro `.env` foi exposto nas evidências.
+Caso capturas visuais em formato de imagem (`.png`) sejam disponibilizadas no ambiente local, devem ser salvas sem conter credenciais, tokens ou variáveis de ambiente.
 
 ## 8. Limitações
 
