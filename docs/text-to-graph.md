@@ -10,7 +10,7 @@ GraphRAG (dev5). **Nenhuma menção extraída de texto é tratada como vínculo 
 | --- | --- |
 | `pipeline/text_to_graph/extractor.py` | Lê `compliance.csv`, monta trechos, mascara CPF e extrai menções (CNPJ por regex, ORG por spaCy). Gera `trechos.jsonl`. |
 | `pipeline/text_to_graph/load_graph.py` | Carrega `Trecho` no Neo4j e cria `EXTRATO_DE`, `ORIGINADO_DE` e `MENCIONA` (candidata). Suporta `--database` e `--dry-run`. |
-| `tests/test_text_to_graph.py` | 28 testes unitários com dados sintéticos (sem Neo4j e sem spaCy). |
+| `tests/test_text_to_graph.py` | 31 testes unitários com dados sintéticos (sem Neo4j e sem spaCy). |
 | `data/fixtures/compliance_sintetico.csv` | Fixture 100% sintética; não representa registro real. |
 | `requirements-dev4.txt` | Dependência adicional: spaCy. |
 
@@ -75,7 +75,7 @@ registrada como pendente.
 
 ## Resultados (execução integrada pós-PR #3 e PR #4)
 
-- **CSV de entrada:** `data/processed/canonical/compliance.csv` integrado à `main` via PR #3 (Dev2) e PR #4 (Dev3); fontes `F-CGU-CEIS` e `F-CGU-CNEP`, competência 2026-11-04.
+- **CSV de entrada:** `data/processed/canonical/compliance.csv` integrado à `main` via PR #3 (Dev2) e PR #4 (Dev3); fontes `F-CGU-CEIS` e `F-CGU-CNEP`, competência 2026-11-05.
 - **Ambiente:** Python 3.13, spaCy 3.8, `pt_core_news_sm` 3.8.0, Neo4j 5.26.
 - **Registros lidos:** 54 registros de compliance (CEIS e CNEP).
 - **Registros sem texto:** 0.
@@ -83,13 +83,13 @@ registrada como pendente.
 - **CPFs mascarados:** 0.
 - **Menções CNPJ:** 2 (2 CNPJs distintos), ambas com correspondência exata ao `cnpj_sancionado` do próprio registro (`CNEP-310577` e `CEIS-289814`).
 - **CNPJs que existem como `Estabelecimento.cnpj` no recorte:** 2 de 2 → ambos vinculados com relação `MENCIONA {status: 'CANDIDATA'}` na carga.
-- **Organizações extraídas via NER:** 6 menções — `Decisão n. 414` (CEIS-278776 e CNEP-278775), `GALVÃO ENGENHARIA`, `Diretoria de Empreendimentos`, `Diretoria Executiva` (CEIS-387835) e `REFIS` (CNEP-349213). Cada menção inclui `valor_normalizado` para agrupamento e resolução leve de entidades.
+- **Organizações extraídas via NER:** 0 menções no artefacto de produção (data/processed/trechos.jsonl). Por padrão de reprodutibilidade e execução leve na pipeline canónica, o extractor foi executado no modo regex determinístico (sem a flag --with-spacy). O suporte a NER via spaCy permanece disponível como extração opcional/experimental; caso executado com --with-spacy, identifica 6 menções sintéticas/nominais, as quais ficam restritas ao atributo mencoes_json sem gerar relacionamentos no grafo.
 - **Validação no Neo4j 5.26 integrado com Dev3:**
   - 54 nós `:Trecho` carregados com sucesso (elevando o total de nós de 156 para 210 no grafo);
   - 54 relações `:EXTRATO_DE` conectadas às sanções correspondentes (0 registros não encontrados);
   - 54 relações `:ORIGINADO_DE` conectadas às fontes oficiais (0 fontes não encontradas; total de 206 ORIGINADO_DE no grafo);
   - 2 relações `:MENCIONA` criadas com `status = 'CANDIDATA'` por correspondência exata de CNPJ (0 menções CNPJ não resolvidas);
-  - 6 menções de organização preservadas em `mencoes_json` sem criar vínculos espúrios por nome;
+  - 0 menções de organização carregadas no subgrafo (o artefacto versionado não inclui NER por ter sido gerado sem spaCy, mantendo 0 vínculos espúrios por nome);
   - **Idempotência validada:** re-execução do loader manteve estritamente a mesma contagem de nós e relações (210 nós e 405 relacionamentos);
   - **Multi-hop validado:** travessia de 4 saltos (`Trecho -> Sancao -> Estabelecimento <- Empresa <- Socio`) retornou 72 caminhos válidos, cobrindo as 18 empresas, 54 sanções e 54 trechos do recorte canônico.
 
