@@ -10,7 +10,7 @@
 | Execução | Docker Compose local (`fiscalgraph-neo4j`) |
 | Data/hora da validação | 2026-11-06T15:16:24-03:00 |
 | Responsável pela execução | Vitor Ferreira Gonçalves Silva |
-| Branch/commit testado | `dev3` |
+| Branch/commit testado | `dev4` |
 
 Consulta para registrar a versão:
 
@@ -85,9 +85,9 @@ Executar as consultas do arquivo `cypher/02_validacao_schema.cypher`, uma por ve
 | Sanções sem Estabelecimento de CNPJ exato | 0 | 0 |
 | Entidades sem ORIGINADO_DE | 0 | 0 após as cargas correspondentes |
 
-### 5.2. Contagem de Nós
+### 5.2. Contagem de Nós Canônicos (Dev3)
 
-| Rótulo (Label) | Resultado observado | Esperado (Snapshot Atual) | Status |
+| Rótulo (Label) | Resultado observado | Esperado (Snapshot Canônico) | Status |
 | --- | --- | --- | --- |
 | Empresa | 18 | 18 | Conforme |
 | Estabelecimento | 18 | 18 | Conforme |
@@ -95,12 +95,11 @@ Executar as consultas do arquivo `cypher/02_validacao_schema.cypher`, uma por ve
 | CNAE | 36 | 36 | Conforme |
 | Sancao | 54 | 54 | Conforme |
 | Fonte | 4 | 4 | Conforme |
-| Trecho | 0 | 0 | Previsto para Dev4 |
-| **Total de Nós** | **156** | **156** | **Íntegro** |
+| **Total de Nós Canônicos** | **156** | **156** | **Íntegro** |
 
-### 5.3. Contagem de Relacionamentos Estruturados
+### 5.3. Contagem de Relacionamentos Estruturados Canônicos (Dev3)
 
-| Tipo de Relacionamento | Resultado observado | Esperado (Snapshot Atual) | Status |
+| Tipo de Relacionamento | Resultado observado | Esperado (Snapshot Canônico) | Status |
 | --- | --- | --- | --- |
 | APLICADA_A | 54 | 54 | Conforme |
 | EXERCE_CNAE | 45 | 45 | Conforme |
@@ -109,9 +108,9 @@ Executar as consultas do arquivo `cypher/02_validacao_schema.cypher`, uma por ve
 | POSSUI_ESTABELECIMENTO | 18 | 18 | Conforme |
 | **Total de Relacionamentos** | **295** | **295** | **Íntegro** |
 
-*(Nota: os 152 relacionamentos `ORIGINADO_DE` ligam as 18 Empresas, 18 Estabelecimentos, 26 Sócios, 36 CNAEs e 54 Sanções às suas respetivas instâncias de Fonte).*
+*(Nota: os 152 relacionamentos `ORIGINADO_DE` canónicos ligam as 18 Empresas, 18 Estabelecimentos, 26 Sócios, 36 CNAEs e 54 Sanções às suas respetivas instâncias de Fonte).*
 
-## 6. Idempotência
+## 6. Idempotência da Carga Canônica
 
 1. Anotar as contagens de nós e relacionamentos após a primeira carga:
 * Total de nós: 156
@@ -132,12 +131,67 @@ Resultado observado:
 
 Os resultados das consultas de conferência de schema, índices e integridade foram exportados e versionados no diretório `docs/evidencias/`:
 
-- `docs/evidencias/neo4j_query_table_data_2026-11-6-indexes.csv`: resultado de `SHOW INDEXES`, comprovando os 15 índices com estado `ONLINE`, incluindo `fiscalgraph_text_fulltext` cobrindo `texto` e `fundamentacao_legal`, e os índices de filtro `empresa_porte_idx` e `sancao_numero_processo_idx`.
-- `docs/evidencias/neo4j_query_table_data_2026-11-6-constraints.csv`: resultado das contagens e checagens estruturais no Neo4j Browser (156 nós, 295 relacionamentos e zero registros órfãos).
+* `docs/evidencias/neo4j_query_table_data_2026-11-6-indexes.csv`: resultado de `SHOW INDEXES`, comprovando os 15 índices com estado `ONLINE`, incluindo `fiscalgraph_text_fulltext` cobrindo `texto` e `fundamentacao_legal`, e os índices de filtro `empresa_porte_idx` e `sancao_numero_processo_idx`.
+* `docs/evidencias/neo4j_query_table_data_2026-11-6-constraints.csv`: resultado das contagens e checagens estruturais no Neo4j Browser (156 nós, 295 relacionamentos e zero registros órfãos).
+* `docs/evidencias/neo4j_query_table_data_dev4_integrado.csv`: resultado da consulta consolidada de nós e arestas após a carga de Dev4, comprovando 210 nós (incluindo 54 Trechos), 405 relacionamentos (incluindo 54 EXTRATO_DE, 54 ORIGINADO_DE de trechos e 2 MENCIONA) e a estabilidade das contagens pós-reexecução.
 
 Caso capturas visuais em formato de imagem (`.png`) sejam disponibilizadas no ambiente local, devem ser salvas sem conter credenciais, tokens ou variáveis de ambiente.
 
-## 8. Limitações
+## 8. Validação da Extensão Text-to-Graph (Dev4)
+
+A etapa Text-to-Graph transforma os campos textuais das sanções em nós `Trecho` e extrai menções textuais de CNPJ vinculando-as como candidatas ao grafo.
+
+### 8.1 Resultados da Carga Integrada
+
+Execução na raiz do repositório:
+
+```bash
+python -m pipeline.text_to_graph.load_graph --input data/processed/trechos.jsonl --batch-size 200
+
+```
+
+Métricas observadas no console e validadas no Neo4j:
+
+* **Trechos carregados**: 54 nós criados.
+* **Registros de compliance não encontrados**: 0 (54/54 conectados via `EXTRATO_DE`).
+* **Fontes não encontradas**: 0 (54/54 conectados via `ORIGINADO_DE`).
+* **Menções CNPJ ligadas como CANDIDATA**: 2 (correspondência exata com `Estabelecimento.cnpj`, com offsets `inicio` e `fim` preservados).
+* **Menções CNPJ não resolvidas**: 0.
+* **Menções ORGANIZACAO carregadas**: 0 (artefato gerado em modo regex estrutural determinístico).
+
+### 8.2 Censo Consolidado do Grafo (Pós Dev3 + Dev4)
+
+| Elemento | Rótulo / Tipo | Carga Canônica (Dev3) | Carga Text-to-Graph (Dev4) | Total Consolidado |
+| --- | --- | --- | --- | --- |
+| **Nós** | `Empresa` | 18 | 0 | 18 |
+|  | `Estabelecimento` | 18 | 0 | 18 |
+|  | `Socio` | 26 | 0 | 26 |
+|  | `CNAE` | 36 | 0 | 36 |
+|  | `Sancao` | 54 | 0 | 54 |
+|  | `Fonte` | 4 | 0 | 4 |
+|  | `Trecho` | 0 | +54 | **54** |
+| **Total de Nós** |  | **156** | **+54** | **210** |
+| **Relacionamentos** | `APLICADA_A` | 54 | 0 | 54 |
+|  | `EXERCE_CNAE` | 45 | 0 | 45 |
+|  | `PARTICIPA_DE` | 26 | 0 | 26 |
+|  | `POSSUI_ESTABELECIMENTO` | 18 | 0 | 18 |
+|  | `ORIGINADO_DE` | 152 | +54 | **206** |
+|  | `EXTRATO_DE` | 0 | +54 | **54** |
+|  | `MENCIONA` | 0 | +2 | **2** |
+| **Total de Relações** |  | **295** | **+110** | **405** |
+
+### 8.3 Idempotência e Integridade Referencial da Carga de Trechos
+
+A reexecução do script `load_graph.py` com `--batch-size 200` manteve as contagens estritamente em **210 nós** e **405 relacionamentos**, comprovando idempotência total:
+
+```cypher
+// Verificação de ausência de registros órfãos
+MATCH (t:Trecho) WHERE NOT (t)-[:EXTRATO_DE]->(:Sancao) RETURN count(t) AS trechos_sem_sancao; // Retorna 0
+MATCH (t:Trecho) WHERE NOT (t)-[:ORIGINADO_DE]->(:Fonte) RETURN count(t) AS trechos_sem_fonte;  // Retorna 0
+
+```
+
+## 9. Limitações
 
 * O carregador valida referências por identificadores e não realiza resolução de identidade por nome.
 * CNPJ é mantido como texto; a validação estrutural não calcula os dígitos verificadores.
@@ -145,6 +199,3 @@ Caso capturas visuais em formato de imagem (`.png`) sejam disponibilizadas no am
 * Os dados representam o snapshot documentado nos arquivos de fonte.
 * O índice vetorial e a geração de embeddings pertencem à etapa Dev5.
 * O nó `Trecho` é gerado a partir dos campos textuais do registro de compliance; `MENCIONA` permanece como relação candidata.
-
----
-

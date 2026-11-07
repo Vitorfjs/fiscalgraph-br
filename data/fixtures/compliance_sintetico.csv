@@ -1,0 +1,5 @@
+registro_id,tipo_registro,orgao_responsavel,numero_processo,data_inicio,data_fim,situacao,descricao,observacoes,fundamentacao_legal,cnpj_sancionado,fonte_id,url_fonte,registro_origem
+R-SINT-001,TESTE,Orgao ficticio,P-0001,2026-01-01,,EXEMPLO,"Registro sintetico menciona 12.345.678/0001-90 para testar extracao.",Texto ficticio,Lei ficticia,12345678000190,F-SINT,https://example.invalid,fixture:2
+R-SINT-002,TESTE,Orgao ficticio,P-0002,2026-01-02,,EXEMPLO,Multa,"Registro sintetico com CNPJ alfanumerico ficticio AB.CDE.FGH/01JK-23 e responsavel CPF 123.456.789-09.",Lei ficticia,,F-SINT,https://example.invalid,fixture:3
+R-SINT-003,TESTE,Orgao ficticio,P-0003,2026-01-03,,EXEMPLO,,,,,F-SINT,https://example.invalid,fixture:4
+R-SINT-004,TESTE,Orgao ficticio,P-0004,2026-01-04,,EXEMPLO,Advertencia,Processo 00190107524201959 sem CNPJ; codigo continuo 98765432000110.,,,F-SINT,https://example.invalid,fixture:5
