@@ -7,7 +7,7 @@ e um arquivo ``.env`` local com NEO4J_URI, NEO4J_USER e NEO4J_PASSWORD.
 Relações criadas:
 - (Trecho)-[:EXTRATO_DE]->(registro de compliance)  quando o registro existir no grafo;
 - (Trecho)-[:ORIGINADO_DE]->(Fonte)                  quando a fonte existir no grafo;
-- (Trecho)-[:MENCIONA {metodo, status:'CANDIDATA'}]->(Estabelecimento)
+- (Trecho)-[:MENCIONA {metodo, status:'CANDIDATA', inicio, fim}]->(Estabelecimento)
   somente por igualdade EXATA entre o CNPJ mencionado e ``Estabelecimento.cnpj``.
 
 O registro de compliance é procurado pelos rótulos ``Sancao`` (modelagem dev3) ou
@@ -55,12 +55,23 @@ UNWIND $rows AS row
 MATCH (t:Trecho {trecho_id: row.trecho_id})
 OPTIONAL MATCH (e:Estabelecimento {cnpj: row.cnpj})
 FOREACH (_ IN CASE WHEN e IS NULL THEN [] ELSE [1] END |
-    MERGE (t)-[m:MENCIONA]->(e)
-    SET m.metodo = row.metodo, m.status = 'CANDIDATA', m.inicio = row.inicio, m.fim = row.fim)
+    MERGE (t)-[m:MENCIONA {inicio: row.inicio, fim: row.fim}]->(e)
+    SET m.metodo = row.metodo, m.status = 'CANDIDATA')
 RETURN row.cnpj AS cnpj, e IS NOT NULL AS linked
 """
 
 CHUNK_FIELDS = ("trecho_id", "texto", "url_fonte", "registro_origem", "metodo_extracao", "registro_id", "fonte_id")
+
+
+def positive_int(value: str) -> int:
+    """Valida se o valor informado para lote é um inteiro positivo maior ou igual a 1."""
+    try:
+        val = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"'{value}' não é um número inteiro válido.")
+    if val < 1:
+        raise argparse.ArgumentTypeError(f"batch-size deve ser maior ou igual a 1 (recebido: {value}).")
+    return val
 
 
 def read_jsonl(path: Path) -> Iterator[dict[str, Any]]:
@@ -147,8 +158,8 @@ def load(items: list[dict[str, Any]], driver: Any, batch_size: int = 200, databa
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Carrega trechos.jsonl no Neo4j")
     parser.add_argument("--input", type=Path, required=True, help="Arquivo trechos.jsonl gerado pelo extractor")
-    parser.add_argument("--batch-size", type=int, default=200)
-    parser.add_argument("--database", type=str, default=None, help="Nome do banco de dados no Neo4j (padrão: NEO4J_DATABASE ou 'neo4j')")
+    parser.add_argument("--batch-size", type=positive_int, default=200, help="Tamanho do lote (deve ser >= 1)")
+    parser.add_argument("--database", type=str, default=None, help="Nome do banco de dados Neo4j (opcional)")
     parser.add_argument("--dry-run", action="store_true", help="Apenas lê e resume o JSONL, sem conectar ao banco")
     args = parser.parse_args(argv)
 

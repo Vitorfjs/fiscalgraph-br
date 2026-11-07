@@ -3,6 +3,7 @@
 Executar na raiz do repositório:
     python -m unittest discover -s tests -p "test_text_to_graph.py" -v
 """
+import argparse
 import json
 import sys
 import tempfile
@@ -25,7 +26,13 @@ from pipeline.text_to_graph.extractor import (  # noqa: E402
     stable_id,
     structural_cnpj,
 )
-from pipeline.text_to_graph.load_graph import chunk_row, mention_rows, read_jsonl, summarize  # noqa: E402
+from pipeline.text_to_graph.load_graph import (  # noqa: E402
+    chunk_row,
+    mention_rows,
+    positive_int,
+    read_jsonl,
+    summarize,
+)
 
 FIXTURE = ROOT / "data" / "fixtures" / "compliance_sintetico.csv"
 
@@ -89,6 +96,18 @@ class MentionTests(unittest.TestCase):
         text = "Ficticio AB.CDE.FGH/01JK-23 e tambem 98765432000110."
         values = [m["valor"] for m in extract_mentions(text)]
         self.assertEqual(values, ["ABCDEFGH01JK23", "98765432000110"])
+
+    def test_extract_repeated_cnpj_same_chunk(self):
+        # Garante que ocorrências múltiplas do mesmo CNPJ geram spans textuais separados
+        text = "Primeira citacao: 12.345.678/0001-90. Segunda citacao do mesmo: 12.345.678/0001-90."
+        found = extract_mentions(text)
+        self.assertEqual(len(found), 2)
+        self.assertEqual(found[0]["valor"], "12345678000190")
+        self.assertEqual(found[1]["valor"], "12345678000190")
+        self.assertNotEqual(found[0]["inicio"], found[1]["inicio"])
+        self.assertNotEqual(found[0]["fim"], found[1]["fim"])
+        self.assertEqual(text[found[0]["inicio"]:found[0]["fim"]], "12.345.678/0001-90")
+        self.assertEqual(text[found[1]["inicio"]:found[1]["fim"]], "12.345.678/0001-90")
 
     def test_ignore_process_number_and_long_sequences(self):
         # 17 dígitos (número de processo) não é CNPJ; 15 dígitos também não.
@@ -240,6 +259,24 @@ class LoaderHelpersTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["cnpj"], "12345678000190")
 
+    def test_repeated_cnpj_creates_distinct_link_rows(self):
+        # Garante que duas menções do mesmo CNPJ geram linhas de arestas distintas com offsets preservados
+        item_duplicado = {
+            "trecho_id": "T2",
+            "mencoes": [
+                {"tipo": "CNPJ", "valor": "12345678000190", "inicio": 10, "fim": 28, "metodo": "regex_cnpj_estrutural", "status": "CANDIDATA"},
+                {"tipo": "CNPJ", "valor": "12345678000190", "inicio": 50, "fim": 68, "metodo": "regex_cnpj_estrutural", "status": "CANDIDATA"},
+            ],
+        }
+        rows = mention_rows(item_duplicado)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["cnpj"], "12345678000190")
+        self.assertEqual(rows[1]["cnpj"], "12345678000190")
+        self.assertEqual(rows[0]["inicio"], 10)
+        self.assertEqual(rows[0]["fim"], 28)
+        self.assertEqual(rows[1]["inicio"], 50)
+        self.assertEqual(rows[1]["fim"], 68)
+
     def test_chunk_row_serializes_mentions(self):
         row = chunk_row(self.item)
         self.assertEqual(len(json.loads(row["mencoes_json"])), 2)
@@ -247,6 +284,17 @@ class LoaderHelpersTests(unittest.TestCase):
 
     def test_summarize(self):
         self.assertEqual(summarize([self.item]), {"trechos": 1, "mencoes_cnpj": 1, "mencoes_org": 1})
+
+    def test_positive_int_validation(self):
+        # Validação de argumentos de lote
+        with self.assertRaises(argparse.ArgumentTypeError):
+            positive_int("0")
+        with self.assertRaises(argparse.ArgumentTypeError):
+            positive_int("-5")
+        with self.assertRaises(argparse.ArgumentTypeError):
+            positive_int("abc")
+        self.assertEqual(positive_int("1"), 1)
+        self.assertEqual(positive_int("200"), 200)
 
 
 if __name__ == "__main__":
