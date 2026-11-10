@@ -18,8 +18,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.services.contract import validate_retrieval_response  # noqa: E402
-from app.services.embeddings import EMBEDDING_DIMENSIONS  # noqa: E402
+from app.services.contract import (  # noqa: E402
+    validate_company_paths_response,
+    validate_retrieval_response,
+)
+from app.services.embeddings import EMBEDDING_DIMENSIONS, EMBEDDING_PIPELINE_VERSION, MODEL_NAME  # noqa: E402
 
 QUESTIONS = (
     "Quais empresas foram declaradas inidôneas para licitar com a administração pública?",
@@ -96,14 +99,93 @@ class RetrieveContextIntegrationTests(unittest.TestCase):
                 self.assertTrue(any(c["vector_rank"] for c in chunks))
                 self.assertTrue(any(c["fulltext_rank"] for c in chunks))
 
-    def test_formatted_cnpj_is_found_by_fulltext(self):
-        chunks = self.results["trecho que cita o CNPJ 01.340.937/0001-79"]["chunks"]
-        self.assertEqual((chunks[0]["registro_id"], chunks[0]["fulltext_rank"]), ("CEIS-289814", 1))
+    def test_formatted_cnpj_is_found_by_fulltext_and_flagged(self):
+        """O trecho com o CNPJ literal é o 1º do full-text e vem marcado em identifier_matches.
+
+        Até a estratégia v1 ele também era o 1º do RRF; com o vetor do texto inteiro, outro trecho que
+        cita um CNPJ diferente ficou 1º na busca vetorial e passou à frente por consenso (seção 10.3 de
+        docs/recuperacao-hibrida.md). O serviço então avisa onde está a correspondência literal.
+        """
+        result = self.results["trecho que cita o CNPJ 01.340.937/0001-79"]
+        self.assertEqual(result["parameters"]["query_identifiers"], ["01340937000179"])
+        exact = [c for c in result["chunks"] if c["identifier_matches"] == ["01340937000179"]]
+        self.assertEqual([(c["registro_id"], c["fulltext_rank"]) for c in exact], [("CEIS-289814", 1)])
+        position = result["chunks"].index(exact[0]) + 1
+        self.assertLessEqual(position, 2)
+        if position > 1:
+            self.assertTrue(any("2º trecho" in w and "CEIS-289814" in w for w in result["warnings"]))
 
     def test_out_of_scope_question_is_flagged(self):
         result = self.results[OUT_OF_SCOPE]
         self.assertTrue(all(c["fulltext_rank"] is None for c in result["chunks"]))
         self.assertTrue(any("Nenhum termo da pergunta" in w for w in result["warnings"]))
+
+    def test_active_searches_reflect_what_contributed(self):
+        for question in QUESTIONS:
+            with self.subTest(pergunta=question):
+                self.assertEqual(self.results[question]["parameters"]["active_searches"], ["vector", "fulltext"])
+        out = self.results[OUT_OF_SCOPE]["parameters"]
+        self.assertEqual((out["active_searches"], out["search_status"]["fulltext"]), (["vector"], "sem_resultados"))
+
+    def test_question_and_document_encoding_match_the_model(self):
+        """Texto de uma janela: o vetor do SentenceEncoder é o mesmo do SentenceTransformer.encode."""
+        encoder = self.retriever.encoder
+        texts = ["Quais empresas foram declaradas inidôneas?", "Multa aplicada com base na Lei 12.846"]
+        ours = encoder.encode(texts)
+        reference = encoder.model.encode(texts, normalize_embeddings=True).tolist()
+        for got, want in zip(ours, reference):
+            self.assertGreater(sum(a * b for a, b in zip(got, want)), 0.99999)
+
+    def test_stored_embeddings_represent_every_trecho_with_current_strategy(self):
+        encoder = self.retriever.encoder
+        with self.driver.session() as session:
+            rows = session.run(
+                "MATCH (t:Trecho) RETURN t.trecho_id AS id, t.texto AS texto, size(t.embedding) AS dim, "
+                "sqrt(reduce(s = 0.0, x IN t.embedding | s + x * x)) AS norma, t.embedding_windows AS janelas, "
+                "t.embedding_pipeline_version AS versao, t.embedding_model AS modelo"
+            ).data()
+        self.assertEqual(len(rows), 54)
+        for row in rows:
+            plan = encoder.window_plan(row["texto"])
+            with self.subTest(trecho=row["id"]):
+                self.assertEqual((row["dim"], row["modelo"]), (EMBEDDING_DIMENSIONS, MODEL_NAME))
+                self.assertEqual(row["versao"], EMBEDDING_PIPELINE_VERSION,
+                                 "embedding de outra versão: rode scripts/generate_embeddings.py")
+                self.assertAlmostEqual(row["norma"], 1.0, places=4)
+                self.assertEqual(row["janelas"], len(plan["janelas"]))
+                self.assertEqual(plan["tokens_nao_representados"], 0)
+
+    def test_outdated_strategy_version_is_selected_for_regeneration(self):
+        """Simula vetores de versão antiga dentro de uma transação desfeita ao final."""
+        generator = load_generator()
+        params = {"force": False, "model": MODEL_NAME, "version": EMBEDDING_PIPELINE_VERSION}
+        with self.driver.session() as session:
+            tx = session.begin_transaction()
+            try:
+                ids = [r["id"] for r in tx.run("MATCH (t:Trecho) RETURN t.trecho_id AS id ORDER BY id LIMIT 2")]
+                tx.run("MATCH (t:Trecho {trecho_id: $id}) SET t.embedding_pipeline_version = 'v1-antigo'", id=ids[0])
+                tx.run("MATCH (t:Trecho {trecho_id: $id}) REMOVE t.embedding_pipeline_version", id=ids[1])
+                pending = {r["trecho_id"]: r["motivo"] for r in tx.run(generator.SELECT_PENDING, params)}
+            finally:
+                tx.rollback()
+            after = session.run(generator.SELECT_PENDING, params).data()
+        self.assertEqual(pending, {ids[0]: "versao_antiga", ids[1]: "versao_antiga"})
+        self.assertEqual(after, [])
+
+    def test_company_paths_on_real_data_are_structural_by_cnae(self):
+        result = self.retriever.company_paths("00356328", "01340937")
+        self.assertEqual(validate_company_paths_response(result), [])
+        self.assertEqual([(p["kind"], p["length"]) for p in result["paths"]], [("atividade_cnae", 4)])
+        self.assertIn("CNAE:4211101", result["paths"][0]["nodes"])
+        self.assertTrue(any("Nenhum caminho societário" in w for w in result["warnings"]))
+        self.assertTrue(any("atividade econômica declarada em comum" in w for w in result["warnings"]))
+
+
+def load_generator():
+    spec = importlib.util.spec_from_file_location("generate_embeddings", ROOT / "scripts" / "generate_embeddings.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 if __name__ == "__main__":

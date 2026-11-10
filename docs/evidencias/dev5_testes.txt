@@ -1,6 +1,7 @@
 # dev5 — execução da suíte de testes
-# Data: 2026-11-10T19:22:49-03:00 | branch: dev5 | Neo4j 5.26.32 Community local (carga dev3 + dev4, 54 embeddings)
-# Linhas de aviso do ambiente (urllib3/LibreSSL, logs do torch e notificações do Neo4j) foram filtradas.
+# Data: 2026-11-10T20:28:22-03:00 | branch: dev5 | Neo4j 5.26.32 Community local
+# Banco: carga dev3 + dev4 (210 nós, 405 relações) e 54 embeddings da estratégia v2 (janelas).
+# Linhas de aviso do ambiente (urllib3/LibreSSL, logs do torch/transformers e notificações do Neo4j) foram filtradas.
 
 ## 1. Ambiente oficial: Python 3.9.6 — neo4j 5.28.8, sentence-transformers 5.1.2, transformers 4.57.6, torch 2.8.0, numpy 2.0.2
 
@@ -26,8 +27,22 @@ Ran 14 tests in 0.000s
 OK
 
 $ python -m unittest discover -s tests -p "test_retrieval.py" -v
+test_rejects_invalid_inputs (test_retrieval.AggregationTests) ... ok
+test_weighted_mean_then_l2_normalization (test_retrieval.AggregationTests) ... ok
+test_window_vectors_are_normalized_before_averaging (test_retrieval.AggregationTests) ... ok
+test_cnae_path_is_classified_and_explained (test_retrieval.CompanyPathsTests) ... ok
+test_invalid_inputs_are_rejected (test_retrieval.CompanyPathsTests) ... ok
+test_mention_path_is_marked_as_candidate (test_retrieval.CompanyPathsTests) ... ok
+test_missing_company_returns_warning_without_paths (test_retrieval.CompanyPathsTests) ... ok
+test_no_path_is_reported (test_retrieval.CompanyPathsTests) ... ok
+test_queries_are_limited_and_skip_provenance (test_retrieval.CompanyPathsTests) ... ok
+test_societal_path_is_reported_once_and_minimizes_personal_data (test_retrieval.CompanyPathsTests) ... ok
+test_validator_detects_broken_paths (test_retrieval.CompanyPathsTests) ... ok
+test_active_searches_identify_effective_mode (test_retrieval.ContractCompatibilityTests) ... ok
 test_dev1_final_response_can_be_built_from_retrieval_only (test_retrieval.ContractCompatibilityTests) ... ok
+test_dev6_fields_have_expected_formats (test_retrieval.ContractCompatibilityTests) ... ok
 test_dev6_graph_is_self_consistent (test_retrieval.ContractCompatibilityTests) ... ok
+test_question_without_terms_marks_fulltext_as_not_executed (test_retrieval.ContractCompatibilityTests) ... ok
 test_rrf_max_score_matches_first_place_in_both_lists (test_retrieval.ContractCompatibilityTests) ... ok
 test_service_output_passes_contract_validator_in_all_scenarios (test_retrieval.ContractCompatibilityTests) ... ok
 test_validator_detects_contract_violations (test_retrieval.ContractCompatibilityTests) ... ok
@@ -36,17 +51,26 @@ test_chunks_follow_rrf_and_keep_both_ranks (test_retrieval.ContractTests) ... ok
 test_response_shape_matches_contract (test_retrieval.ContractTests) ... ok
 test_top_k_cuts_after_fusion (test_retrieval.ContractTests) ... ok
 test_uses_integrated_index_names (test_retrieval.ContractTests) ... ok
+test_current_embeddings_do_not_warn_and_are_checked_once (test_retrieval.EmbeddingVersionWarningTests) ... ok
+test_outdated_stored_embeddings_are_reported (test_retrieval.EmbeddingVersionWarningTests) ... ok
 test_lucene_operators_from_user_are_neutralized (test_retrieval.FulltextQueryTests) ... ok
 test_numbers_with_separators_generate_joined_and_phrase_forms (test_retrieval.FulltextQueryTests) ... ok
 test_only_stopwords_yields_empty_query (test_retrieval.FulltextQueryTests) ... ok
 test_stopwords_removed_and_or_semantics (test_retrieval.FulltextQueryTests) ... ok
 test_terms_are_capped_and_deduplicated (test_retrieval.FulltextQueryTests) ... ok
+test_consistent_state_has_no_problems (test_retrieval.GeneratorVerificationTests) ... ok
+test_detects_old_version_wrong_dimension_and_unnormalized_vectors (test_retrieval.GeneratorVerificationTests) ... ok
+test_pending_query_reprocesses_old_strategy_versions (test_retrieval.GeneratorVerificationTests) ... ok
 test_graph_paths_are_maximal_and_readable (test_retrieval.GraphExpansionTests) ... ok
 test_menciona_is_flagged_as_candidate (test_retrieval.GraphExpansionTests) ... ok
 test_node_properties_are_minimal (test_retrieval.GraphExpansionTests) ... ok
 test_person_partner_name_is_not_returned (test_retrieval.GraphExpansionTests) ... ok
 test_reaches_all_expected_labels_with_stable_ids (test_retrieval.GraphExpansionTests) ... ok
 test_relationships_are_unique_and_keep_direction (test_retrieval.GraphExpansionTests) ... ok
+test_identifier_extraction_follows_dev4_rules (test_retrieval.IdentifierMatchTests) ... ok
+test_literal_match_is_flagged_and_warned_when_not_first (test_retrieval.IdentifierMatchTests) ... ok
+test_no_warning_when_first_chunk_contains_the_cnpj (test_retrieval.IdentifierMatchTests) ... ok
+test_questions_without_cnpj_have_empty_matches (test_retrieval.IdentifierMatchTests) ... ok
 test_empty_question_is_rejected (test_retrieval.InputValidationTests) ... ok
 test_invalid_rrf_k_is_rejected (test_retrieval.InputValidationTests) ... ok
 test_invalid_top_k_is_rejected (test_retrieval.InputValidationTests) ... ok
@@ -57,9 +81,22 @@ test_fulltext_index_exists_in_dev3_schema_and_covers_trecho_texto (test_retrieva
 test_vector_index_file_matches_python_config (test_retrieval.SchemaAlignmentTests) ... ok
 test_vector_index_problems (test_retrieval.SchemaAlignmentTests) ... ok
 test_count_tokens_includes_special_tokens (test_retrieval.SentenceEncoderTests) ... ok
-test_encode_rejects_non_finite_values (test_retrieval.SentenceEncoderTests) ... ok
-test_encode_returns_python_floats_with_384_dimensions (test_retrieval.SentenceEncoderTests) ... ok
+test_documents_and_questions_share_the_same_encoding (test_retrieval.SentenceEncoderTests) ... ok
+test_final_content_is_represented (test_retrieval.SentenceEncoderTests) ... ok
+test_multiple_windows_are_aggregated_with_new_token_weights (test_retrieval.SentenceEncoderTests) ... ok
+test_non_finite_model_output_is_rejected (test_retrieval.SentenceEncoderTests) ... ok
+test_output_has_384_finite_dimensions_and_unit_norm (test_retrieval.SentenceEncoderTests) ... ok
+test_pipeline_version_tracks_the_strategy (test_retrieval.SentenceEncoderTests) ... ok
 test_rejects_model_with_other_dimension (test_retrieval.SentenceEncoderTests) ... ok
+test_short_text_uses_one_window_like_a_direct_embedding (test_retrieval.SentenceEncoderTests) ... ok
+test_special_tokens_and_effective_limit (test_retrieval.SentenceEncoderTests) ... ok
+test_text_above_512_tokens_is_segmented_by_tokenizer_windows (test_retrieval.SentenceEncoderTests) ... ok
+test_window_must_fit_architecture_positions (test_retrieval.SentenceEncoderTests) ... ok
+test_every_length_is_fully_covered (test_retrieval.TokenWindowTests) ... ok
+test_invalid_window_parameters (test_retrieval.TokenWindowTests) ... ok
+test_long_text_windows_overlap_and_end_at_last_token (test_retrieval.TokenWindowTests) ... ok
+test_short_text_is_a_single_window (test_retrieval.TokenWindowTests) ... ok
+test_uncovered_tokens_detects_gaps (test_retrieval.TokenWindowTests) ... ok
 test_embedded_text_follows_dev4_composition (test_retrieval.TruncationAuditTests) ... ok
 test_field_report_separates_legal_text_contribution (test_retrieval.TruncationAuditTests) ... ok
 test_counts_texts_above_model_limit (test_retrieval.TruncationSummaryTests) ... ok
@@ -71,36 +108,47 @@ test_question_without_terms_skips_fulltext (test_retrieval.WarningAndFallbackTes
 test_semantic_only_results_are_flagged (test_retrieval.WarningAndFallbackTests) ... ok
 
 ----------------------------------------------------------------------
-Ran 43 tests in 0.004s
+Ran 79 tests in 0.016s
 
 OK
 
 $ python -m unittest discover -s tests -p "test_multi_hop_sintetico.py" -v
 test_block_cleans_up_and_uses_shortest_path (test_multi_hop_sintetico.SyntheticBlockTests) ... ok
 test_every_created_node_is_marked_synthetic (test_multi_hop_sintetico.SyntheticBlockTests) ... ok
+test_company_paths_service_classifies_synthetic_partner_as_societal (test_multi_hop_sintetico.SyntheticMultiHopNeo4jTests)
+O serviço company_paths sobre o mesmo cenário sintético, criado e desfeito na transação. ... ok
 test_shortest_path_through_synthetic_partner_leaves_no_trace (test_multi_hop_sintetico.SyntheticMultiHopNeo4jTests) ... ok
 
 ----------------------------------------------------------------------
-Ran 3 tests in 0.213s
+Ran 4 tests in 0.262s
 
 OK
 
 $ python -m unittest discover -s tests -p "test_retrieval_integracao.py" -v
+test_active_searches_reflect_what_contributed (test_retrieval_integracao.RetrieveContextIntegrationTests) ... ok
 test_both_searches_contribute (test_retrieval_integracao.RetrieveContextIntegrationTests) ... ok
-test_formatted_cnpj_is_found_by_fulltext (test_retrieval_integracao.RetrieveContextIntegrationTests) ... ok
+test_company_paths_on_real_data_are_structural_by_cnae (test_retrieval_integracao.RetrieveContextIntegrationTests) ... ok
+test_formatted_cnpj_is_found_by_fulltext_and_flagged (test_retrieval_integracao.RetrieveContextIntegrationTests)
+O trecho com o CNPJ literal é o 1º do full-text e vem marcado em identifier_matches. ... ok
 test_out_of_scope_question_is_flagged (test_retrieval_integracao.RetrieveContextIntegrationTests) ... ok
+test_outdated_strategy_version_is_selected_for_regeneration (test_retrieval_integracao.RetrieveContextIntegrationTests)
+Simula vetores de versão antiga dentro de uma transação desfeita ao final. ... ok
+test_question_and_document_encoding_match_the_model (test_retrieval_integracao.RetrieveContextIntegrationTests)
+Texto de uma janela: o vetor do SentenceEncoder é o mesmo do SentenceTransformer.encode. ... ok
 test_real_chunks_keep_provenance_and_graph_path (test_retrieval_integracao.RetrieveContextIntegrationTests) ... ok
 test_real_responses_satisfy_contract (test_retrieval_integracao.RetrieveContextIntegrationTests) ... ok
+test_stored_embeddings_represent_every_trecho_with_current_strategy (test_retrieval_integracao.RetrieveContextIntegrationTests) ... ok
 
 ----------------------------------------------------------------------
-Ran 5 tests in 6.076s
+Ran 10 tests in 6.301s
 
 OK
 
 ## 2. Regressão dos testes do dev4 (Python 3.9.6)
 
-$ python -m unittest discover -s tests -p "test_text_to_graph.py"
-Ran 31 tests in 0.002s
+$ python -m unittest discover -s tests -p "test_text_to_graph.py" -v
+----------------------------------------------------------------------
+Ran 31 tests in 0.003s
 
 OK
 
@@ -109,7 +157,7 @@ OK
 $ env -u NEO4J_PASSWORD python -m unittest discover -s tests -v   # suíte completa
 skipped 'NEO4J_PASSWORD não configurado; teste de integração ignorado.'
 skipped 'NEO4J_PASSWORD não configurado; teste de integração ignorado.'
-Ran 90 tests in 0.008s
+Ran 126 tests in 0.019s
 OK (skipped=2)
 
 ## 4. Compatibilidade: Python 3.13.18 — neo4j 6.4.1, sentence-transformers 6.2.0, transformers 5.22.2, torch 2.15.0, numpy 2.5.4
@@ -121,17 +169,17 @@ Ran 14 tests in 0.000s
 OK
 
 $ python3.13 -m unittest discover -s tests -p "test_retrieval.py"
-Ran 43 tests in 0.004s
+Ran 79 tests in 0.014s
 
 OK
 
 $ python3.13 -m unittest discover -s tests -p "test_multi_hop_sintetico.py"
-Ran 3 tests in 0.175s
+Ran 4 tests in 0.174s
 
 OK
 
 $ python3.13 -m unittest discover -s tests -p "test_retrieval_integracao.py"
-Ran 5 tests in 4.262s
+Ran 10 tests in 4.676s
 
 OK
 
@@ -140,6 +188,6 @@ Ran 31 tests in 0.002s
 
 OK
 
-## 5. Equivalência dos embeddings entre os dois ambientes (54 trechos + 1 pergunta)
-vetores: 55 | dimensão: 384 | cosseno mínimo 3.9 x 3.13: 0.99999990 | maior diferença absoluta: 1.19e-07
+## 5. Equivalência dos embeddings da estratégia v2 entre os dois ambientes (54 trechos + 1 pergunta)
+vetores: 55 | dimensão: 384 | cosseno mínimo 3.9 x 3.13: 1.00000000 | maior diferença absoluta: 9.71e-08
 Conclusão: embeddings gravados num ambiente são compatíveis com perguntas codificadas no outro.

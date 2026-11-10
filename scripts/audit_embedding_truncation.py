@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Audita quanto do texto de cada Trecho cabe no limite de tokens do modelo de embeddings (dev5).
+"""Audita quanto do texto de cada Trecho é representado no embedding (dev5).
 
 Lê ``data/processed/trechos.jsonl`` (dev4) e ``data/processed/canonical/compliance.csv`` (dev2),
 usa o tokenizador do próprio modelo e mostra:
 
-1. de onde vem o limite (configuração do modelo x capacidade da arquitetura);
-2. a distribuição de tokens dos trechos e quantos passam do limite;
+1. de onde vem o limite (configuração do modelo x capacidade da arquitetura) e o limite efetivo;
+2. a distribuição de tokens dos trechos;
 3. quanto cada campo do texto (descricao, observacoes, fundamentacao_legal) contribui;
 4. por que texto em caixa alta rende mais tokens;
-5. onde o corte acontece num trecho de exemplo.
+5. a estratégia anterior (truncamento) x a atual (janelas): janelas usadas e tokens não representados;
+6. num trecho de exemplo, onde o truncamento cortava e quais janelas cobrem o texto até o fim.
 
 Os textos são recompostos com as mesmas funções do dev4 (``compose_text`` e ``mask_cpf``) e
 comparados com os de ``trechos.jsonl``. Não acessa o Neo4j e não grava nada.
@@ -81,51 +82,49 @@ def load_records() -> tuple:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Audita o truncamento dos trechos no modelo de embeddings.")
-    parser.add_argument("--registro", default="CEIS-132342", help="registro_id usado no exemplo de corte")
+    parser = argparse.ArgumentParser(description="Audita a representação dos trechos no embedding.")
+    parser.add_argument("--registro", default="CEIS-132342", help="registro_id usado no exemplo")
     args = parser.parse_args(argv)
 
-    from app.services.embeddings import MODEL_NAME, SentenceEncoder, truncation_summary
+    from app.services.embeddings import EMBEDDING_PIPELINE_VERSION, MODEL_NAME, SentenceEncoder
 
     encoder = SentenceEncoder()
-    tokenizer = encoder.model.tokenizer
-    limit = encoder.max_seq_length
-    special = tokenizer.num_special_tokens_to_add(pair=False)
-    arch = getattr(encoder.model[0], "auto_model", None)
-    arch_limit = getattr(getattr(arch, "config", None), "max_position_embeddings", None)
+    tokenizer = encoder.tokenizer
+    previous_limit = encoder.default_max_seq_length  # truncamento da estratégia anterior
+    special = encoder.special_tokens
 
     def count(text: str) -> int:
-        return len(tokenizer(text, add_special_tokens=False, verbose=False)["input_ids"]) if text else 0
+        return len(encoder.content_token_ids(text)) if text else 0
 
     trechos, records = load_records()
     texts = [item["texto"] for item in trechos.values()]
+    sizes = [count(text) for text in texts]
 
     print(f"Modelo: {MODEL_NAME}")
     print("1. Origem do limite")
-    print(f"   max_seq_length = {limit} tokens (sentence_bert_config.json do modelo; é o valor que o "
-          "sentence-transformers usa para cortar o texto)")
-    print(f"   max_position_embeddings = {arch_limit} (config.json da arquitetura: capacidade máxima, "
-          "não o tamanho de trabalho do modelo)")
-    print(f"   tokens especiais por texto = {special} (início e fim); sobram {limit - special} para o conteúdo")
+    print(f"   max_seq_length padrão = {previous_limit} tokens (sentence_bert_config.json do modelo; "
+          "o sentence-transformers corta o texto nesse tamanho)")
+    print(f"   max_position_embeddings = {encoder.architecture_limit} (config.json da arquitetura: capacidade máxima)")
+    print(f"   tokens especiais por janela = {special} (início e fim)")
+    print(f"   limite efetivo por janela na estratégia atual = {encoder.window_tokens} tokens de conteúdo "
+          f"+ {special} especiais = {encoder.max_seq_length} posições; sobreposição = {encoder.overlap}")
 
-    summary = truncation_summary(encoder.count_tokens(texts), limit)
     print("\n2. Trechos (data/processed/trechos.jsonl)")
-    print(f"   total = {summary['total']} | cabem inteiros = {summary['total'] - summary['acima_do_limite']} | "
-          f"truncados = {summary['acima_do_limite']}")
-    print(f"   tokens por trecho: mín. {summary['minimo']} | mediana {summary['mediana']:g} | máx. {summary['maximo']}")
+    print(f"   total = {len(texts)} | tokens de conteúdo por trecho: mín. {min(sizes)} | "
+          f"mediana {statistics.median(sizes):g} | máx. {max(sizes)}")
     words = [len(text.split()) for text in texts]
     ratio = statistics.median(count(text) / max(1, len(text.split())) for text in texts)
     print(f"   palavras por trecho (mediana) = {statistics.median(words):g} | tokens por palavra (mediana) = {ratio:.2f}")
 
     same = sum(1 for r in records if embedded_text(r) == trechos[r["registro_id"]]["texto"])
-    report = field_report(records, count, limit, special)
-    print("\n3. Contribuição de cada campo (compliance.csv, mesma composição do dev4)")
+    report = field_report(records, count, previous_limit, special)
+    print(f"\n3. Contribuição de cada campo (compliance.csv, mesma composição do dev4; limite de {previous_limit})")
     print(f"   textos recompostos idênticos aos de trechos.jsonl: {same}/{report['registros']}")
     for field, stats in report["campos"].items():
         print(f"   {field:20s} mediana {stats['mediana']:>6g} | máx. {stats['maximo']:>4} | vazio em {stats['vazios']}")
-    print(f"   acima do limite com o texto completo: {report['acima_com_texto_completo']}/{report['registros']}")
-    print(f"   acima do limite sem fundamentacao_legal: {report['acima_sem_fundamentacao_legal']}/{report['registros']}")
-    print(f"   fundamentacao_legal sozinha já passa do limite: {report['fundamentacao_legal_sozinha_acima']}/"
+    print(f"   acima de {previous_limit} com o texto completo: {report['acima_com_texto_completo']}/{report['registros']}")
+    print(f"   acima de {previous_limit} sem fundamentacao_legal: {report['acima_sem_fundamentacao_legal']}/{report['registros']}")
+    print(f"   fundamentacao_legal sozinha acima de {previous_limit}: {report['fundamentacao_legal_sozinha_acima']}/"
           f"{report['registros']}")
 
     print("\n4. Caixa alta x minúsculas (pedaços de palavra no vocabulário do modelo)")
@@ -133,15 +132,36 @@ def main(argv=None) -> int:
         pieces = tokenizer.tokenize(word)
         print(f"   {word:14s} {len(pieces)} token(s): {' '.join(pieces)}")
 
+    previous_content = previous_limit - special
+    plans = [encoder.window_plan(text) for text in texts]
+    windows = [len(plan["janelas"]) for plan in plans]
+    print("\n5. Representação no embedding: estratégia anterior x atual")
+    print(f"   anterior (truncamento em {previous_limit}): 1 trecho = 1 passada; trechos com tokens descartados = "
+          f"{sum(1 for n in sizes if n > previous_content)}/{len(sizes)}; tokens não representados = "
+          f"{sum(max(0, n - previous_content) for n in sizes)}")
+    print(f"   atual ({EMBEDDING_PIPELINE_VERSION}):")
+    print(f"     janelas = {sum(windows)} (1 janela: {sum(1 for w in windows if w == 1)} trechos; "
+          f"mais de uma: {sum(1 for w in windows if w > 1)}; máx. {max(windows)} por trecho)")
+    print(f"     trechos representados integralmente = "
+          f"{sum(1 for plan in plans if plan['tokens_nao_representados'] == 0)}/{len(plans)} | "
+          f"tokens não representados = {sum(plan['tokens_nao_representados'] for plan in plans)}")
+    print("     agregação: média dos vetores das janelas ponderada pelos tokens novos de cada janela, "
+          "normalizada em L2 (1 vetor de 384 dimensões por Trecho)")
+
     example = trechos.get(args.registro)
     if example:
-        ids = tokenizer(example["texto"], verbose=False)["input_ids"]
-        read = tokenizer.decode(ids[1:limit - 1])
-        ignored = tokenizer.decode(ids[limit - 1:-1])
-        print(f"\n5. Exemplo de corte: {args.registro} ({len(example['texto'].split())} palavras, {len(ids)} tokens)")
-        print(f"   últimas palavras lidas: …{read[-100:]}")
-        print(f"   primeiras palavras ignoradas: {ignored[:100]}…" if ignored else "   nada é ignorado")
-        print(f"   tokens ignorados: {max(0, len(ids) - limit)}")
+        ids = encoder.content_token_ids(example["texto"])
+        plan = encoder.window_plan(example["texto"])
+        print(f"\n6. Exemplo: {args.registro} ({len(example['texto'].split())} palavras, {len(ids)} tokens de conteúdo)")
+        print(f"   truncamento anterior lia até: …{tokenizer.decode(ids[:previous_content])[-80:]}")
+        print(f"   e descartava {max(0, len(ids) - previous_content)} tokens a partir de: "
+              f"{tokenizer.decode(ids[previous_content:previous_content + 20])}…")
+        print(f"   estratégia atual: {len(plan['janelas'])} janelas, pesos {plan['pesos']}, "
+              f"tokens não representados = {plan['tokens_nao_representados']}")
+        for number, (start, end) in enumerate(plan["janelas"], start=1):
+            print(f"   janela {number}: tokens [{start}, {end}) | começa em \"{tokenizer.decode(ids[start:start + 6])}…\" | "
+                  f"termina em \"…{tokenizer.decode(ids[max(start, end - 6):end])}\"")
+        print(f"   fim do texto original: \"…{' '.join(example['texto'].split()[-6:])}\"")
     return 0
 
 

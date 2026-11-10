@@ -13,6 +13,7 @@ Executar na raiz do repositório:
 """
 import os
 import re
+import sys
 import unittest
 from pathlib import Path
 
@@ -87,6 +88,35 @@ class SyntheticMultiHopNeo4jTests(unittest.TestCase):
         self.assertEqual(record["nos"], ["Empresa:SINT-EMP-A", "Socio:SINT-SOC-1", "Empresa:SINT-EMP-B"])
         self.assertEqual(record["relacionamentos"], ["PARTICIPA_DE", "PARTICIPA_DE"])
         self.assertEqual(record["quantidade_relacionamentos"], 2)
+        self.assertEqual(remaining, 0)
+
+    def test_company_paths_service_classifies_synthetic_partner_as_societal(self):
+        """O serviço company_paths sobre o mesmo cenário sintético, criado e desfeito na transação."""
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        from app.services.contract import validate_company_paths_response
+        from app.services.multi_hop import find_company_paths
+
+        create = """
+        CREATE (a:Empresa:Sintetico {cnpj_basico: 'SINT-EMP-A', razao_social: 'EMPRESA SINTETICA A', sintetico: true}),
+               (b:Empresa:Sintetico {cnpj_basico: 'SINT-EMP-B', razao_social: 'EMPRESA SINTETICA B', sintetico: true}),
+               (s:Socio:Sintetico {socio_id: 'SINT-SOC-1', tipo_pessoa: 'PESSOA JURIDICA', sintetico: true}),
+               (s)-[:PARTICIPA_DE {registro_origem: 'SINTETICO'}]->(a),
+               (s)-[:PARTICIPA_DE {registro_origem: 'SINTETICO'}]->(b)
+        """
+        with self.driver.session(database=self.database) as session:
+            tx = session.begin_transaction()
+            try:
+                tx.run(create).consume()
+                result = find_company_paths(tx, "SINT-EMP-A", "SINT-EMP-B")
+            finally:
+                tx.rollback()
+            remaining = self.count_synthetic(session)
+
+        self.assertEqual(validate_company_paths_response(result), [])
+        self.assertEqual([(p["kind"], p["length"]) for p in result["paths"]], [("societario", 2)])
+        self.assertEqual(result["paths"][0]["nodes"], ["Empresa:SINT-EMP-A", "Socio:SINT-SOC-1", "Empresa:SINT-EMP-B"])
+        self.assertFalse(any("Nenhum caminho societário" in w for w in result["warnings"]))
         self.assertEqual(remaining, 0)
 
 

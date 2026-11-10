@@ -2,7 +2,9 @@
 
 Camada de recuperação do FiscalGraph BR: busca vetorial e full-text sobre nós `Trecho` no Neo4j,
 fusão por Reciprocal Rank Fusion (RRF), expansão pelo grafo e caminho mínimo entre empresas.
-A geração da resposta em linguagem natural fica com dev1; este serviço devolve **evidências**.
+A geração da resposta em linguagem natural fica com o dev1 e a interface com o dev6; este serviço
+devolve **evidências** em uma estrutura estável. Este documento é a referência oficial do contrato do
+dev5 (seção 7).
 
 > O `rrf_score` mede relevância de recuperação. **Não é** probabilidade de irregularidade, fraude ou
 > culpa. Caminhos no grafo e menções textuais não provam vínculo jurídico nem responsabilidade.
@@ -12,16 +14,16 @@ A geração da resposta em linguagem natural fica com dev1; este serviço devolv
 | Item | Valor |
 | --- | --- |
 | Modelo de embeddings | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` (local, sem chave de API) |
-| Dimensão | 384 (validada no modelo, em cada vetor e na configuração do índice) |
-| Normalização / similaridade | vetores L2-normalizados / `cosine` |
-| Limite de entrada do modelo | 128 tokens: **40 dos 54 trechos são truncados** (seção 4.1) |
+| Dimensão / similaridade | 384 / `cosine`, vetores L2-normalizados |
+| Representação do texto | **texto inteiro**: janelas de 126 tokens + 2 especiais (128 posições), sobreposição de 32, média ponderada pelos tokens novos de cada janela e normalização L2 (seção 4) |
+| Versão da estratégia | `v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2`, gravada em `Trecho.embedding_pipeline_version` |
+| Cobertura | 54/54 trechos representados integralmente; 150 janelas; 0 tokens não representados |
 | Índice vetorial | `trecho_embedding_vector` em `Trecho.embedding` — criado pelo dev5 (`cypher/04_indice_vetorial_trecho.cypher`) |
 | Índice full-text | `fiscalgraph_text_fulltext` — índice integrado de dev3, consultado só no campo `texto` e filtrado para `:Trecho` |
 | Fusão | RRF, `score = Σ 1/(k + rank)`, `k = 60` |
-| `top_k` | padrão 5, máximo 20 |
-| Candidatos por busca | `max(4 × top_k, 20)` antes da fusão |
+| `top_k` / candidatos | padrão 5, máximo 20 / `max(4 × top_k, 20)` por busca antes da fusão |
 | Expansão | `Trecho → Fonte`, `Trecho → Sancao → Estabelecimento ← Empresa ← Socio`, `Trecho → MENCIONA → Estabelecimento` |
-| Multi-hop | `shortestPath` em Cypher puro, até 6 relacionamentos, sem GDS |
+| Multi-hop | `shortestPath` em Cypher puro (sem GDS), até 6 relacionamentos; também como serviço `company_paths` |
 | Caminho societário real | **inexistente no recorte** (0 de 153 pares); só há caminhos estruturais por CNAE (seção 8.1) |
 
 ## 2. Alinhamento com o schema integrado
@@ -29,13 +31,16 @@ A geração da resposta em linguagem natural fica com dev1; este serviço devolv
 O pacote do dev5 foi escrito antes da integração de dev3/dev4 e usava nomes que não existem no banco.
 Seguindo a regra "não codificar nomes diferentes do schema integrado", o código usa os nomes da `main`:
 
-| Pacote / contrato | Schema integrado (adotado) | Observação |
+| Pacote / contrato original | Schema integrado (adotado) | Observação |
 | --- | --- | --- |
 | índice full-text `trecho_text_fulltext` | `fiscalgraph_text_fulltext` | Índice compartilhado (`Empresa\|Socio\|Sancao\|Trecho`). A consulta usa `texto:(...)` e `WHERE node:Trecho`. |
 | índice vetorial `trecho_embedding_vector` | **não existia** | `docs/validacao-neo4j.md` atribui índice vetorial e embeddings ao dev5. Nome do pacote mantido; criado por `cypher/04_indice_vetorial_trecho.cypher`. |
 | rótulo `RegistroCompliance` | `Sancao` | O campo `registro_id` do contrato continua igual. |
 | `RegistroCompliance -[:REFERE_SE_A]-> Empresa` | `Sancao -[:APLICADA_A]-> Estabelecimento <-[:POSSUI_ESTABELECIMENTO]- Empresa` | Ligação por CNPJ completo exato (dev3). |
-| `docs/modelo-grafo.md` | `docs/modelagem-lpg.md` | Arquivo citado no pacote não existe; usado o documento de modelagem da `main`. |
+| documento de modelo do grafo citado no pacote | `docs/modelagem-lpg.md` | O nome citado no pacote não existe na `main`; usado o documento de modelagem integrado. |
+
+A especificação de contrato do coordenador veio no pacote do dev5 e não está versionada no repositório;
+as partes que valem para o dev5 estão reproduzidas na seção 7.2.
 
 Os testes `SchemaAlignmentTests` (`tests/test_retrieval.py`) leem `cypher/01_schema_fiscalgraph.cypher` e
 `cypher/04_indice_vetorial_trecho.cypher` e falham se os nomes no código divergirem dos arquivos versionados.
@@ -45,138 +50,155 @@ Os testes `SchemaAlignmentTests` (`tests/test_retrieval.py`) leem `cypher/01_sch
 
 ```mermaid
 flowchart LR
-    Q[Pergunta] --> E[Embedding 384d<br/>MiniLM multilíngue]
+    Q[Pergunta] --> E[Embedding 384d<br/>mesmas janelas dos trechos]
     Q --> L[Consulta Lucene<br/>texto:termo1 OR termo2]
     E --> V[db.index.vector.queryNodes<br/>trecho_embedding_vector]
     L --> F[db.index.fulltext.queryNodes<br/>fiscalgraph_text_fulltext]
     V -->|ranks| R[RRF k=60]
     F -->|ranks| R
     R -->|top_k trecho_id| X[Expansão pelo grafo<br/>uma consulta UNWIND]
-    X --> O[chunks + nodes + relationships<br/>+ cypher + warnings]
+    X --> O[chunks + nodes + relationships<br/>+ cypher + warnings + parameters]
 ```
-
-Arquivos:
 
 | Arquivo | Função |
 | --- | --- |
-| `app/services/embeddings.py` | Fonte única de modelo, dimensão, nome e DDL do índice vetorial; `SentenceEncoder` valida 384 dimensões e valores finitos e conta tokens. |
+| `app/services/embeddings.py` | Modelo, dimensão, índice e estratégia de janelas (`SentenceEncoder`), usados igualmente para trechos e perguntas; versão da estratégia. |
 | `app/services/ranking.py` | `reciprocal_rank_fusion(vector_ids, fulltext_ids, k=60)`. |
-| `app/services/retrieval.py` | `retrieve_context(question, top_k=5)`, classe `GraphHybridRetriever` e CLI de consulta manual. |
-| `app/services/contract.py` | `validate_retrieval_response(result)`: validador executável do contrato, para dev1/dev6 usarem nos testes. |
-| `scripts/generate_embeddings.py` | Cria/confere o índice vetorial, mede o truncamento e grava `embedding` + `embedding_model` nos `Trecho` pendentes. |
-| `scripts/audit_embedding_truncation.py` | Auditoria do truncamento: origem do limite, tokens por campo e exemplo do corte (seção 4.1). Não usa o Neo4j. |
-| `cypher/04_indice_vetorial_trecho.cypher` | DDL e conferência do índice vetorial. |
-| `cypher/03_multi_hop.cypher` | Consultas de caminho mínimo (reais e cenário sintético). |
+| `app/services/retrieval.py` | `retrieve_context(question, top_k=5)`, `company_paths(cnpj_a, cnpj_b)`, classe `GraphHybridRetriever` e CLI de consulta manual. |
+| `app/services/multi_hop.py` | `find_company_paths`: caminho mínimo societário e estrutural entre duas empresas, no formato de nós/arestas do contrato. |
+| `app/services/contract.py` | Validadores executáveis (`validate_retrieval_response`, `validate_company_paths_response`) e `example_final_response`. |
+| `scripts/generate_embeddings.py` | Cria/confere o índice, detecta embeddings de versão antiga, grava `embedding`, `embedding_model`, `embedding_pipeline_version` e `embedding_windows`, e verifica o resultado no banco. |
+| `scripts/audit_embedding_truncation.py` | Auditoria sem Neo4j: origem do limite, tokens por campo, janelas e tokens não representados. |
+| `scripts/evaluate_embedding_strategies.py` | Comparação das estratégias de embedding (sem Neo4j) e avaliação do sistema híbrido real (`--hibrido`). |
+| `scripts/export_contract_examples.py` | Gera os exemplos JSON reais do contrato e o exemplo demonstrativo da resposta do dev1. |
+| `cypher/04_indice_vetorial_trecho.cypher` | DDL e conferência do índice vetorial e dos vetores gravados. |
+| `cypher/03_multi_hop.cypher` | Consultas de caminho mínimo (reais, diagnóstico e cenário sintético). |
 | `tests/test_ranking.py`, `tests/test_retrieval.py` | Testes unitários (sem Neo4j e sem modelo). |
-| `tests/test_multi_hop_sintetico.py`, `tests/test_retrieval_integracao.py` | Testes de integração com o Neo4j (skip se o banco não estiver disponível). |
-| `requirements-dev5.txt` | `sentence-transformers>=3.0`. |
+| `tests/test_multi_hop_sintetico.py`, `tests/test_retrieval_integracao.py` | Testes de integração com o Neo4j e o modelo (skip se indisponíveis). |
+| `docs/exemplos/resposta_final_dev1.exemplo.json` | Exemplo **demonstrativo** da resposta final do dev1, para o dev6 testar a interface. |
+| `requirements-dev5.txt` | `sentence-transformers>=3.0` (seção 9). |
 
 ## 4. Embeddings
 
-- O script processa só `Trecho` sem `embedding`, sem `embedding_model` ou com modelo diferente do
-  configurado (`--force` reprocessa todos; `--dry-run` só conta). Trechos sem texto são ignorados e contados.
-- Antes de gravar, cria o índice com `IF NOT EXISTS` e confere tipo, rótulo, propriedade, dimensão e
-  similaridade via `SHOW INDEXES`. Se o índice existir com outra configuração, o script **para sem gravar**.
-- Ao final espera o índice ficar `ONLINE` (`db.awaitIndex`) e verifica cobertura e dimensão mínima/máxima.
-- O mesmo módulo (`app/services/embeddings.py`) é usado pelo gerador e pelo serviço, então pergunta e
-  trechos são sempre codificados com o mesmo modelo e a mesma normalização.
-- Vetores gerados em Python 3.9 (sentence-transformers 5.1.2) e em Python 3.13 (sentence-transformers 6.2.0)
-  são equivalentes: cosseno mínimo 0,9999999 nos 54 trechos (`docs/evidencias/dev5_testes.txt`, seção 5).
+### 4.1. O problema: o modelo lê no máximo 128 tokens
 
-### 4.1. Limitação: 40 dos 54 trechos ultrapassam os 128 tokens do modelo
+- O limite é configuração do modelo: `"max_seq_length": 128` no `sentence_bert_config.json`. O
+  sentence-transformers corta o texto nesse tamanho antes de gerar o vetor, **sem aviso**.
+- A arquitetura (BERT de 12 camadas, `config.json`) aceita até 512 posições (`max_position_embeddings`).
+  Verificado: com 128, 256 e 512 o modelo gera vetores finitos e normalizados; com 600 ele falha
+  (`tensor a (600) must match … (512)`). Duas posições são tokens especiais (início e fim).
+- Token é pedaço de palavra (vocabulário de 250.037 pedaços). Nos trechos, a mediana é de 94 palavras e
+  2,18 tokens por palavra; caixa alta rende mais pedaços (`administração` = 1, `ADMINISTRAÇÃO` = 2).
+- O dev4 monta cada trecho com `descricao` + `observacoes` + `fundamentacao_legal`. A fundamentação é a
+  transcrição da lei, em caixa alta: mediana de 198 tokens, máximo de 691, e sozinha passa do limite em
+  35 dos 54 registros.
 
-> **Resumo:** todos os 54 trechos têm embedding, mas em **40** deles o vetor é calculado só sobre o
-> começo do texto. A parte ignorada é quase sempre o fim da transcrição da lei (`fundamentacao_legal`).
-> A busca full-text lê o texto inteiro dos 54 trechos e compensa no modo híbrido.
+Com a estratégia anterior (truncamento em 128), **40 dos 54 trechos perdiam o final: 7.557 tokens não
+eram representados** no vetor. Exemplo: em `CEIS-132342` (209 tokens), a parte a partir de
+"A REABILITAÇÃO PERANTE A PRÓPRIA AUTORIDADE…" (81 tokens) era ignorada.
 
-| Medida | Valor |
-| --- | --- |
-| Trechos que cabem inteiros (≤ 128 tokens) | **14** |
-| Trechos truncados (> 128 tokens) | **40** (74%) |
-| Tokens por trecho: mínimo / mediana / máximo | 27 / 209 / 720 |
-| Tokens ignorados no exemplo `CEIS-132342` | 81 de 209 |
+### 4.2. Estratégia adotada: janelas de tokens com sobreposição
 
-#### De onde vem o limite
+1. O texto inteiro é tokenizado com o tokenizador do próprio modelo (sem tokens especiais e sem corte).
+2. Os tokens são divididos em janelas de **126 tokens** (+ início e fim = 128 posições) que avançam
+   94 tokens, ou seja, com **32 de sobreposição**. A última janela é alinhada ao fim do texto, para ter
+   contexto completo e incluir o último token.
+3. Cada janela passa pelo modelo e vira um vetor normalizado.
+4. Os vetores das janelas são combinados por **média ponderada pela quantidade de tokens que cada janela
+   acrescenta** (a sobreposição não conta duas vezes) e o resultado é normalizado em L2.
 
-- É uma configuração do próprio modelo, definida pelos autores no arquivo `sentence_bert_config.json`
-  que acompanha o modelo: `"max_seq_length": 128`. O sentence-transformers corta todo texto nesse
-  tamanho antes de gerar o vetor, **sem aviso**.
-- A arquitetura por baixo (um BERT de 12 camadas, `config.json`) aceita até 512 posições
-  (`max_position_embeddings: 512`). Essa é a capacidade máxima, não o tamanho de trabalho: o modelo foi
-  preparado para frases e parágrafos curtos, e os autores fixaram 128.
-- Duas dessas 128 posições são tokens especiais de início e fim; sobram **126** para o conteúdo.
+Resultado: **um único vetor de 384 dimensões por `Trecho`**, finito, de norma 1, compatível com o índice
+existente. Não há nó novo nem mudança de schema; `Trecho.texto` não é alterado (54/54 textos do banco
+idênticos a `trechos.jsonl` após a regeneração) e o full-text continua sobre o texto completo.
 
-#### O que é um token
-
-Token não é palavra: é um pedaço de palavra tirado do vocabulário do modelo (250.037 pedaços). Nos
-trechos, a mediana é de 94 palavras e **2,18 tokens por palavra**. Texto em caixa alta rende mais
-pedaços, porque é raro nos textos com que o vocabulário foi construído:
-
-| Palavra | Tokens | Palavra | Tokens |
-| --- | --- | --- | --- |
-| administração | 1 | ADMINISTRAÇÃO | 2 |
-| inidoneidade | 3 | INIDONEIDADE | 4 |
-| contratado | 1 | CONTRATADO | 3 |
-
-A `fundamentacao_legal` vem da fonte (CGU) em caixa alta, por isso consome muitos tokens.
-
-#### Por que 40 trechos passam do limite
-
-O dev4 monta cada trecho juntando, nesta ordem, `descricao`, `observacoes` e `fundamentacao_legal`
-(`compose_text` em `pipeline/text_to_graph/extractor.py`). Medindo cada campo nos 54 registros:
-
-| Campo | Tokens (mediana) | Máximo | Observação |
-| --- | --- | --- | --- |
-| `descricao` | 9 | 23 | tipo da sanção, sempre curto |
-| `observacoes` | 0 | 266 | vazio em 32 dos 54 |
-| `fundamentacao_legal` | **198** | **691** | transcrição do artigo da lei, em caixa alta |
-
-- Em **35 dos 54** registros a `fundamentacao_legal` sozinha já passa do limite.
-- Sem esse campo, só **7** trechos passariam de 128, em vez de 40.
-- Os 54 textos recompostos pela auditoria são idênticos aos de `trechos.jsonl`, então a análise
-  corresponde exatamente ao que virou embedding.
-
-#### Exemplo do corte
-
-Registro `CEIS-132342` (94 palavras, 209 tokens, 81 ignorados):
-
-- **Última parte que o modelo lê:** "…ENQUANTO PERDURAREM OS MOTIVOS DETERMINANTES DA PUNIÇÃO OU ATÉ QUE SEJA PROMOVIDA"
-- **Início do que é ignorado:** "A REABILITAÇÃO PERANTE A PRÓPRIA AUTORIDADE QUE APLICOU A PENALIDADE, QUE SERÁ CONCEDIDA…"
-
-#### Impacto na recuperação
-
-- **O que entra no vetor:** em geral, o tipo da sanção, as observações (quando existem) e o começo da
-  fundamentação, que traz a lei e o artigo (ex.: "LEI 8666 - ART. 87, IV"). É a parte que mais
-  diferencia um registro de outro.
-- **O que fica de fora:** o restante da transcrição da lei, texto que se repete em muitos registros.
-- Uma pergunta cujo conteúdo só aparece na parte ignorada **não é encontrada pela busca vetorial**,
-  mas **é encontrada pela busca full-text**, que indexa o texto inteiro, e entra no resultado pelo RRF.
-
-#### Opções avaliadas (nenhuma aplicada)
-
-| Opção | Efeito | Custo / risco |
+| Medida | Estratégia anterior | Estratégia atual |
 | --- | --- | --- |
-| Aumentar `max_seq_length` para até 512 | o vetor passa a considerar mais texto; dimensão 384 e índice não mudam | o modelo não foi ajustado para textos longos: a qualidade precisaria ser avaliada; reprocessar com `--force` |
-| Dividir trechos longos em janelas de até 128 tokens | cobre o texto inteiro | muda a granularidade do `Trecho` (dev4) e o contrato (vários vetores por trecho) |
-| Trocar por um modelo de contexto maior | cobre mais texto | muda a dimensão: recriar o índice e alinhar com dev3 |
+| Trechos com conteúdo não representado | 40 de 54 | **0 de 54** |
+| Tokens não representados | 7.557 | **0** |
+| Janelas | 54 (1 por trecho) | 150 (14 trechos com 1 janela; 40 com mais de uma; máximo 8) |
+| Exemplo `CEIS-132342` | lê até "…SEJA PROMOVIDA" | janela 1 `[0, 126)` e janela 2 `[81, 207)`, que termina em "…INCISO ANTERIOR.", o fim real do texto |
 
-Decisão: manter como está. A parte perdida é sobretudo texto legal repetido, a busca full-text cobre
-o texto inteiro e, sem um conjunto de perguntas com respostas esperadas, não há como medir se alguma
-das opções melhoraria a recuperação.
+Perguntas e trechos passam pelo **mesmo** `SentenceEncoder.encode`. Uma pergunta que cabe em uma janela
+produz o mesmo vetor que `SentenceTransformer.encode` (cosseno ≥ 0,99999996, verificado nos dois
+ambientes). A inferência por janela monta a entrada `início + tokens + fim` a partir dos tokens especiais
+detectados no próprio tokenizador; `build_inputs_with_special_tokens` não serve porque, neste modelo,
+não insere os especiais (transformers 4) ou nem existe (transformers 5).
 
-#### Como reproduzir
+### 4.3. Por que janelas de 128 e não 512: avaliação
 
-```bash
-python scripts/audit_embedding_truncation.py    # análise completa; não usa o Neo4j
-```
+Não há perguntas rotuladas no projeto, então a escolha foi feita com uma avaliação autossupervisionada
+e explícita (`scripts/evaluate_embedding_strategies.py`):
 
-O gerador também mede o truncamento sempre que processa trechos (primeira execução ou `--force`):
+- **consultas "final"**: as últimas 30 palavras de cada um dos 40 trechos longos, tiradas só da parte
+  que o truncamento ignorava;
+- **consultas "início"**: as primeiras 30 palavras de cada um dos 54 trechos (regressão);
+- **relevante** = todo trecho que contém a consulta literalmente (textos legais se repetem).
 
-```text
-Truncamento: 40/54 trechos acima de 128 tokens (mín. 27, mediana 209, máx. 720); nesses, o embedding representa só os primeiros 128 tokens.
-```
+Busca vetorial pura (cosseno exato entre os 54 vetores), MRR do primeiro relevante:
 
-Evidências: `docs/evidencias/dev5_truncamento_embeddings.txt` e `docs/evidencias/dev5_embeddings_e_indice.txt`.
+| Estratégia | Tokens não repr. | Final: acerto@1 / MRR | Início: acerto@1 / MRR |
+| --- | --- | --- | --- |
+| truncado em 128 (anterior) | 7.557 | 0,00 / 0,24 | 0,65 / **0,80** |
+| passada única com 512 | 629 | 0,50 / 0,54 | 0,37 / 0,43 |
+| **janelas de 128, média ponderada (adotada)** | **0** | **0,53 / 0,63** | **0,41 / 0,53** |
+| janelas de 128, média simples | 0 | 0,57 / 0,69 | 0,39 / 0,48 |
+| janelas de 256 | 0 | 0,50 / 0,55 | 0,39 / 0,45 |
+| janelas de 512 | 0 | 0,50 / 0,54 | 0,37 / 0,43 |
+
+Conclusões:
+
+- Aumentar o limite para 512 **não** melhora: representa mais texto, mas é pior que janelas de 128 nas
+  duas medidas. É coerente com o modelo ter sido preparado para 128 tokens.
+- Entre as estratégias de cobertura total, janelas de 128 são as melhores. A média ponderada fica entre a
+  média simples (melhor no final, pior no início) e é a agregação pedida.
+- Não foram criados pesos especiais para o início do texto: ajustá-los nos mesmos 54 trechos, sem
+  conjunto de validação, seria sobreajuste.
+
+### 4.4. Efeito no sistema híbrido real
+
+Mesmas consultas, agora pelo `retrieve_context` completo (vetorial + full-text + RRF, `top_k = 20`),
+medidas no Neo4j com os vetores antigos e depois com os novos:
+
+| Consultas | MRR antes | MRR depois | Acerto@1 antes → depois | Acerto@5 antes → depois |
+| --- | --- | --- | --- | --- |
+| final do texto (40) | 0,64 | **0,88** | 0,47 → **0,82** | 0,85 → **0,97** |
+| início do texto (54) | **0,94** | 0,83 | **0,93** → 0,76 | **0,94** → 0,91 |
+| total ponderado (94) | 0,81 | **0,85** | | |
+
+O ganho no conteúdo que antes era invisível ao vetor é grande; há uma **perda nas consultas sobre o
+início** dos trechos longos. Investigação dos 13 casos de início que saíram do 1º lugar:
+
+- em 10, o trecho certo continua **em 1º no full-text**; um trecho que aparece bem nas duas listas
+  (ex.: vetorial 1º + full-text 2º) passa à frente pelo RRF, porque o vetor agora representa o texto
+  inteiro e não favorece mais o começo;
+- em 3 (`CEIS-335447`, `CEIS-335448`, `CEIS-335450`), o trecho saiu do top 20: textos legais longos e
+  genéricos, que compartilham as 10 primeiras palavras com `CEIS-283427` e só eram achados porque o
+  vetor antigo conhecia apenas o começo.
+
+Essa troca é a consequência esperada de representar o texto inteiro num único vetor e está registrada
+como limitação (seção 11). Saída completa em `docs/evidencias/dev5_avaliacao_estrategias_embeddings.txt`.
+
+### 4.5. Gerador, versionamento e verificação
+
+`scripts/generate_embeddings.py`:
+
+- processa os trechos **sem embedding**, com **outro modelo** ou com **versão de estratégia diferente**
+  (`embedding_pipeline_version` ausente ou diferente da atual); `--force` reprocessa todos e `--dry-run`
+  mostra quantos estão pendentes por motivo. O nome do modelo não é usado para representar a versão;
+- antes de gravar, cria o índice com `IF NOT EXISTS` e confere tipo, rótulo, propriedade, dimensão e
+  similaridade; se o índice existir com outra configuração, **para sem gravar**;
+- recusa vetores com dimensão errada, NaN ou infinito, e para se a segmentação deixar tokens de fora;
+- grava `embedding`, `embedding_model`, `embedding_pipeline_version` e `embedding_windows`;
+- ao final espera o índice ficar `ONLINE` e confere no banco cobertura, dimensão, norma (|1 − norma| ≤ 0,001)
+  e se todos os `Trecho` estão na versão atual; qualquer divergência encerra com erro.
+
+O serviço confere, uma vez por instância de `GraphHybridRetriever`, se os vetores gravados são da mesma
+versão usada para codificar a pergunta e avisa em `warnings` quando não são. Vetores gerados em Python 3.9
+(sentence-transformers 5.1.2) e em Python 3.13 (sentence-transformers 6.2.0) são equivalentes (cosseno
+mínimo 1,0000000).
+
+Trocar modelo ou dimensão continua exigindo ajuste coordenado com dev3 (recriar o índice). Trocar só a
+segmentação muda a versão da estratégia; basta rodar o gerador.
 
 ## 5. Busca full-text
 
@@ -186,8 +208,8 @@ A pergunta vira uma consulta Lucene `texto:(termo1 OR termo2 ...)`:
   `standard-no-stop-words`, não as remove, e com OR elas trariam quase todos os trechos);
 - números com separador geram duas formas: a contínua e uma frase com a pontuação original.
   Ex.: `Lei 12.846` → `12846 OR "12.846"`; `01.340.937/0001-79` → `01340937000179 OR "01.340.937/0001-79"`.
-  Motivo verificado no banco: o analisador mantém `01.340.937` como um token e quebra em `/` e `-`,
-  então só a frase encontra o CNPJ formatado;
+  O analisador mantém `01.340.937` como um token e quebra em `/` e `-`, então só a frase encontra o
+  CNPJ formatado;
 - os termos só contêm letras, dígitos e `_` (frases: dígitos e `.-/`), em minúsculas: operadores
   Lucene digitados pelo usuário (`AND`, `:`, `*`, `~`, parênteses) não chegam ao índice;
 - OR em vez de AND: com AND, uma pergunta em linguagem natural quase nunca tem todos os termos no mesmo trecho.
@@ -204,66 +226,104 @@ O maior valor possível é `2/61 ≈ 0,0328` (1º lugar nas duas buscas), devolv
 
 Regras implementadas e testadas: rank 1-based; `None` ignorado; identificador repetido numa lista conta
 só a primeira vez; empates mantêm a ordem de primeira aparição (vetorial primeiro); `k` inteiro ≥ 1.
-Cada busca devolve `max(4 × top_k, 20)` candidatos e o corte em `top_k` acontece depois da fusão.
+Os chunks saem sempre em ordem decrescente de `rrf_score`; nenhum outro critério reordena o resultado.
 
-## 7. Contrato de `retrieve_context`
+## 7. Contrato do dev5
 
-### 7.1. Saída
+### 7.1. `retrieve_context(question, top_k=5)`
 
-Uma única consulta (`UNWIND $trecho_ids`) busca, para todos os trechos selecionados, os caminhos:
+```python
+from app.services.retrieval import GraphHybridRetriever, retrieve_context
+from app.services.contract import validate_retrieval_response
 
-```text
-(Trecho)-[:ORIGINADO_DE]->(Fonte)
-(Trecho)-[:EXTRATO_DE]->(Sancao)-[:APLICADA_A]->(Estabelecimento)<-[:POSSUI_ESTABELECIMENTO]-(Empresa)<-[:PARTICIPA_DE]-(Socio)
-(Trecho)-[:MENCIONA {status: 'CANDIDATA'}]->(Estabelecimento)
+contexto = retrieve_context("Quais empresas foram declaradas inidôneas?", top_k=5)
+assert validate_retrieval_response(contexto) == []
+
+# Com driver controlado pelo consumidor (Streamlit, testes):
+retriever = GraphHybridRetriever(driver, database="neo4j")
+contexto = retriever.retrieve_context("...", top_k=5)
 ```
 
-Os prefixos de cada caminho também são consultados, para que `Sancao`, `Estabelecimento` e `Empresa`
-apareçam mesmo quando o salto seguinte não existe. Nós e relacionamentos são deduplicados (relacionamento
-pelo `elementId`), sem o produto cartesiano de vários `OPTIONAL MATCH`.
+`retrieve_context` lê o `.env`, cria o driver e mantém o modelo carregado entre chamadas.
 
-Campos exigidos pela seção 3 do `CONTRATO_DADOS_E_SERVICOS.md`, todos presentes:
+Campos de primeiro nível (todos obrigatórios):
 
 | Campo | Tipo | Conteúdo |
 | --- | --- | --- |
 | `query` | `str` | pergunta recebida |
-| `retrieval_mode` | `str` | sempre `"hybrid"` |
-| `chunks[]` | `list[dict]` | `trecho_id: str`, `texto: str`, `registro_id: str \| None`, `fonte_id: str \| None`, `url_fonte: str \| None`, `vector_rank: int \| None`, `fulltext_rank: int \| None`, `rrf_score: float`; ordenados por `rrf_score` decrescente |
-| `nodes[]` | `list[dict]` | `{"id": "Rotulo:chave", "label": str, "properties": dict}`; ex. `Sancao:CEIS-289814`, `Empresa:01340937` |
-| `relationships[]` | `list[dict]` | `{"source": id, "target": id, "type": str, "properties": dict}`, com a direção original |
+| `retrieval_mode` | `str` | sempre `"hybrid"` (compatibilidade); o que de fato contribuiu está em `parameters.active_searches` |
+| `chunks` | `list[dict]` | trechos recuperados, em ordem decrescente de `rrf_score` |
+| `nodes` | `list[dict]` | `{"id": "Rotulo:chave", "label": str, "properties": dict}` |
+| `relationships` | `list[dict]` | `{"source": id, "target": id, "type": str, "properties": dict}`, com a direção original |
 | `cypher` | `str` | as três consultas executadas (vetorial, full-text, expansão) |
 | `warnings` | `list[str]` | avisos claros; lista vazia quando não há ressalva |
+| `parameters` | `dict` | parâmetros e estado da execução (abaixo) |
 
-Campos adicionais (o contrato define o mínimo; consumidores devem ignorar o que não usam):
-`chunks[].vector_score`, `chunks[].fulltext_score`, `chunks[].graph_paths` (caminhos legíveis do trecho) e
-`parameters` (`top_k`, `candidate_k`, `rrf_k`, `rrf_max_score`, modelo, índices e consulta Lucene usada).
+Campos de cada item de `chunks`:
 
-Procedência: `registro_id`, `fonte_id` e `url_fonte` vêm das propriedades gravadas pelo dev4 no `Trecho`;
-se estiverem vazias, vêm da `Sancao`/`Fonte` ligadas no grafo. No recorte real, os três campos estão
-preenchidos em todos os trechos devolvidos (teste de integração).
+| Campo | Tipo | Conteúdo |
+| --- | --- | --- |
+| `trecho_id`, `texto` | `str` | identificador e texto integral do trecho |
+| `registro_id`, `fonte_id`, `url_fonte` | `str \| None` | procedência (do `Trecho`; se vazia, da `Sancao`/`Fonte` ligadas) |
+| `vector_rank`, `fulltext_rank` | `int \| None` | posição em cada busca; `None` quando o trecho não veio daquela busca |
+| `rrf_score` | `float` | `Σ 1/(60 + rank)`; conferido pelo validador a partir dos ranks |
+| `vector_score`, `fulltext_score` | `float \| None` | scores brutos, só informativos (escalas diferentes); `None` junto com o rank |
+| `graph_paths` | `list[str]` | caminhos do trecho no grafo em notação Cypher legível |
+| `identifier_matches` | `list[str]` | CNPJs citados na pergunta que aparecem literalmente no texto do trecho |
 
-Propriedades mínimas: cada rótulo tem uma lista fixa de propriedades devolvidas. `embedding`, `texto`,
+Campos de `parameters`: `top_k`, `candidate_k`, `rrf_k`, `rrf_max_score`, `active_searches`
+(`["vector", "fulltext"]`, só uma delas ou `[]`), `search_status` (`vector`/`fulltext` →
+`com_resultados`, `sem_resultados`, `indisponivel` ou `nao_executada`), `embedding_model`,
+`embedding_dimensions`, `embedding_pipeline_version`, `vector_index`, `fulltext_index`, `fulltext_query`
+e `query_identifiers` (CNPJs detectados na pergunta, pela mesma regra estrutural do dev4).
+
+Nós: cada rótulo tem uma lista fixa de propriedades mínimas para evidência. `embedding`, `texto`,
 `mencoes_json`, `observacoes`, `fundamentacao_legal` e `capital_social` não saem em `nodes` (o texto do
 trecho já está em `chunks`). **Nome de sócio só é devolvido quando `tipo_pessoa = PESSOA JURIDICA`**.
+`id` é estável entre chamadas (`Trecho:<trecho_id>`, `Sancao:<registro_id>`, `Empresa:<cnpj_basico>`,
+`Estabelecimento:<cnpj>`, `Socio:<socio_id>`, `Fonte:<fonte_id>`).
+
+`MENCIONA` mantém `status = "CANDIDATA"`, `inicio`, `fim` e `metodo`, e sempre gera aviso de que é citação
+textual candidata, não vínculo.
 
 Avisos emitidos: nenhum trecho recuperado; índice vetorial ou full-text indisponível (o serviço segue com
-a outra busca); nenhum `Trecho` com embedding; pergunta sem termos para full-text; nenhum termo da
-pergunta nos textos (resultado só semântico); `top_k` reduzido ao máximo; presença de `MENCIONA` candidata.
+a outra busca); nenhum `Trecho` com embedding; vetores gravados de outra versão da estratégia; pergunta sem
+termos para full-text; nenhum termo da pergunta nos textos (resultado só semântico); `top_k` reduzido ao
+máximo; 1º trecho sem o CNPJ citado na pergunta (indica em qual posição ele aparece); presença de
+`MENCIONA` candidata. Nenhum limiar de confiança ou de abstenção é aplicado: essa decisão é do dev1.
 
-### 7.2. Compatibilidade com dev1 e dev6
+`validate_retrieval_response` (`app/services/contract.py`) verifica todos os itens acima: tipos,
+`parameters` serializável e coerente (`active_searches` × `search_status` × ranks), scores finitos,
+`rrf_score` igual à fórmula e ≤ `rrf_max_score`, ordem dos chunks, `graph_paths` como lista de textos,
+ids únicos, arestas apontando para nós existentes, ausência de `embedding`/`texto`/`mencoes_json` nos
+nós, propriedades de `MENCIONA`, aviso quando não há evidência e serialização completa em JSON.
 
-**Situação verificada em 2026-11-10:** a branch `dev1` contém só a preparação inicial do ambiente (já
-integrada à `main`) e não há branch `dev6`. Ainda não existe código consumidor; por isso a compatibilidade
-foi verificada contra o contrato (seções 3 e 4 do `CONTRATO_DADOS_E_SERVICOS.md`) com testes executáveis:
+Exemplo real: `docs/evidencias/dev5_retrieve_context_exemplo.json`.
 
-- `validate_retrieval_response` (`app/services/contract.py`) checa tipos, ordem dos chunks, ranks,
-  ids únicos, arestas apontando para nós existentes, aviso quando não há evidência e serialização em JSON;
-- o validador passa nos cenários sintéticos (normal, sem evidência, só full-text, só vetorial) e em
-  respostas reais do banco para cinco perguntas (`tests/test_retrieval_integracao.py`);
-- `ContractCompatibilityTests` monta a resposta final do dev1 (seção 4) usando **apenas** a saída do dev5,
-  sem consulta extra ao banco, conforme o mapeamento abaixo.
+### 7.2. Especificação original do coordenador (reproduzida)
 
-Mapeamento para a resposta final do dev1 (seção 4 do contrato):
+O pacote do dev5 trouxe esta especificação, que não está versionada no repositório. A seção 7.1 a
+cumpre integralmente e acrescenta campos.
+
+Serviço de recuperação (dev5 → dev1/dev6): `retrieve_context(question: str, top_k: int = 5) -> dict`
+deve retornar, no mínimo, `query: str`, `retrieval_mode: "hybrid"`, `chunks` (com `trecho_id: str`,
+`texto: str`, `registro_id: str | None`, `fonte_id: str | None`, `url_fonte: str | None`,
+`vector_rank: int | None`, `fulltext_rank: int | None`, `rrf_score: float`),
+`nodes: [{"id": str, "label": str, "properties": dict}]`,
+`relationships: [{"source": str, "target": str, "type": str, "properties": dict}]`, `cypher: str` e
+`warnings: []`. O serviço retorna evidências; não inventa a resposta em linguagem natural nem afirma
+responsabilidade jurídica. Sem evidência, devolve listas vazias e aviso claro.
+
+Resposta final (dev1 → dev6): `answer: str`, `cypher: str`, `sources: [{"id": str, "label": str,
+"url": str | None}]`, `nodes: []`, `relationships: []`, `retrieval_relevance: float | None`,
+`abstained: bool`, `warnings: []`. `retrieval_relevance` indica relevância da recuperação, não
+probabilidade de fraude ou culpa; `abstained = True` quando não há evidência suficiente ou a pergunta
+foge do escopo.
+
+### 7.3. Mapeamento para a resposta final do dev1
+
+Situação em 2026-11-10: a branch `dev1` contém só a preparação do ambiente e não há branch `dev6`.
+A compatibilidade foi verificada contra a especificação acima com testes executáveis.
 
 | Campo do dev1 | Origem na resposta do dev5 |
 | --- | --- |
@@ -271,34 +331,67 @@ Mapeamento para a resposta final do dev1 (seção 4 do contrato):
 | `cypher` | `cypher`, sem alteração |
 | `sources[]` (`id`, `label`, `url`) | um por chunk: `id = registro_id` (ou `trecho_id` se ausente), `label = "Sancao"` (ou `"Trecho"`), `url = url_fonte`; órgão, competência e data de coleta estão no nó `Fonte` em `nodes` |
 | `nodes`, `relationships` | sem alteração |
-| `retrieval_relevance` | `chunks[0].rrf_score / parameters.rrf_max_score`: 1,0 = 1º nas duas buscas; 0,5 = 1º em só uma; `None` sem chunks. É relevância, não probabilidade |
-| `abstained` | `True` quando `chunks` vem vazio. Recomendado também quando todos os chunks têm `fulltext_rank = None` e há o aviso "Nenhum termo da pergunta…" (só similaridade semântica) |
-| `warnings` | repassar e acrescentar os avisos do dev1 |
+| `retrieval_relevance` | sugestão: `chunks[0].rrf_score / parameters.rrf_max_score` (1,0 = 1º nas duas buscas; 0,5 = 1º em só uma); `None` sem chunks. É relevância, não probabilidade |
+| `abstained` | `True` quando `chunks` vem vazio. Sinais adicionais para a regra do dev1: `active_searches` sem `fulltext` e o aviso "Nenhum termo da pergunta…" |
+| `warnings` | repassar e acrescentar os do dev1 |
 
-Para a interface (dev6):
+Para perguntas com CNPJ, o dev1 deve preferir o trecho com `identifier_matches` preenchido: a busca
+semântica não distingue números de CNPJ (seção 10.3).
 
-- `nodes[].id` é estável entre chamadas (`Rotulo:chave`) e pode ser o id do nó na visualização;
-  `label` serve para cor/ícone e `properties` para o detalhe;
-- toda aresta tem `source` e `target` presentes em `nodes` (validado); `type` é o rótulo da aresta;
-- `MENCIONA` traz `properties.status = "CANDIDATA"` e deve ser exibida como candidata, não como vínculo;
-- `chunks[].graph_paths` traz o caminho em texto, pronto para explicação;
-- a resposta inteira é serializável em JSON (validado), então pode ir para `st.session_state` ou `st.json`.
+`example_final_response(context, answer)` (`app/services/contract.py`) implementa esse mapeamento como
+referência. `docs/exemplos/resposta_final_dev1.exemplo.json` é um **exemplo demonstrativo** gerado a
+partir de uma resposta real do dev5: o `answer` é texto fixo do script, não gerado por LLM, e o arquivo
+traz o campo `_aviso` dizendo isso.
 
-Ambiente: a suíte passa em Python 3.9.6 (driver neo4j 5.28) e em Python 3.13.18 com as versões que o pip
-resolve hoje (driver neo4j 6.4, sentence-transformers 6.2, transformers 5.22, torch 2.15).
+### 7.4. Consumo pelo dev6 (interface)
 
-Uso:
+| Necessidade da interface | Campo |
+| --- | --- |
+| nós da visualização | `nodes[]`; `id` estável como identificador |
+| tipo do nó (cor/ícone) | `nodes[].label` |
+| arestas | `relationships[]`; `source`/`target` sempre presentes em `nodes` (validado) |
+| tipo da aresta | `relationships[].type` |
+| detalhes ao clicar | `nodes[].properties`, `relationships[].properties` |
+| trechos recuperados | `chunks[].texto`, ranks e `rrf_score` |
+| fontes e URLs | `chunks[].fonte_id`, `chunks[].url_fonte`; nó `Fonte` com `nome`, `orgao_responsavel`, `url`, `competencia`, `data_coleta` |
+| caminhos em texto | `chunks[].graph_paths` |
+| relações candidatas | arestas `MENCIONA` com `properties.status = "CANDIDATA"` (exibir como candidata, ex.: tracejada) |
+| modo efetivo da busca | `parameters.active_searches` e `parameters.search_status` |
+| avisos | `warnings` (exibir sempre) |
+
+A resposta inteira é serializável em JSON (validado), então pode ir para `st.session_state` ou `st.json`.
+
+### 7.5. `company_paths(cnpj_a, cnpj_b, max_hops=6)`
 
 ```python
-from app.services.retrieval import retrieve_context
-from app.services.contract import validate_retrieval_response
+from app.services.retrieval import company_paths
+from app.services.contract import validate_company_paths_response
 
-contexto = retrieve_context("Quais empresas foram declaradas inidôneas?", top_k=5)
-assert validate_retrieval_response(contexto) == []
+caminhos = company_paths("00356328", "01340937")
+assert validate_company_paths_response(caminhos) == []
 ```
 
-`retrieve_context` lê o `.env`, cria o driver e mantém o modelo carregado entre chamadas. Para controlar
-o driver (Streamlit, testes), use `GraphHybridRetriever(driver, database=...)`.
+Também disponível como `GraphHybridRetriever.company_paths(...)`; não carrega o modelo de embeddings.
+Executa as mesmas consultas A (societária) e B (estrutural, sem `ORIGINADO_DE`) de
+`cypher/03_multi_hop.cypher`, com no máximo um caminho por consulta e até 6 relacionamentos.
+
+| Campo | Conteúdo |
+| --- | --- |
+| `empresas`, `max_hops` | entrada normalizada |
+| `paths[]` | `kind` (`societario`, `mencao_candidata`, `atividade_cnae`, `estrutural`), `length`, `nodes` (ids em ordem), `relationship_types`, `text` |
+| `nodes`, `relationships` | mesmo formato e mesma minimização de `retrieve_context` |
+| `cypher`, `warnings` | consultas usadas e avisos (sem caminho societário; CNAE não é vínculo; `MENCIONA` candidata; empresa não encontrada) |
+
+Exemplo real: `docs/evidencias/dev5_company_paths_exemplo.json`.
+
+### 7.6. Divisão entre recuperação e multi-hop
+
+- `retrieve_context` parte da **pergunta**: recupera trechos e expande o subgrafo de evidência de cada um
+  (sanção, estabelecimento, empresa, sócios, fonte e menções). Não procura caminhos entre empresas.
+- `company_paths` parte de **duas empresas** escolhidas pelo consumidor e devolve o caminho mínimo entre
+  elas, com o tipo do caminho classificado. É limitado de propósito para não aumentar o subgrafo.
+- `cypher/03_multi_hop.cypher` reúne as mesmas consultas para execução no Neo4j Browser, mais a
+  varredura, o diagnóstico societário e o cenário sintético.
 
 ## 8. Multi-hop com `shortestPath`
 
@@ -315,21 +408,18 @@ o driver (Streamlit, testes), use `GraphHybridRetriever(driver, database=...)`.
 | Existe no recorte? | **Não**: 0 de 153 pares de empresas | **Sim**: 14 pares (8 com 4 relacionamentos, 6 com 6) |
 | Por quê | regra de identidade do sócio e ausência de casos nos dados (abaixo) | 8 códigos CNAE são declarados por mais de uma empresa |
 | Interpretação | seria um vínculo societário (que, sozinho, ainda não prova irregularidade) | **não** é vínculo societário, de controle ou comercial |
-| Como foi demonstrado | consulta A vazia + diagnóstico E com dados reais; cenário **sintético** G | consultas B, D e F com CNPJs reais |
+| Como foi demonstrado | consulta A vazia + diagnóstico E com dados reais; cenário **sintético** G | consultas B, D e F com CNPJs reais; `company_paths` classifica como `atividade_cnae` |
 
 #### Por que não há caminho societário
 
-São dois motivos independentes:
-
-1. **Regra de identidade do sócio (modelagem).** O `socio_id` é gerado por
-   `generate_socio_id` em `scripts/build_canonical_dataset.py` como
-   `"SOC-" + sha256("cnpj_basico:índice:NOME")[:12]`. Como o `cnpj_basico` da empresa entra no cálculo,
-   a mesma pessoa registrada em duas empresas vira **dois nós `Socio` diferentes**, e um caminho
-   `Empresa ← Socio → Empresa` não pode se formar. A decisão é intencional (`docs/modelagem-lpg.md`, 6.3):
-   sem CPF e sem identificador nacional do sócio, não há como afirmar que dois registros são a mesma
-   pessoa, e nome não cria identidade (homônimos são comuns).
+1. **Regra de identidade do sócio (modelagem).** O `socio_id` é gerado por `generate_socio_id` em
+   `scripts/build_canonical_dataset.py` como `"SOC-" + sha256("cnpj_basico:índice:NOME")[:12]`. Como o
+   `cnpj_basico` da empresa entra no cálculo, a mesma pessoa registrada em duas empresas vira **dois nós
+   `Socio` diferentes**. A decisão é intencional (`docs/modelagem-lpg.md`, 6.3): sem CPF e sem
+   identificador nacional do sócio, não há como afirmar que dois registros são a mesma pessoa, e nome não
+   cria identidade.
 2. **Dados do recorte.** Mesmo com outra regra de identidade, o recorte de 18 empresas não tem nenhum
-   caso. Verificações da seção E de `cypher/03_multi_hop.cypher` (só contagens, sem exibir nomes):
+   caso (seção E de `cypher/03_multi_hop.cypher`, só contagens):
 
 | Verificação | Resultado |
 | --- | --- |
@@ -338,18 +428,17 @@ São dois motivos independentes:
 | Sócios pessoa jurídica que são empresas do próprio recorte | 1 sócio PJ, **0** no recorte (o QSA não traz o CNPJ do sócio PJ) |
 | Pares de empresas com caminho só por `PARTICIPA_DE` | **0 de 153** |
 
-Portanto a ausência vem dos dados e da regra de identidade, **não de erro na consulta**: o mesmo
-`shortestPath` encontra o caminho de 2 relacionamentos no cenário sintético G. A ausência também vale só
-para o recorte: ela não prova que essas empresas não tenham sócios em comum na base completa da Receita
-(`docs/modelagem-lpg.md`, princípio 8: ausência não é evidência negativa). Com um recorte maior e um
-identificador de sócio comparável entre empresas (por exemplo, o CNPJ do sócio pessoa jurídica), a
-consulta A poderia ter resultado.
+A ausência vem dos dados e da regra de identidade, **não de erro na consulta**: o mesmo `shortestPath`
+encontra o caminho de 2 relacionamentos no cenário sintético G, e `company_paths` o classifica como
+`societario`. A ausência vale só para o recorte: não prova que essas empresas não tenham sócios em comum
+na base completa da Receita (`docs/modelagem-lpg.md`, princípio 8). Nenhuma relação societária artificial
+é criada nos dados reais.
 
 #### O que os caminhos por CNAE significam
 
 CNAE é o código oficial (IBGE/CONCLA) da atividade econômica que cada estabelecimento declara à Receita.
-Dois estabelecimentos com o mesmo código apontam para o mesmo nó `CNAE`, e isso cria o caminho. No recorte,
-8 CNAEs são declarados por mais de uma empresa (consulta F):
+Dois estabelecimentos com o mesmo código apontam para o mesmo nó `CNAE`. No recorte, 8 CNAEs são
+declarados por mais de uma empresa (consulta F):
 
 | CNAE | Descrição | Empresas |
 | --- | --- | --- |
@@ -362,9 +451,7 @@ Dois estabelecimentos com o mesmo código apontam para o mesmo nó `CNAE`, e iss
 | 9493600 | Atividades de organizações associativas ligadas à cultura e à arte | 00000113, 00000145 |
 | 9499500 | Atividades associativas não especificadas anteriormente | 00000113, 00000145 |
 
-Nenhum dos 14 caminhos estruturais passa por um `Socio` (coluna `socios_no_caminho = 0` na varredura D).
-Um caminho por CNAE diz apenas que as empresas atuam na mesma classificação de atividade; não indica
-sócio comum, grupo econômico, consórcio, relação comercial nem participação conjunta em licitação.
+Nenhum dos 14 caminhos estruturais passa por um `Socio` (`socios_no_caminho = 0` na varredura D).
 
 #### Como apresentar esses resultados (dev1 e dev6)
 
@@ -374,41 +461,53 @@ sócio comum, grupo econômico, consórcio, relação comercial nem participaç�
 | "Não foi encontrado vínculo societário entre as empresas no recorte analisado." | "As empresas não têm sócios em comum." |
 | Exibir a aresta `EXERCE_CNAE` e o nó `CNAE` no caminho | Desenhar uma aresta direta entre as duas empresas |
 
+Fato cadastral (ex.: CNAE declarado), relação candidata (`MENCIONA`) e inferência (um caminho entre
+empresas) são coisas diferentes e devem continuar distinguidas na interface e na resposta.
+
 ### 8.2. Consultas e resultados
 
 `cypher/03_multi_hop.cypher`, com os CNPJs básicos reais `00356328` (CONSTRUTORA ZAG LTDA) e
-`01340937` (GALVAO ENGENHARIA S/A), escolhidos pela varredura D:
+`01340937` (GALVAO ENGENHARIA S/A):
 
 | Consulta | Padrão | Resultado no recorte |
 | --- | --- | --- |
-| A — societário | `shortestPath((a)-[:PARTICIPA_DE*..6]-(b))` | **vazio**; 0 dos 153 pares de empresas tem caminho societário |
+| A — societário | `shortestPath((a)-[:PARTICIPA_DE*..6]-(b))` | **vazio**; 0 dos 153 pares |
 | B — estrutural | todos os tipos exceto `ORIGINADO_DE` | 4 relacionamentos: `Empresa:00356328 → Estabelecimento:00356328000145 → CNAE:4211101 ← Estabelecimento:01340937000179 ← Empresa:01340937` |
 | C — contraprova | sem filtro de tipo | 2 relacionamentos via `Fonte:F-RFB-CNPJ` (caminho sem significado) |
-| D — varredura | B para todos os pares | 14 pares: 8 com 4 relacionamentos (um CNAE em comum) e 6 com 6 (dois CNAEs); nenhum passa por `Socio` |
+| D — varredura | B para todos os pares | 14 pares: 8 com 4 relacionamentos e 6 com 6; nenhum passa por `Socio` |
 | E1–E3 — diagnóstico societário | contagens de sócios, nomes e sócios PJ | 26 sócios com 1 empresa cada; 0 nomes em mais de uma empresa; 1 sócio PJ, 0 no recorte |
 | F — CNAEs compartilhados | CNAEs declarados por mais de uma empresa | 8 CNAEs (tabela da seção 8.1) |
 | G — **sintético** | `Empresa A ← Socio → Empresa B` | 2 relacionamentos `PARTICIPA_DE`; nós apagados na mesma instrução |
 
-O CNAE 4211101 do caminho B é "Construção de rodovias e ferrovias": as duas empresas declaram essa
-atividade, e nada além disso pode ser concluído desse caminho.
-
 O cenário sintético é separado e marcado: rótulo extra `:Sintetico`, `sintetico: true` e IDs `SINT-...`
-(com hífen, não são CNPJ válido). Uma única instrução cria, consulta e apaga os nós;
-`tests/test_multi_hop_sintetico.py` ainda executa o bloco dentro de uma transação com rollback.
-
-Por que `ORIGINADO_DE` fica fora: todo nó canônico aponta para uma `Fonte`, então sem filtro o caminho
-mínimo entre quaisquer duas empresas é `Empresa → Fonte ← Empresa` (consulta C).
+(com hífen, não são CNPJ válido). Uma única instrução cria, consulta e apaga os nós; os testes de
+`tests/test_multi_hop_sintetico.py` executam o bloco e o serviço `company_paths` dentro de transações com
+rollback. Todo nó canônico aponta para uma `Fonte`, por isso `ORIGINADO_DE` fica fora dos percursos
+(consulta C).
 
 A expansão de pelo menos dois saltos também ocorre nos dados reais em toda recuperação:
 `Trecho → Sancao → Estabelecimento ← Empresa ← Socio` (4 saltos).
 
 ## 9. Como executar e testar
 
-Com a `.venv` ativa, Neo4j ativo, schema de dev3 aplicado e cargas de dev3 e dev4 feitas:
+### 9.1. Dependências
+
+A recuperação depende de `sentence-transformers` (e, por ele, de `torch`), listado em
+`requirements-dev5.txt`. O ambiente completo instala os dois arquivos:
 
 ```bash
 pip install -r requirements.txt -r requirements-dev5.txt
+```
 
+Sem `sentence-transformers`, o `SentenceEncoder` falha com mensagem que indica esse comando. Os testes
+unitários de ranking e do serviço não precisam dele. Na primeira execução o modelo é baixado do Hugging
+Face (~470 MB). Testado com Python 3.9.6 e 3.13.18.
+
+### 9.2. Comandos
+
+Com a `.venv` ativa, Neo4j ativo, schema de dev3 aplicado e cargas de dev3 e dev4 feitas:
+
+```bash
 # Testes unitários (não exigem Neo4j nem o modelo)
 python -m unittest discover -s tests -p "test_ranking.py" -v
 python -m unittest discover -s tests -p "test_retrieval.py" -v
@@ -416,111 +515,140 @@ python -m unittest discover -s tests -p "test_retrieval.py" -v
 # Testes de integração (skip automático sem Neo4j/NEO4J_PASSWORD)
 python -m unittest discover -s tests -p "test_multi_hop_sintetico.py" -v
 python -m unittest discover -s tests -p "test_retrieval_integracao.py" -v   # exige embeddings gerados
+python -m unittest discover -s tests -p "test_text_to_graph.py" -v          # regressão do dev4
 
 # Embeddings e índice vetorial
-python scripts/generate_embeddings.py --dry-run
+python scripts/audit_embedding_truncation.py      # cobertura do texto; não usa o Neo4j
+python scripts/generate_embeddings.py --dry-run   # pendentes por motivo
 python scripts/generate_embeddings.py --batch-size 32
-python scripts/audit_embedding_truncation.py      # auditoria do limite de 128 tokens
+python scripts/evaluate_embedding_strategies.py [--hibrido]
 
-# Consulta manual (texto ou JSON do contrato)
+# Consulta manual e exemplos do contrato
 python -m app.services.retrieval "Quais empresas foram declaradas inidôneas?" --top-k 5
 python -m app.services.retrieval "Quais empresas foram declaradas inidôneas?" --formato json
+python scripts/export_contract_examples.py
 ```
 
-No Neo4j Browser: `cypher/04_indice_vetorial_trecho.cypher` (conferência do índice) e
+No Neo4j Browser: `cypher/04_indice_vetorial_trecho.cypher` (índice e vetores) e
 `cypher/03_multi_hop.cypher` (um comando por vez).
 
 ## 10. Resultados
 
 Ambiente: Neo4j 5.26.32 Community local (mesma versão de `docs/validacao-neo4j.md`), com o schema de dev3,
 a carga canônica e a carga de `Trecho` do dev4 reproduzidas a partir da `main` (210 nós e 405
-relacionamentos, iguais às evidências do time).
+relacionamentos, iguais às evidências do time). Todos os resultados abaixo foram obtidos depois das
+alterações desta entrega.
 
-### 10.1. Testes da suíte Dev5
+### 10.1. Testes
 
 Executados em 2026-11-10; saída completa em `docs/evidencias/dev5_testes.txt`.
 
 | Módulo | Tipo | Testes | Python 3.9.6 | Python 3.13.18 |
 | --- | --- | --- | --- | --- |
 | `tests/test_ranking.py` | unitário (RRF) | 14 | OK | OK |
-| `tests/test_retrieval.py` | unitário (serviço, contrato, compatibilidade dev1/dev6, schema, tokens, auditoria de truncamento) | 43 | OK | OK |
-| `tests/test_multi_hop_sintetico.py` | arquivo Cypher + integração (cenário sintético com rollback) | 3 | OK | OK |
-| `tests/test_retrieval_integracao.py` | integração com banco e modelo reais | 5 | OK | OK |
-| **Total Dev5** | | **65** | **65 OK** | **65 OK** |
+| `tests/test_retrieval.py` | unitário (serviço, contrato, dev1/dev6, janelas, agregação, versão, identificadores, `company_paths`, schema) | 79 | OK | OK |
+| `tests/test_multi_hop_sintetico.py` | arquivo Cypher + integração (cenário sintético e `company_paths` com rollback) | 4 | OK | OK |
+| `tests/test_retrieval_integracao.py` | integração com banco e modelo reais | 10 | OK | OK |
+| **Total Dev5** | | **107** | **107 OK** | **107 OK** |
 | `tests/test_text_to_graph.py` (dev4, regressão) | unitário | 31 | OK | OK |
 
-Sem Neo4j configurado, a suíte completa roda 90 testes e as 2 classes de integração são ignoradas (skip),
+Sem Neo4j configurado, a suíte completa roda 126 testes e as 2 classes de integração são ignoradas (skip),
 sem falha.
 
-### 10.2. Embeddings e buscas
+### 10.2. Embeddings e índice
 
-| Item do pacote | Resultado |
+| Verificação | Resultado |
 | --- | --- |
-| Quantos `Trecho` tinham embedding | 0 de 54 antes; 54 de 54 depois |
-| Quantos vetores gerados | 54, todos com 384 dimensões; reexecução: 0 pendentes |
-| Trechos truncados pelo limite do modelo | 40 de 54 (seção 4.1) |
-| Tempo de execução | ~7 s para gerar e gravar os 54 vetores (CPU Apple M5, modelo já em cache) |
-| Índice vetorial | `trecho_embedding_vector`, `VECTOR`, `ONLINE`, 384, `COSINE` |
-| Consulta vetorial executada | sim (`db.index.vector.queryNodes`) |
-| Consulta full-text executada | sim (`db.index.fulltext.queryNodes` em `fiscalgraph_text_fulltext`) |
-| Contrato | validador sem violações nas respostas reais e no JSON de exemplo |
-| Caminho multi-hop | societário real: vazio; estrutural real por CNAE: 4 relacionamentos; sintético: 2 |
+| Detecção da versão antiga | `--dry-run` inicial: 54 pendentes, todos por `versao_antiga` |
+| `Trecho` com embedding | 54/54, todos na versão `v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2` |
+| Dimensão / norma | 384 em todos / mínimo e máximo 1,000000 |
+| Cobertura | 54/54 trechos integralmente; 150 janelas (máximo 8); 0 tokens não representados |
+| Embeddings antigos após o recálculo | 0 |
+| Idempotência | reexecução e `--dry-run` após `--force`: 0 pendentes |
+| Índice | `trecho_embedding_vector`, `VECTOR`, `ONLINE`, 384, `COSINE` |
+| `Trecho.texto` | 54/54 idênticos a `trechos.jsonl` |
+| Grafo | 210 nós e 405 relacionamentos antes e depois |
+| Tempo | ~7 s para gerar e gravar os 54 vetores (CPU Apple M5, modelo em cache) |
 
-Exemplos de perguntas (`top_k = 3`; saída completa em `docs/evidencias/dev5_recuperacao_manual.txt`):
+### 10.3. Consultas manuais: antes e depois da estratégia de janelas
 
-| Pergunta | 1º resultado | Ranks vetorial / full-text | RRF | Observação |
-| --- | --- | --- | --- | --- |
-| Quais empresas foram declaradas inidôneas para licitar com a administração pública? | `CEIS-299637` | 1 / 1 | 0,032787 | 2º e 3º sobem por consenso (ranks 13/5 e 14/6) |
-| empresa impedida de fechar contratos com o governo | `CEIS-299637` | 4 / 1 | 0,032018 | paráfrase: 2º e 3º são "Suspensão / Impedimento de Contratar" |
-| Lei 12.846 publicação extraordinária da decisão condenatória | `CNEP-388379` | 1 / 1 | 0,032787 | CNEP, lei anticorrupção |
-| trecho que cita o CNPJ 01.340.937/0001-79 | `CEIS-289814` | 5 / 1 | 0,031778 | CNPJ formatado encontrado pela frase; aviso de `MENCIONA` candidata |
-| receita de bolo de chocolate (fora de escopo) | `CNEP-282984` | 1 / — | 0,016393 | só vetorial + aviso de baixa relevância |
+`top_k = 3`; saída completa em `docs/evidencias/dev5_recuperacao_manual.txt`.
 
-Exemplo de caminho devolvido para o 1º resultado da primeira pergunta:
+| Pergunta | 1º antes (v/f) | 1º depois (v/f) | Análise |
+| --- | --- | --- | --- |
+| Quais empresas foram declaradas inidôneas para licitar com a administração pública? | `CEIS-299637` (1/1) | `CEIS-299637` (4/1) | mesmo top 3, só os ranks vetoriais mudaram |
+| empresa impedida de fechar contratos com o governo | `CEIS-299637` (4/1) | `CEIS-388380` (4/3) | 1º "Suspensão" e 2º `CEIS-387835` "Impedimento/proibição de contratar": coerente, e mais aderente à pergunta |
+| Lei 12.846 publicação extraordinária da decisão condenatória | `CNEP-388379` (1/1) | `CNEP-388379` (1/1) | igual no 1º; 2º e 3º continuam registros CNEP da Lei 12.846 |
+| trecho que cita o CNPJ 01.340.937/0001-79 | `CEIS-289814` (5/1) | `CNEP-310577` (1/2) | ver abaixo |
+| receita de bolo de chocolate (fora de escopo) | `CNEP-282984` (1/—) | `CEIS-138581` (1/—) | continua só vetorial, com aviso de baixa relevância |
 
-```text
-(Trecho:47407e0fea9ecbbe3a777e85)-[:EXTRATO_DE]->(Sancao:CEIS-299637)-[:APLICADA_A]->
-(Estabelecimento:00764466000163)<-[:POSSUI_ESTABELECIMENTO]-(Empresa:00764466)<-[:PARTICIPA_DE]-(Socio:SOC-19ADE7447DD9)
-```
+Pergunta com CNPJ: o trecho com o CNPJ exato (`CEIS-289814`) continua em **1º no full-text**, mas ficou
+em **2º** no resultado. O novo 1º, `CNEP-310577`, cita **outro** CNPJ (00.478.727/0001-89); ficou em 1º na
+busca vetorial e em 2º no full-text, e o RRF dá vantagem a quem aparece bem nas duas listas
+(1/61 + 1/62 > 1/65 + 1/61). A hipótese de que essa menção estivesse na parte antes truncada foi
+verificada e **descartada** (as duas menções estão nos primeiros 126 tokens): a causa é que o modelo
+semântico não distingue números de CNPJ, e a ordem dos vizinhos vetoriais mudou com a representação do
+texto inteiro. Antes, a correspondência exata ficava em 1º por acaso da ordem vetorial.
+
+Tratamento: a ordem continua sendo a do RRF, mas o serviço marca `identifier_matches` em cada trecho e
+avisa: "A pergunta cita CNPJ e o 1º trecho não o contém literalmente: o CNPJ 01340937000179 aparece
+literalmente no 2º trecho (…, registro CEIS-289814)…". O teste de integração dessa pergunta passou a
+verificar esse comportamento (correspondência literal = 1º no full-text, presente no top 2, marcada e
+avisada) em vez da posição antiga.
+
+### 10.4. Caminho entre empresas
+
+`company_paths("00356328", "01340937")`: um caminho `atividade_cnae` de 4 relacionamentos via
+`CNAE:4211101`, nenhum caminho societário, e os avisos "Nenhum caminho societário…" e "Caminho por CNAE
+indica apenas atividade econômica declarada em comum…". No cenário sintético, o mesmo serviço devolve um
+caminho `societario` de 2 relacionamentos.
 
 ## 11. Limitações
 
-1. **Truncamento do modelo:** 40 dos 54 trechos ultrapassam o limite de 128 tokens, fixado na configuração
-   do modelo (`sentence_bert_config.json`), e têm embedding calculado só sobre o início do texto. A causa
-   principal é a `fundamentacao_legal` (mediana de 198 tokens, em caixa alta): sem ela, só 7 trechos
-   passariam do limite. A busca full-text cobre o texto inteiro (seção 4.1).
-2. **Sem caminho societário real no recorte:** nenhum dos 153 pares das 18 empresas tem sócio em comum.
-   O `socio_id` inclui o `cnpj_basico`, então cada nó `Socio` pertence a uma só empresa; e, no recorte,
-   nenhum sócio aparece em duas empresas nem por nome. Os 14 caminhos reais entre empresas são
-   estruturais, por CNAE, e significam só atividade econômica em comum, não vínculo (seção 8.1). O caminho
+1. **Diluição do início em trechos longos:** com o texto inteiro num único vetor, o começo de um trecho
+   longo pesa proporcionalmente menos. No sistema híbrido, o MRR das consultas sobre o início caiu de 0,94
+   para 0,83 (seção 4.4), em troca de 0,64 → 0,88 nas consultas sobre o final. Melhorar os dois exigiria
+   mais de um vetor por trecho, o que muda o schema, ou pesos validados num conjunto rotulado.
+2. **Identificadores na busca semântica:** o modelo não distingue números de CNPJ; numa pergunta com CNPJ,
+   o RRF pode pôr à frente um trecho que cita outro CNPJ. O full-text acha a correspondência literal, e o
+   serviço a sinaliza em `identifier_matches` e `warnings`, sem reordenar.
+3. **Avaliação autossupervisionada:** as métricas usam trechos literais do próprio texto como consulta; medem
+   se o conteúdo está representado, não a qualidade semântica em paráfrases. Não há conjunto rotulado.
+4. **Sem caminho societário real no recorte:** nenhum dos 153 pares das 18 empresas tem sócio em comum
+   (seção 8.1). Os 14 caminhos reais são por CNAE e significam só atividade econômica em comum. O caminho
    societário foi demonstrado apenas com dados sintéticos.
-3. **A busca vetorial sempre devolve vizinhos**, mesmo para perguntas fora de escopo. O serviço avisa quando
-   nenhum termo aparece nos textos; a decisão de abster cabe ao dev1 (`abstained`), usando esses avisos e
-   os ranks, não o `rrf_score` como probabilidade.
-4. **Textos repetidos:** muitos registros têm a mesma fundamentação legal (ex.: Lei 8.666, art. 87, IV) e
-   produzem vetores e scores Lucene iguais. Os empates são desfeitos pela ordem de primeira aparição; os
-   trechos são evidências distintas (registros diferentes), mas parecidos entre si.
-5. **Acentos:** o analisador full-text não remove acentos; `inidonea` não encontra `INIDÔNEA`. A busca
+5. **A busca vetorial sempre devolve vizinhos**, mesmo fora de escopo. O serviço avisa quando nenhum termo
+   aparece nos textos (`active_searches = ["vector"]`); a decisão de abster cabe ao dev1.
+6. **Textos repetidos:** muitos registros têm a mesma fundamentação legal e produzem vetores e scores
+   Lucene muito próximos; os empates seguem a ordem de primeira aparição.
+7. **Acentos:** o analisador full-text não remove acentos; `inidonea` não encontra `INIDÔNEA`. A busca
    vetorial cobre parte dessas variações.
-6. **Recorte pequeno:** 54 trechos e 18 empresas. Não há conjunto rotulado de relevância, então não foram
-   calculadas métricas como precisão@k; os exemplos acima são qualitativos.
-7. **`MENCIONA`** é candidata: o serviço a devolve com `status`, offsets e aviso, sem tratá-la como vínculo.
-8. **Consumidores ainda não existem:** a compatibilidade com dev1/dev6 foi verificada contra o contrato
-   (seção 7.2), não contra código deles. Recomenda-se que usem `validate_retrieval_response` nos testes.
-9. **Ambiente de validação:** os resultados foram gerados numa instância local que reproduz a carga
-   integrada, não na instância Docker do time. Basta rodar `scripts/generate_embeddings.py` lá para
-   criar o índice e os vetores.
-10. O índice vetorial e o modelo precisam ser os mesmos no gerador, no serviço e no schema. Trocar modelo ou
-    dimensão exige ajuste coordenado com dev3, recriar o índice e reprocessar com `--force`.
+8. **`MENCIONA`** é candidata: o serviço a devolve com `status`, offsets e aviso, sem tratá-la como vínculo.
+9. **Consumidores ainda não existem:** a compatibilidade com dev1/dev6 foi verificada contra a
+   especificação (seção 7.2), não contra código deles. Recomenda-se que usem os validadores nos testes.
+10. **Ambiente de validação:** os resultados foram gerados numa instância local que reproduz a carga
+    integrada, não na instância Docker do time. Basta rodar `scripts/generate_embeddings.py` lá: o
+    gerador detecta e recalcula os vetores pela versão.
+11. O aviso de versão desatualizada é conferido uma vez por instância do recuperador; depois de regenerar
+    os embeddings, processos de longa duração (ex.: Streamlit) devem criar um novo `GraphHybridRetriever`.
 
 ## 12. Evidências
 
-- `docs/evidencias/dev5_testes.txt` — execução da suíte Dev5 em Python 3.9 e 3.13, regressão do dev4,
-  comportamento sem Neo4j e equivalência dos embeddings entre ambientes.
-- `docs/evidencias/dev5_truncamento_embeddings.txt` — auditoria do limite de 128 tokens: origem do limite,
-  tokens por campo, caixa alta e exemplo do corte.
-- `docs/evidencias/dev5_embeddings_e_indice.txt` — geração, truncamento, idempotência e índice.
-- `docs/evidencias/dev5_recuperacao_manual.txt` — cinco consultas manuais com ranks, RRF, procedência e caminhos.
-- `docs/evidencias/dev5_retrieve_context_exemplo.json` — resposta completa do contrato para uma pergunta.
-- `docs/evidencias/dev5_multi_hop.txt` — saída de `cypher/03_multi_hop.cypher` (caminhos, diagnóstico
-  societário, CNAEs compartilhados e cenário sintético) e contagens antes/depois.
+Todas geradas depois das alterações desta entrega, por execuções reais:
+
+- `docs/evidencias/dev5_testes.txt` — suíte Dev5 em Python 3.9 e 3.13, regressão do dev4, comportamento sem
+  Neo4j e equivalência dos embeddings entre ambientes.
+- `docs/evidencias/dev5_avaliacao_estrategias_embeddings.txt` — comparação das estratégias e avaliação do
+  sistema híbrido antes/depois, com a análise das consultas que pioraram.
+- `docs/evidencias/dev5_embeddings_e_indice.txt` — detecção da versão antiga, regeneração, idempotência,
+  índice, preservação de `Trecho.texto` e contagens do grafo.
+- `docs/evidencias/dev5_truncamento_embeddings.txt` — auditoria: origem do limite, tokens por campo,
+  estratégia anterior × atual e exemplo das janelas.
+- `docs/evidencias/dev5_recuperacao_manual.txt` — cinco consultas manuais com ranks, RRF, procedência,
+  caminhos e `identifier_matches`.
+- `docs/evidencias/dev5_retrieve_context_exemplo.json` — resposta real de `retrieve_context`.
+- `docs/evidencias/dev5_company_paths_exemplo.json` — resposta real de `company_paths`.
+- `docs/evidencias/dev5_multi_hop.txt` — saída de `cypher/03_multi_hop.cypher` (caminhos, diagnóstico,
+  CNAEs compartilhados e cenário sintético) e contagens antes/depois.
+- `docs/exemplos/resposta_final_dev1.exemplo.json` — **exemplo demonstrativo** (não é evidência de execução
+  do dev1 nem resposta de LLM).

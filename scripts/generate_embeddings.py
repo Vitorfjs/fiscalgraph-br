@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
 """Gera embeddings locais para nós :Trecho e garante o índice vetorial ``trecho_embedding_vector``.
 
-Processa somente trechos sem embedding ou cujo ``embedding_model`` difere do modelo configurado
-(``--force`` reprocessa todos). Grava ``embedding`` (384 floats normalizados) e
-``embedding_model``. Modelo, dimensão e índice vêm de ``app/services/embeddings.py``, os mesmos
-usados pelo serviço de recuperação.
+Cada trecho é codificado inteiro: o texto é dividido em janelas de tokens com sobreposição e os
+vetores das janelas são combinados num único vetor normalizado de 384 dimensões (estratégia em
+``app/services/embeddings.py``, a mesma usada para codificar as perguntas). ``Trecho.texto`` não é
+alterado e nenhum nó novo é criado.
 
-Requer Neo4j ativo, schema de dev3 aplicado, Trecho carregados por dev4 e ``.env`` local.
+Propriedades gravadas no ``Trecho``: ``embedding``, ``embedding_model``,
+``embedding_pipeline_version`` (identifica a estratégia) e ``embedding_windows``.
+
+Processa os trechos sem embedding, com outro modelo ou com versão de estratégia diferente da atual
+(``--force`` reprocessa todos). Requer Neo4j ativo, schema de dev3, Trecho carregados por dev4 e
+``.env`` local.
 
 Uso:
     python scripts/generate_embeddings.py --batch-size 32
-    python scripts/generate_embeddings.py --dry-run      # só conta pendentes, não grava
+    python scripts/generate_embeddings.py --dry-run      # só conta pendentes por motivo, não grava
 """
 from __future__ import annotations
 
 import argparse
 import os
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -27,33 +33,55 @@ if str(ROOT) not in sys.path:
 from app.services.embeddings import (  # noqa: E402
     CREATE_VECTOR_INDEX,
     EMBEDDING_DIMENSIONS,
+    EMBEDDING_PIPELINE_VERSION,
     MODEL_NAME,
     SHOW_VECTOR_INDEX,
     VECTOR_INDEX,
     vector_index_problems,
 )
 
+NORM_TOLERANCE = 1e-3
+
+# O motivo explica por que o trecho será (re)processado; ordem de prioridade dos CASE.
 SELECT_PENDING = """
 MATCH (t:Trecho)
-WHERE $force OR t.embedding IS NULL OR t.embedding_model IS NULL OR t.embedding_model <> $model
-RETURN t.trecho_id AS trecho_id, t.texto AS texto
+WITH t, CASE
+  WHEN $force THEN 'forcado'
+  WHEN t.embedding IS NULL THEN 'sem_embedding'
+  WHEN t.embedding_model IS NULL OR t.embedding_model <> $model THEN 'modelo_diferente'
+  WHEN t.embedding_pipeline_version IS NULL OR t.embedding_pipeline_version <> $version THEN 'versao_antiga'
+END AS motivo
+WHERE motivo IS NOT NULL
+RETURN t.trecho_id AS trecho_id, t.texto AS texto, motivo
 ORDER BY trecho_id
 """
 
 WRITE_EMBEDDINGS = """
 UNWIND $rows AS row
 MATCH (t:Trecho {trecho_id: row.trecho_id})
-SET t.embedding = row.embedding, t.embedding_model = $model
+SET t.embedding = row.embedding,
+    t.embedding_model = $model,
+    t.embedding_pipeline_version = $version,
+    t.embedding_windows = row.windows
 RETURN count(t) AS atualizados
 """
 
 VERIFY = """
 MATCH (t:Trecho)
+WITH t, CASE WHEN t.embedding IS NULL THEN null
+             ELSE sqrt(reduce(s = 0.0, x IN t.embedding | s + x * x)) END AS norma
 RETURN count(t) AS total,
        count(t.embedding) AS com_embedding,
        min(size(t.embedding)) AS dimensao_min,
        max(size(t.embedding)) AS dimensao_max,
-       collect(DISTINCT t.embedding_model) AS modelos
+       min(norma) AS norma_min,
+       max(norma) AS norma_max,
+       collect(DISTINCT t.embedding_model) AS modelos,
+       collect(DISTINCT t.embedding_pipeline_version) AS versoes,
+       count(CASE WHEN t.embedding_model = $model AND t.embedding_pipeline_version = $version THEN 1 END)
+         AS na_versao_atual,
+       sum(t.embedding_windows) AS janelas,
+       max(t.embedding_windows) AS janelas_max
 """
 
 
@@ -74,6 +102,20 @@ def ensure_vector_index(session: Any) -> List[str]:
     return vector_index_problems(row.data() if row else None)
 
 
+def verification_problems(check: Dict[str, Any], complete_run: bool) -> List[str]:
+    """Confere no banco o que o índice e o serviço esperam dos vetores gravados."""
+    problems = []
+    if check["com_embedding"] and (check["dimensao_min"] != EMBEDDING_DIMENSIONS
+                                   or check["dimensao_max"] != EMBEDDING_DIMENSIONS):
+        problems.append(f"há embeddings fora de {EMBEDDING_DIMENSIONS} dimensões")
+    if check["com_embedding"] and not (abs(check["norma_min"] - 1) <= NORM_TOLERANCE
+                                       and abs(check["norma_max"] - 1) <= NORM_TOLERANCE):
+        problems.append(f"há embeddings não normalizados (norma {check['norma_min']}..{check['norma_max']})")
+    if complete_run and check["na_versao_atual"] != check["total"]:
+        problems.append(f"{check['total'] - check['na_versao_atual']} Trecho fora da versão atual da estratégia")
+    return problems
+
+
 def generate(driver: Any, args: argparse.Namespace, database: str) -> int:
     with driver.session(database=database) as session:
         if not args.dry_run:
@@ -84,55 +126,67 @@ def generate(driver: Any, args: argparse.Namespace, database: str) -> int:
                 print("Alinhe o índice com dev3 antes de gravar embeddings.", file=sys.stderr)
                 return 1
             print(f"Índice vetorial {VECTOR_INDEX} conferido ({EMBEDDING_DIMENSIONS} dimensões, cosine).")
-        records = session.run(SELECT_PENDING, force=args.force, model=MODEL_NAME).data()
+        records = session.run(SELECT_PENDING, force=args.force, model=MODEL_NAME,
+                              version=EMBEDDING_PIPELINE_VERSION).data()
 
     if args.limit:
         records = records[: args.limit]
     pending = [r for r in records if (r["texto"] or "").strip()]
-    skipped = len(records) - len(pending)
-    print(f"Trechos pendentes: {len(records)} (sem texto, ignorados: {skipped})")
+    reasons = Counter(r["motivo"] for r in records)
+    print(f"Versão da estratégia: {EMBEDDING_PIPELINE_VERSION}")
+    print(f"Trechos pendentes: {len(records)} {dict(sorted(reasons.items()))} "
+          f"(sem texto, ignorados: {len(records) - len(pending)})")
     if args.dry_run or not pending:
         if args.dry_run:
             print("Dry-run: nenhuma escrita no Neo4j.")
         return 0
 
-    from app.services.embeddings import SentenceEncoder, truncation_summary
+    from app.services.embeddings import SentenceEncoder
 
     encoder = SentenceEncoder()
-    print(f"Modelo carregado: {MODEL_NAME} (máx. {encoder.max_seq_length} tokens por texto)")
-    if encoder.max_seq_length:
-        report = truncation_summary(encoder.count_tokens([r["texto"] for r in pending]), encoder.max_seq_length)
-        print(
-            f"Truncamento: {report['acima_do_limite']}/{report['total']} trechos acima de {report['limite']} "
-            f"tokens (mín. {report['minimo']}, mediana {report['mediana']:g}, máx. {report['maximo']}); "
-            f"nesses, o embedding representa só os primeiros {report['limite']} tokens."
-        )
+    plans = {r["trecho_id"]: encoder.window_plan(r["texto"]) for r in pending}
+    windows = [len(p["janelas"]) for p in plans.values()]
+    missing = sum(p["tokens_nao_representados"] for p in plans.values())
+    print(f"Modelo carregado: {MODEL_NAME} | limite padrão do modelo: {encoder.default_max_seq_length} | "
+          f"janela: {encoder.window_tokens} tokens + {encoder.special_tokens} especiais = "
+          f"{encoder.max_seq_length} | sobreposição: {encoder.overlap}")
+    print(f"Cobertura: {sum(1 for p in plans.values() if p['tokens_nao_representados'] == 0)}/{len(plans)} "
+          f"trechos representados integralmente | {sum(windows)} janelas (máx. {max(windows)} por trecho; "
+          f"{sum(1 for w in windows if w > 1)} trechos com mais de uma) | tokens não representados: {missing}")
+    if missing:
+        print("Erro: a segmentação deixou tokens sem representação.", file=sys.stderr)
+        return 1
+
     total = 0
     with driver.session(database=database) as session:
         for start in range(0, len(pending), args.batch_size):
             batch = pending[start:start + args.batch_size]
             vectors = encoder.encode([r["texto"] for r in batch], batch_size=args.batch_size)
             rows: List[Dict[str, Any]] = [
-                {"trecho_id": r["trecho_id"], "embedding": v} for r, v in zip(batch, vectors)
+                {"trecho_id": r["trecho_id"], "embedding": v, "windows": len(plans[r["trecho_id"]]["janelas"])}
+                for r, v in zip(batch, vectors)
             ]
             updated = session.execute_write(
-                lambda tx: tx.run(WRITE_EMBEDDINGS, rows=rows, model=MODEL_NAME).single()["atualizados"]
+                lambda tx: tx.run(WRITE_EMBEDDINGS, rows=rows, model=MODEL_NAME,
+                                  version=encoder.pipeline_version).single()["atualizados"]
             )
             total += updated
             print(f"Embeddings gravados: {total}/{len(pending)}")
 
         session.run("CALL db.awaitIndex($name, 300)", name=VECTOR_INDEX).consume()
-        check = session.run(VERIFY).single().data()
+        check = session.run(VERIFY, model=MODEL_NAME, version=EMBEDDING_PIPELINE_VERSION).single().data()
 
     print(
-        f"Concluído. Modelo={MODEL_NAME}; trechos atualizados={total}; "
-        f"Trecho com embedding={check['com_embedding']}/{check['total']}; "
-        f"dimensão min/max={check['dimensao_min']}/{check['dimensao_max']}; modelos={check['modelos']}"
+        f"Concluído. trechos atualizados={total}; Trecho com embedding={check['com_embedding']}/{check['total']}; "
+        f"na versão atual={check['na_versao_atual']}/{check['total']}; "
+        f"dimensão min/max={check['dimensao_min']}/{check['dimensao_max']}; "
+        f"norma min/max={check['norma_min']:.6f}/{check['norma_max']:.6f}; "
+        f"janelas={check['janelas']} (máx. {check['janelas_max']}); versões={check['versoes']}"
     )
-    if check["dimensao_min"] != EMBEDDING_DIMENSIONS or check["dimensao_max"] != EMBEDDING_DIMENSIONS:
-        print(f"Erro: há embeddings fora de {EMBEDDING_DIMENSIONS} dimensões.", file=sys.stderr)
-        return 1
-    return 0
+    problems = verification_problems(check, complete_run=not args.limit)
+    for problem in problems:
+        print(f"Erro: {problem}.", file=sys.stderr)
+    return 1 if problems else 0
 
 
 def main(argv: Optional[List[str]] = None) -> int:

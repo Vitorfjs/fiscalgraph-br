@@ -17,8 +17,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.services import embeddings, retrieval  # noqa: E402
-from app.services.contract import validate_retrieval_response  # noqa: E402
+from app.services import embeddings, multi_hop, retrieval  # noqa: E402
+from app.services.contract import (  # noqa: E402
+    example_final_response,
+    validate_company_paths_response,
+    validate_retrieval_response,
+)
 from app.services.retrieval import (  # noqa: E402
     CANDIDATE_MULTIPLIER,
     FULLTEXT_INDEX,
@@ -68,7 +72,8 @@ R_APLICADA = rel("r:ap", "APLICADA_A", SANCAO, EST, registro_origem="SINT:L1")
 R_POSSUI = rel("r:po", "POSSUI_ESTABELECIMENTO", EMP, EST)
 R_PF = rel("r:pf", "PARTICIPA_DE", SOCIO_PF, EMP, qualificacao="Sócio")
 R_PJ = rel("r:pj", "PARTICIPA_DE", SOCIO_PJ, EMP, qualificacao="Sócio")
-R_MENCIONA = rel("r:me", "MENCIONA", T1, EST, status="CANDIDATA", inicio=10, fim=28)
+R_MENCIONA = rel("r:me", "MENCIONA", T1, EST, status="CANDIDATA", inicio=10, fim=28,
+                 metodo="regex_cnpj_estrutural")
 R2_FONTE = rel("r2:of", "ORIGINADO_DE", T2, FONTE)
 R2_EXTRATO = rel("r2:ex", "EXTRATO_DE", T2, SANCAO2)
 
@@ -93,8 +98,9 @@ EXPANSION = {
 
 
 class FakeSession:
-    def __init__(self, vector, fulltext, expansion=EXPANSION):
+    def __init__(self, vector, fulltext, expansion=EXPANSION, embedding_status=(2, 2)):
         self.vector, self.fulltext, self.expansion = vector, fulltext, expansion
+        self.embedding_status = embedding_status  # (com_embedding, na_versao_atual)
         self.calls = []
 
     def __enter__(self):
@@ -106,6 +112,9 @@ class FakeSession:
     def run(self, query, parameters=None, **kwargs):
         params = dict(parameters or {}, **kwargs)
         self.calls.append((query, params))
+        if "na_versao_atual" in query:
+            total, current = self.embedding_status
+            return [{"com_embedding": total, "na_versao_atual": current}]
         if "db.index.vector.queryNodes" in query:
             return self._rows(self.vector)
         if "db.index.fulltext.queryNodes" in query:
@@ -364,33 +373,6 @@ class SchemaAlignmentTests(unittest.TestCase):
         self.assertTrue(embeddings.vector_index_problems(None))
 
 
-def final_response_from(context):
-    """Mapeamento da seção 7.2 de docs/recuperacao-hibrida.md: saída do dev5 → resposta do dev1.
-
-    Usa só campos da resposta de retrieve_context, sem consulta extra ao banco. ``answer`` fica
-    vazio porque é gerado pelo dev1.
-    """
-    chunks = context["chunks"]
-    sources, seen = [], set()
-    for chunk in chunks:
-        source_id = chunk["registro_id"] or chunk["trecho_id"]
-        if source_id not in seen:
-            seen.add(source_id)
-            sources.append({"id": source_id, "label": "Sancao" if chunk["registro_id"] else "Trecho",
-                            "url": chunk["url_fonte"]})
-    return {
-        "answer": "",
-        "cypher": context["cypher"],
-        "sources": sources,
-        "nodes": context["nodes"],
-        "relationships": context["relationships"],
-        "retrieval_relevance": (chunks[0]["rrf_score"] / context["parameters"]["rrf_max_score"]
-                                if chunks else None),
-        "abstained": not chunks,
-        "warnings": list(context["warnings"]),
-    }
-
-
 class ContractCompatibilityTests(unittest.TestCase):
     """Compatibilidade com os consumidores: dev1 (resposta final) e dev6 (interface/grafo)."""
 
@@ -407,20 +389,49 @@ class ContractCompatibilityTests(unittest.TestCase):
             with self.subTest(cenario=name):
                 self.assertEqual(validate_retrieval_response(result), [])
 
+    def test_active_searches_identify_effective_mode(self):
+        expected = {
+            "normal": (["vector", "fulltext"], {"vector": "com_resultados", "fulltext": "com_resultados"}),
+            "sem_evidencia": ([], {"vector": "sem_resultados", "fulltext": "sem_resultados"}),
+            "so_fulltext": (["fulltext"], {"vector": "indisponivel", "fulltext": "com_resultados"}),
+            "so_vetorial": (["vector"], {"vector": "com_resultados", "fulltext": "sem_resultados"}),
+        }
+        for name, result in self.scenarios().items():
+            with self.subTest(cenario=name):
+                self.assertEqual(result["retrieval_mode"], "hybrid")  # campo do contrato preservado
+                parameters = result["parameters"]
+                self.assertEqual((parameters["active_searches"], parameters["search_status"]), expected[name])
+
+    def test_question_without_terms_marks_fulltext_as_not_executed(self):
+        result, _ = run([("T1", 0.6)], [("T2", 1.0)], question="o que é?")
+        self.assertEqual(result["parameters"]["search_status"]["fulltext"], "nao_executada")
+        self.assertEqual(result["parameters"]["active_searches"], ["vector"])
+
     def test_dev6_graph_is_self_consistent(self):
         result = self.scenarios()["normal"]
         node_ids = [n["id"] for n in result["nodes"]]
         self.assertEqual(len(node_ids), len(set(node_ids)))
-        for rel in result["relationships"]:
-            self.assertIn(rel["source"], node_ids)
-            self.assertIn(rel["target"], node_ids)
+        for rel_item in result["relationships"]:
+            self.assertIn(rel_item["source"], node_ids)
+            self.assertIn(rel_item["target"], node_ids)
         for chunk in result["chunks"]:
             self.assertIn(f"Trecho:{chunk['trecho_id']}", node_ids)
+
+    def test_dev6_fields_have_expected_formats(self):
+        result = self.scenarios()["normal"]
+        for chunk in result["chunks"]:
+            self.assertTrue(all(isinstance(p, str) for p in chunk["graph_paths"]))
+            for key in ("vector_score", "fulltext_score"):
+                self.assertTrue(chunk[key] is None or isinstance(chunk[key], float))
+        mention = next(r for r in result["relationships"] if r["type"] == "MENCIONA")
+        self.assertEqual(mention["properties"],
+                         {"status": "CANDIDATA", "inicio": 10, "fim": 28, "metodo": "regex_cnpj_estrutural"})
+        self.assertEqual(json.loads(json.dumps(result, ensure_ascii=False)), result)
 
     def test_dev1_final_response_can_be_built_from_retrieval_only(self):
         for name, context in self.scenarios().items():
             with self.subTest(cenario=name):
-                final = final_response_from(context)
+                final = example_final_response(context)
                 self.assertEqual(set(final), {"answer", "cypher", "sources", "nodes", "relationships",
                                               "retrieval_relevance", "abstained", "warnings"})
                 for source in final["sources"]:
@@ -442,12 +453,25 @@ class ContractCompatibilityTests(unittest.TestCase):
 
     def test_validator_detects_contract_violations(self):
         valid = self.scenarios()["normal"]
+        mention = next(i for i, r in enumerate(valid["relationships"]) if r["type"] == "MENCIONA")
         cases = {
             "campo ausente": lambda r: r.pop("cypher"),
+            "parameters ausente": lambda r: r.pop("parameters"),
             "aresta para nó inexistente": lambda r: r["relationships"][0].update(target="Empresa:NAO-EXISTE"),
             "ordem errada": lambda r: r["chunks"].reverse(),
             "rank booleano": lambda r: r["chunks"][0].update(vector_rank=True),
             "chunk sem rank": lambda r: r["chunks"][0].update(vector_rank=None, fulltext_rank=None),
+            "score sem rank": lambda r: r["chunks"][1].update(fulltext_score=1.0),
+            "score não finito": lambda r: r["chunks"][0].update(vector_score=float("nan")),
+            "rrf incoerente com os ranks": lambda r: r["chunks"][0].update(rrf_score=0.02),
+            "graph_paths não é lista de textos": lambda r: r["chunks"][0].update(graph_paths="(Trecho:T1)"),
+            "embedding exposto no nó": lambda r: r["nodes"][0]["properties"].update(embedding=[0.1]),
+            "texto duplicado no nó": lambda r: r["nodes"][0]["properties"].update(texto="..."),
+            "MENCIONA sem status": lambda r: r["relationships"][mention]["properties"].pop("status"),
+            "active_searches incoerente": lambda r: r["parameters"].update(active_searches=["vector"]),
+            "busca desconhecida": lambda r: r["parameters"].update(active_searches=["sql"]),
+            "identifier_matches ausente": lambda r: r["chunks"][0].pop("identifier_matches"),
+            "identificador fora da pergunta": lambda r: r["chunks"][0].update(identifier_matches=["99999999000199"]),
             "não serializável": lambda r: r["nodes"][0]["properties"].update(data=object()),
             "modo errado": lambda r: r.update(retrieval_mode="vector"),
             "sem evidência e sem aviso": lambda r: r.update(chunks=[], warnings=[]),
@@ -459,42 +483,388 @@ class ContractCompatibilityTests(unittest.TestCase):
                 self.assertNotEqual(validate_retrieval_response(broken), [])
 
 
+class IdentifierMatchTests(unittest.TestCase):
+    """CNPJ na pergunta: a correspondência literal é sinalizada sem reordenar o RRF."""
+
+    def run_with_cnpj_in(self, holder, question="trecho que cita o CNPJ 11.222.333/0001-81"):
+        expansion = copy.deepcopy(EXPANSION)
+        expansion[holder]["texto"] = "Multa aplicada à empresa de CNPJ nº 11.222.333/0001-81."
+        session = FakeSession([("T1", 0.9), ("T2", 0.8)], [("T1", 2.0), ("T2", 1.5)], expansion=expansion)
+        return GraphHybridRetriever(FakeDriver(session), FakeEncoder()).retrieve_context(question)
+
+    def test_literal_match_is_flagged_and_warned_when_not_first(self):
+        result = self.run_with_cnpj_in("T2")
+        self.assertEqual(result["parameters"]["query_identifiers"], ["11222333000181"])
+        self.assertEqual([c["trecho_id"] for c in result["chunks"]], ["T1", "T2"])  # ordem do RRF mantida
+        self.assertEqual([c["identifier_matches"] for c in result["chunks"]], [[], ["11222333000181"]])
+        warning = next(w for w in result["warnings"] if w.startswith("A pergunta cita CNPJ"))
+        self.assertIn("2º trecho (T2, registro SINT-CEIS-2)", warning)
+        self.assertEqual(validate_retrieval_response(result), [])
+
+    def test_no_warning_when_first_chunk_contains_the_cnpj(self):
+        result = self.run_with_cnpj_in("T1")
+        self.assertEqual(result["chunks"][0]["identifier_matches"], ["11222333000181"])
+        self.assertFalse(any(w.startswith("A pergunta cita CNPJ") for w in result["warnings"]))
+
+    def test_questions_without_cnpj_have_empty_matches(self):
+        result, _ = run([("T1", 0.8)], [("T1", 2.0)])
+        self.assertEqual(result["parameters"]["query_identifiers"], [])
+        self.assertEqual(result["chunks"][0]["identifier_matches"], [])
+
+    def test_identifier_extraction_follows_dev4_rules(self):
+        self.assertEqual(retrieval.cnpj_identifiers("CNPJ 01.340.937/0001-79 e 00478727000189"),
+                         ["01340937000179", "00478727000189"])
+        self.assertEqual(retrieval.cnpj_identifiers("Lei 12.846 de 2013"), [])
+
+
+class EmbeddingVersionWarningTests(unittest.TestCase):
+    def test_outdated_stored_embeddings_are_reported(self):
+        session = FakeSession([("T1", 0.8)], [("T1", 2.0)], embedding_status=(54, 10))
+        retriever = GraphHybridRetriever(FakeDriver(session), FakeEncoder())
+        result = retriever.retrieve_context("sanção sintética")
+        self.assertTrue(any("44 de 54 Trecho têm embedding de outro modelo" in w for w in result["warnings"]))
+        self.assertEqual(result["parameters"]["embedding_pipeline_version"], embeddings.EMBEDDING_PIPELINE_VERSION)
+
+    def test_current_embeddings_do_not_warn_and_are_checked_once(self):
+        session = FakeSession([("T1", 0.8)], [("T1", 2.0)], embedding_status=(54, 54))
+        retriever = GraphHybridRetriever(FakeDriver(session), FakeEncoder())
+        for _ in range(2):
+            result = retriever.retrieve_context("sanção sintética")
+            self.assertFalse(any("outra versão" in w for w in result["warnings"]))
+        self.assertEqual(len(session.queries("na_versao_atual")), 1)
+
+
+# --------------------------------------------------------------------------- embeddings
+class FakeTokenizer:
+    """1 token por palavra, ids estáveis por palavra; especiais 0 (início) e 2 (fim)."""
+
+    pad_token_id = 1
+
+    def __init__(self):
+        self.vocab = {}
+
+    def __call__(self, text, add_special_tokens=True, verbose=True):
+        assert verbose is False
+        ids = [self.vocab.setdefault(word, len(self.vocab) + 10) for word in text.split()]
+        return {"input_ids": [0] + ids + [2] if add_special_tokens else ids}
+
+
+class FakeModel:
+    max_seq_length = 128
+
+    def __init__(self, dimension=384):
+        self.dimension = dimension
+        self.tokenizer = FakeTokenizer()
+
+    def get_sentence_embedding_dimension(self):
+        return self.dimension
+
+
+class RecordingEncoder(embeddings.SentenceEncoder):
+    """Troca só a chamada ao modelo por um vetor determinístico; registra as janelas recebidas."""
+
+    def __init__(self, value=None, **kwargs):
+        super().__init__(model=FakeModel(), **kwargs)
+        self.windows_seen = []
+        self.value = value
+
+    def _forward_ids(self, windows):
+        vectors = []
+        for ids in windows:
+            self.windows_seen.append(list(ids))
+            vector = [0.0] * embeddings.EMBEDDING_DIMENSIONS
+            for token in ids:
+                vector[token % embeddings.EMBEDDING_DIMENSIONS] += 1.0
+            vector[-1] += 0.5  # janela vazia também gera vetor não nulo
+            if self.value is not None:
+                vector[0] = self.value
+            vectors.append(vector)
+        return vectors
+
+
+def words(n, prefix="p"):
+    return " ".join(f"{prefix}{i}" for i in range(n))
+
+
+def norm(vector):
+    return sum(v * v for v in vector) ** 0.5
+
+
+class TokenWindowTests(unittest.TestCase):
+    def test_short_text_is_a_single_window(self):
+        self.assertEqual(embeddings.token_windows(10, 126, 32), [(0, 10)])
+        self.assertEqual(embeddings.token_windows(126, 126, 32), [(0, 126)])
+        self.assertEqual(embeddings.token_windows(0, 126, 32), [(0, 0)])
+
+    def test_long_text_windows_overlap_and_end_at_last_token(self):
+        spans = embeddings.token_windows(718, 126, 32)
+        self.assertEqual(spans[0], (0, 126))
+        self.assertEqual(spans[-1], (592, 718))
+        self.assertEqual(len(spans), 8)
+        for (_, e1), (s2, e2) in zip(spans, spans[1:]):
+            self.assertLessEqual(e2 - s2, 126)
+            self.assertGreaterEqual(e1 - s2, 32)  # sobreposição mínima entre vizinhas
+        self.assertEqual(embeddings.uncovered_tokens(718, spans), 0)
+
+    def test_every_length_is_fully_covered(self):
+        for n in range(0, 800, 7):
+            with self.subTest(n=n):
+                spans = embeddings.token_windows(n, 126, 32)
+                self.assertEqual(embeddings.uncovered_tokens(n, spans), 0)
+                self.assertTrue(all(end - start <= 126 for start, end in spans))
+                self.assertEqual(sum(embeddings.new_token_weights(spans)), max(n, 1))
+
+    def test_invalid_window_parameters(self):
+        for size, overlap in ((0, 0), (126, 126), (126, -1)):
+            with self.subTest(size=size, overlap=overlap), self.assertRaises(ValueError):
+                embeddings.token_windows(200, size, overlap)
+
+    def test_uncovered_tokens_detects_gaps(self):
+        self.assertEqual(embeddings.uncovered_tokens(10, [(0, 4), (6, 10)]), 2)
+
+
+class AggregationTests(unittest.TestCase):
+    def unit(self, index):
+        vector = [0.0] * embeddings.EMBEDDING_DIMENSIONS
+        vector[index] = 1.0
+        return vector
+
+    def test_weighted_mean_then_l2_normalization(self):
+        result = embeddings.aggregate_window_vectors([self.unit(0), self.unit(1)], [3, 1])
+        self.assertAlmostEqual(result[0], 3 / 10 ** 0.5)
+        self.assertAlmostEqual(result[1], 1 / 10 ** 0.5)
+        self.assertAlmostEqual(norm(result), 1.0)
+
+    def test_window_vectors_are_normalized_before_averaging(self):
+        big = [v * 100 for v in self.unit(0)]
+        result = embeddings.aggregate_window_vectors([big, self.unit(1)], [1, 1])
+        self.assertAlmostEqual(result[0], result[1])
+
+    def test_rejects_invalid_inputs(self):
+        nan = self.unit(0)
+        nan[5] = float("nan")
+        inf = self.unit(0)
+        inf[5] = float("inf")
+        cases = {
+            "NaN": ([nan], [1]), "infinito": ([inf], [1]), "dimensão errada": ([[1.0] * 10], [1]),
+            "vetor nulo": ([[0.0] * 384], [1]), "peso zero": ([self.unit(0)], [0]),
+            "pesos e vetores desalinhados": ([self.unit(0)], [1, 1]), "sem vetores": ([], []),
+        }
+        for name, (vectors, weights) in cases.items():
+            with self.subTest(caso=name), self.assertRaises(ValueError):
+                embeddings.aggregate_window_vectors(vectors, weights)
+
+
 class SentenceEncoderTests(unittest.TestCase):
-    class FakeTokenizer:
-        def __call__(self, texts, add_special_tokens=True, verbose=True):
-            assert verbose is False
-            return {"input_ids": [[0] * (len(text.split()) + 2) for text in texts]}
-
-    class FakeModel:
-        max_seq_length = 128
-
-        def __init__(self, dimension=384, value=0.1):
-            self.dimension, self.value = dimension, value
-            self.tokenizer = SentenceEncoderTests.FakeTokenizer()
-
-        def get_sentence_embedding_dimension(self):
-            return self.dimension
-
-        def encode(self, texts, **kwargs):
-            assert kwargs["normalize_embeddings"] is True
-            return [[self.value] * self.dimension for _ in texts]
-
     def test_rejects_model_with_other_dimension(self):
         with self.assertRaises(RuntimeError):
-            embeddings.SentenceEncoder(model=self.FakeModel(dimension=768))
+            embeddings.SentenceEncoder(model=FakeModel(dimension=768))
 
-    def test_encode_returns_python_floats_with_384_dimensions(self):
-        vectors = embeddings.SentenceEncoder(model=self.FakeModel()).encode(["a", "b"])
-        self.assertEqual([len(v) for v in vectors], [384, 384])
-        self.assertIsInstance(vectors[0][0], float)
+    def test_special_tokens_and_effective_limit(self):
+        encoder = RecordingEncoder()
+        self.assertEqual((encoder.prefix, encoder.suffix, encoder.special_tokens), ([0], [2], 2))
+        self.assertEqual((encoder.default_max_seq_length, encoder.max_seq_length), (128, 128))
+        self.assertEqual(encoder.model.max_seq_length, 128)
 
-    def test_encode_rejects_non_finite_values(self):
+    def test_window_must_fit_architecture_positions(self):
         with self.assertRaises(ValueError):
-            embeddings.SentenceEncoder(model=self.FakeModel(value=float("nan"))).encode(["a"])
+            RecordingEncoder(window_tokens=511)  # 511 + 2 especiais > 512 posições
+
+    def test_short_text_uses_one_window_like_a_direct_embedding(self):
+        encoder = RecordingEncoder()
+        text = words(10)
+        vector = encoder.encode([text])[0]
+        ids = encoder.content_token_ids(text)
+        self.assertEqual(encoder.windows_seen, [ids])
+        direct = embeddings.l2_normalize(encoder._forward_ids([ids])[0])
+        for got, want in zip(vector, direct):
+            self.assertAlmostEqual(got, want, places=12)
+
+    def test_text_above_512_tokens_is_segmented_by_tokenizer_windows(self):
+        encoder = RecordingEncoder()
+        text = words(600)
+        encoder.encode([text])
+        ids = encoder.content_token_ids(text)
+        expected = [ids[s:e] for s, e in embeddings.token_windows(600, 126, 32)]
+        self.assertEqual(encoder.windows_seen, expected)
+        self.assertTrue(all(len(w) <= 126 for w in encoder.windows_seen))
+        self.assertGreater(len(encoder.windows_seen), 1)
+
+    def test_final_content_is_represented(self):
+        encoder = RecordingEncoder()
+        text = words(600)
+        encoder.encode([text])
+        last_token = encoder.content_token_ids(text)[-1]
+        self.assertIn(last_token, encoder.windows_seen[-1])
+        plan = encoder.window_plan(text)
+        self.assertEqual((plan["tokens"], plan["tokens_nao_representados"]), (600, 0))
+
+    def test_multiple_windows_are_aggregated_with_new_token_weights(self):
+        encoder = RecordingEncoder()
+        text = words(300)
+        vector = encoder.encode([text])[0]
+        spans = embeddings.token_windows(300, 126, 32)
+        ids = encoder.content_token_ids(text)
+        window_vectors = encoder._forward_ids([ids[s:e] for s, e in spans])
+        expected = embeddings.aggregate_window_vectors(window_vectors, embeddings.new_token_weights(spans))
+        self.assertEqual(vector, expected)
+
+    def test_output_has_384_finite_dimensions_and_unit_norm(self):
+        for vector in RecordingEncoder().encode([words(5), words(700), ""]):
+            self.assertEqual(len(vector), 384)
+            self.assertTrue(all(isinstance(v, float) and v == v for v in vector))
+            self.assertAlmostEqual(norm(vector), 1.0)
+
+    def test_non_finite_model_output_is_rejected(self):
+        for value in (float("nan"), float("inf")):
+            with self.subTest(valor=value), self.assertRaises(ValueError):
+                RecordingEncoder(value=value).encode([words(3)])
+
+    def test_documents_and_questions_share_the_same_encoding(self):
+        encoder = RecordingEncoder()
+        question = "empresas declaradas inidôneas"
+        alone = encoder.encode([question])[0]
+        in_document_batch = encoder.encode([words(400), question, words(20)])[1]
+        self.assertEqual(alone, in_document_batch)
 
     def test_count_tokens_includes_special_tokens(self):
-        encoder = embeddings.SentenceEncoder(model=self.FakeModel())
-        self.assertEqual(encoder.count_tokens(["um dois", "um"]), [4, 3])
+        self.assertEqual(RecordingEncoder().count_tokens(["um dois", "um"]), [4, 3])
+
+    def test_pipeline_version_tracks_the_strategy(self):
+        self.assertEqual(embeddings.pipeline_version(), embeddings.EMBEDDING_PIPELINE_VERSION)
+        self.assertEqual(RecordingEncoder().pipeline_version, embeddings.EMBEDDING_PIPELINE_VERSION)
+        self.assertNotEqual(embeddings.pipeline_version(254, 64), embeddings.EMBEDDING_PIPELINE_VERSION)
+        self.assertNotEqual(embeddings.pipeline_version(126, 16), embeddings.EMBEDDING_PIPELINE_VERSION)
+        self.assertTrue(embeddings.EMBEDDING_PIPELINE_VERSION.startswith("v2-"))
+
+
+def load_script(name):
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class GeneratorVerificationTests(unittest.TestCase):
+    """Regras do gerador que não dependem do banco; a consulta de pendentes é testada na integração."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.generator = load_script("generate_embeddings")
+
+    def check(self, **changes):
+        base = {"total": 54, "com_embedding": 54, "dimensao_min": 384, "dimensao_max": 384,
+                "norma_min": 0.9999999, "norma_max": 1.0000001, "na_versao_atual": 54}
+        base.update(changes)
+        return self.generator.verification_problems(base, complete_run=True)
+
+    def test_consistent_state_has_no_problems(self):
+        self.assertEqual(self.check(), [])
+
+    def test_detects_old_version_wrong_dimension_and_unnormalized_vectors(self):
+        self.assertTrue(any("versão atual" in p for p in self.check(na_versao_atual=40)))
+        self.assertTrue(any("dimensões" in p for p in self.check(dimensao_min=128)))
+        self.assertTrue(any("normalizados" in p for p in self.check(norma_max=1.2)))
+
+    def test_pending_query_reprocesses_old_strategy_versions(self):
+        query = self.generator.SELECT_PENDING
+        self.assertIn("t.embedding_pipeline_version IS NULL OR t.embedding_pipeline_version <> $version", query)
+        self.assertIn("'versao_antiga'", query)
+        self.assertIn("t.embedding_pipeline_version = $version", self.generator.WRITE_EMBEDDINGS.replace(
+            "t.embedding_pipeline_version = $version,", "t.embedding_pipeline_version = $version"))
+
+
+# --------------------------------------------------------------------------- company_paths
+EMP_A = node("p:ea", ["Empresa"], cnpj_basico="A0000001", razao_social="EMPRESA SINTETICA A")
+EMP_B = node("p:eb", ["Empresa"], cnpj_basico="B0000002", razao_social="EMPRESA SINTETICA B")
+EST_A = node("p:sa", ["Estabelecimento"], cnpj="A0000001000100", cnpj_basico="A0000001")
+EST_B = node("p:sb", ["Estabelecimento"], cnpj="B0000002000100", cnpj_basico="B0000002")
+CNAE_X = node("p:c", ["CNAE"], codigo="0000000", descricao="Atividade sintética")
+SOCIO_X = node("p:s", ["Socio"], socio_id="SOC-X", tipo_pessoa="PESSOA FISICA", nome="NAO DEVE SAIR")
+CNAE_PATH = {"nodes": [EMP_A, EST_A, CNAE_X, EST_B, EMP_B], "relationships": [
+    rel("p:r1", "POSSUI_ESTABELECIMENTO", EMP_A, EST_A), rel("p:r2", "EXERCE_CNAE", EST_A, CNAE_X),
+    rel("p:r3", "EXERCE_CNAE", EST_B, CNAE_X), rel("p:r4", "POSSUI_ESTABELECIMENTO", EMP_B, EST_B)]}
+SOCIO_PATH = {"nodes": [EMP_A, SOCIO_X, EMP_B], "relationships": [
+    rel("p:q1", "PARTICIPA_DE", SOCIO_X, EMP_A), rel("p:q2", "PARTICIPA_DE", SOCIO_X, EMP_B)]}
+
+
+class FakePathSession:
+    def __init__(self, existing=("A0000001", "B0000002"), societario=None, estrutural=None):
+        self.existing, self.societario, self.estrutural = existing, societario, estrutural
+        self.queries = []
+
+    def run(self, query, parameters=None):
+        self.queries.append(query)
+        if "UNWIND $ids" in query:
+            return [{"id": i, "existe": i in self.existing} for i in parameters["ids"]]
+        found = self.estrutural if "EXERCE_CNAE" in query else self.societario
+        return [found] if found else []
+
+
+class CompanyPathsTests(unittest.TestCase):
+    def paths(self, **kwargs):
+        return multi_hop.find_company_paths(FakePathSession(**kwargs), "A0000001", "B0000002")
+
+    def test_cnae_path_is_classified_and_explained(self):
+        result = self.paths(estrutural=CNAE_PATH)
+        self.assertEqual(validate_company_paths_response(result), [])
+        (found,) = result["paths"]
+        self.assertEqual((found["kind"], found["length"]), ("atividade_cnae", 4))
+        self.assertEqual(found["nodes"], ["Empresa:A0000001", "Estabelecimento:A0000001000100", "CNAE:0000000",
+                                          "Estabelecimento:B0000002000100", "Empresa:B0000002"])
+        self.assertIn("-[:EXERCE_CNAE]->(CNAE:0000000)<-[:EXERCE_CNAE]-", found["text"])
+        self.assertIn(multi_hop.CNAE_WARNING, result["warnings"])
+        self.assertTrue(any("Nenhum caminho societário" in w for w in result["warnings"]))
+
+    def test_societal_path_is_reported_once_and_minimizes_personal_data(self):
+        result = self.paths(societario=SOCIO_PATH, estrutural=SOCIO_PATH)
+        self.assertEqual(validate_company_paths_response(result), [])
+        self.assertEqual([p["kind"] for p in result["paths"]], ["societario"])
+        socio = next(n for n in result["nodes"] if n["label"] == "Socio")
+        self.assertNotIn("nome", socio["properties"])
+        self.assertFalse(any("Nenhum caminho societário" in w for w in result["warnings"]))
+
+    def test_missing_company_returns_warning_without_paths(self):
+        result = self.paths(existing=("A0000001",))
+        self.assertEqual((result["paths"], result["nodes"]), ([], []))
+        self.assertTrue(any("B0000002" in w for w in result["warnings"]))
+        self.assertEqual(validate_company_paths_response(result), [])
+
+    def test_no_path_is_reported(self):
+        result = self.paths()
+        self.assertTrue(any("Nenhum caminho com até 6" in w for w in result["warnings"]))
+
+    def test_mention_path_is_marked_as_candidate(self):
+        mention = {"nodes": [EMP_A, EST_A, EMP_B], "relationships": [
+            rel("p:m1", "POSSUI_ESTABELECIMENTO", EMP_A, EST_A), rel("p:m2", "MENCIONA", EST_A, EMP_B)]}
+        self.assertEqual(multi_hop.classify_path(mention), "mencao_candidata")
+
+    def test_queries_are_limited_and_skip_provenance(self):
+        session = FakePathSession(estrutural=CNAE_PATH)
+        multi_hop.find_company_paths(session, "A0000001", "B0000002", max_hops=4)
+        path_queries = [q for q in session.queries if "shortestPath" in q]
+        self.assertEqual(len(path_queries), 2)
+        self.assertTrue(all("*..4]" in q and "ORIGINADO_DE" not in q for q in path_queries))
+
+    def test_invalid_inputs_are_rejected(self):
+        for args in (("A0000001", "A0000001", 6), ("", "B0000002", 6), ("A0000001", "B0000002", 0),
+                     ("A0000001", "B0000002", 7), ("A0000001", "B0000002", True), (None, "B0000002", 6)):
+            with self.subTest(args=args), self.assertRaises(ValueError):
+                multi_hop.find_company_paths(FakePathSession(), *args)
+
+    def test_validator_detects_broken_paths(self):
+        valid = self.paths(estrutural=CNAE_PATH)
+        cases = {
+            "tipo de caminho inválido": lambda r: r["paths"][0].update(kind="vinculo"),
+            "nó do caminho ausente": lambda r: r["paths"][0]["nodes"].append("Empresa:X"),
+            "length incoerente": lambda r: r["paths"][0].update(length=2),
+            "aresta solta": lambda r: r["relationships"][0].update(source="Empresa:X"),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(caso=name):
+                broken = copy.deepcopy(valid)
+                mutate(broken)
+                self.assertNotEqual(validate_company_paths_response(broken), [])
 
 
 class TruncationSummaryTests(unittest.TestCase):
@@ -509,20 +879,12 @@ class TruncationSummaryTests(unittest.TestCase):
         self.assertEqual((summary["total"], summary["acima_do_limite"], summary["mediana"]), (0, 0, None))
 
 
-def load_audit_script():
-    spec = importlib.util.spec_from_file_location(
-        "audit_embedding_truncation", ROOT / "scripts" / "audit_embedding_truncation.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
 class TruncationAuditTests(unittest.TestCase):
     """scripts/audit_embedding_truncation.py, com tokenizador falso (1 token por palavra)."""
 
     @classmethod
     def setUpClass(cls):
-        cls.audit = load_audit_script()
+        cls.audit = load_script("audit_embedding_truncation")
 
     @staticmethod
     def words(text):

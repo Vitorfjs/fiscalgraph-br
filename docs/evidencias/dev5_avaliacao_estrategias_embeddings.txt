@@ -1,0 +1,94 @@
+# dev5 — avaliação das estratégias de embedding e do impacto no sistema híbrido
+# Python 3.9.6, sentence-transformers 5.1.2 | Data: 2026-11-10T20:21:52-03:00 | branch: dev5
+# Avaliação autossupervisionada: consultas = trechos literais do próprio texto; relevante = todo Trecho que
+# contém a consulta. Mede se o conteúdo está representado, não a qualidade semântica em paráfrases.
+
+## 1. Busca vetorial pura, por estratégia (cosseno exato, sem Neo4j)
+
+$ python scripts/evaluate_embedding_strategies.py
+Trechos: 54 | com mais de 126 tokens de conteúdo: 40 | maior: 718 tokens de conteúdo
+Consultas 'final': 40 | trechos relevantes por consulta: mín. 1, média 8.4, máx. 18
+Consultas 'inicio': 54 | trechos relevantes por consulta: mín. 1, média 3.7, máx. 10
+
+Estratégia                 | janelas | não repr. | final: @1    @5    MRR  | início: @1    @5    MRR  | tempo
+truncado-128 (anterior)    |      54 |      7557 | 0.00  0.45  0.24 | 0.65  0.94  0.80 | 0.2s
+passada-unica-512          |      54 |       629 | 0.50  0.55  0.54 | 0.37  0.57  0.43 | 0.7s
+janelas-128 (126+32)       |     150 |         0 | 0.53  0.75  0.63 | 0.41  0.63  0.53 | 0.4s
+janelas-128 media simples  |     150 |         0 | 0.57  0.82  0.69 | 0.39  0.54  0.48 | 0.4s
+janelas-256 (254+64)       |      85 |         0 | 0.50  0.55  0.55 | 0.39  0.59  0.45 | 0.5s
+janelas-512 (510+64)       |      61 |         0 | 0.50  0.55  0.54 | 0.37  0.57  0.43 | 0.9s
+
+Top-3 vetorial das perguntas manuais (registro_id):
+- Quais empresas foram declaradas inidôneas para licitar com a administração pública?
+    truncado-128 (anterior)    CEIS-299637, CEIS-388380, CEIS-335447
+    passada-unica-512          CEIS-387835, CEIS-400827, CEIS-388380
+    janelas-128 (126+32)       CEIS-387835, CEIS-388380, CEIS-336904
+    janelas-128 media simples  CEIS-387835, CEIS-336904, CEIS-388380
+    janelas-256 (254+64)       CEIS-387835, CEIS-400827, CEIS-388380
+    janelas-512 (510+64)       CEIS-387835, CEIS-400827, CEIS-388380
+- empresa impedida de fechar contratos com o governo
+    truncado-128 (anterior)    CEIS-400827, CEIS-310579, CNEP-362401
+    passada-unica-512          CEIS-400827, CNEP-362401, CEIS-387835
+    janelas-128 (126+32)       CEIS-400827, CNEP-362401, CEIS-336904
+    janelas-128 media simples  CEIS-400827, CNEP-362401, CEIS-278776
+    janelas-256 (254+64)       CEIS-400827, CNEP-362401, CEIS-387835
+    janelas-512 (510+64)       CEIS-400827, CNEP-362401, CEIS-387835
+- Lei 12.846 publicação extraordinária da decisão condenatória
+    truncado-128 (anterior)    CNEP-388379, CNEP-282984, CNEP-278775
+    passada-unica-512          CNEP-388379, CNEP-362404, CEIS-387765
+    janelas-128 (126+32)       CNEP-388379, CNEP-278775, CNEP-282984
+    janelas-128 media simples  CNEP-388379, CNEP-278775, CEIS-289814
+    janelas-256 (254+64)       CNEP-388379, CNEP-362404, CNEP-310577
+    janelas-512 (510+64)       CNEP-388379, CNEP-362404, CEIS-387765
+- trecho que cita o CNPJ 01.340.937/0001-79
+    truncado-128 (anterior)    CNEP-310578, CNEP-278775, CNEP-282984
+    passada-unica-512          CNEP-388379, CEIS-138581, CNEP-282983
+    janelas-128 (126+32)       CNEP-310577, CNEP-315328, CNEP-388379
+    janelas-128 media simples  CNEP-310577, CNEP-388379, CNEP-315328
+    janelas-256 (254+64)       CNEP-310577, CNEP-388379, CEIS-138581
+    janelas-512 (510+64)       CNEP-388379, CEIS-138581, CNEP-282983
+- receita de bolo de chocolate
+    truncado-128 (anterior)    CNEP-282984, CEIS-282986, CEIS-138581
+    passada-unica-512          CEIS-138581, CNEP-388379, CNEP-362401
+    janelas-128 (126+32)       CEIS-138581, CNEP-388379, CNEP-362401
+    janelas-128 media simples  CEIS-138581, CNEP-388379, CNEP-362401
+    janelas-256 (254+64)       CEIS-138581, CNEP-388379, CNEP-362401
+    janelas-512 (510+64)       CEIS-138581, CNEP-388379, CNEP-362401
+
+## 2. Sistema híbrido real (retrieve_context no Neo4j: vetorial + full-text + RRF)
+# ANTES: medido com os embeddings da estratégia anterior ainda gravados no banco (mesmo código de ranking).
+
+$ python scripts/evaluate_embedding_strategies.py --hibrido   # antes da regeneração
+Embeddings no Neo4j: 54 | versões: ['v1-truncado-128 (sem propriedade)']
+Sistema híbrido (retrieve_context, top_k=20); MRR@20, ausente do top 20 conta 0
+
+Consultas | n  | @1    @5    MRR  | 1º resultado veio de: ambas / só vetorial / só full-text
+final     | 40 | 0.47  0.85  0.64 | 40 / 0 / 0
+inicio    | 54 | 0.93  0.94  0.94 | 54 / 0 / 0
+
+# DEPOIS: medido após python scripts/generate_embeddings.py com a estratégia escolhida.
+
+$ python scripts/evaluate_embedding_strategies.py --hibrido   # depois da regeneração
+Embeddings no Neo4j: 54 | versões: ['v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2']
+Sistema híbrido (retrieve_context, top_k=20); MRR@20, ausente do top 20 conta 0
+
+Consultas | n  | @1    @5    MRR  | 1º resultado veio de: ambas / só vetorial / só full-text
+final     | 40 | 0.82  0.97  0.88 | 40 / 0 / 0
+inicio    | 54 | 0.76  0.91  0.83 | 54 / 0 / 0
+
+## 3. Consultas de início que saíram do 1º lugar no sistema híbrido (depois)
+# rank = posição do primeiro trecho relevante; vN/fN = ranks vetorial/full-text.
+CNEP-282983  rank=2 | 1º=CEIS-282986  (v1/f2) palavras iniciais iguais= 0 | relevante: v2/f1
+CNEP-282984  rank=2 | 1º=CEIS-282986  (v2/f3) palavras iniciais iguais= 0 | relevante: v5/f1
+CNEP-315328  rank=5 | 1º=CEIS-315330  (v1/f2) palavras iniciais iguais= 0 | relevante: v10/f1
+CNEP-315329  rank=2 | 1º=CNEP-388379  (v1/f2) palavras iniciais iguais= 5 | relevante: v3/f1
+CNEP-310577  rank=2 | 1º=CNEP-282983  (v1/f2) palavras iniciais iguais= 1 | relevante: v2/f1
+CEIS-299637  rank=2 | 1º=CEIS-289814  (v1/f3) palavras iniciais iguais= 6 | relevante: v3/f1
+CNEP-299636  rank=8 | 1º=CNEP-327948  (v3/f6) palavras iniciais iguais= 1 | relevante: v12/f1
+CEIS-335447  rank=None | 1º=CEIS-283427  (v5/f2) palavras iniciais iguais=10 | relevante: v-/f-
+CEIS-335450  rank=None | 1º=CEIS-283427  (v5/f2) palavras iniciais iguais=10 | relevante: v-/f-
+CEIS-335448  rank=None | 1º=CEIS-283427  (v5/f2) palavras iniciais iguais=10 | relevante: v-/f-
+CEIS-389098  rank=2 | 1º=CEIS-400993  (v1/f3) palavras iniciais iguais= 3 | relevante: v3/f1
+CEIS-139702  rank=3 | 1º=CEIS-315330  (v1/f3) palavras iniciais iguais= 6 | relevante: v5/f1
+CEIS-105428  rank=13 | 1º=CEIS-400827  (v1/f4) palavras iniciais iguais= 6 | relevante: v39/f1
+consultas de início fora do 1º lugar: 13/54 | 1º colocado com >=10 palavras iniciais iguais à consulta: 3

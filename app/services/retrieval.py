@@ -1,10 +1,13 @@
 """Recuperação híbrida (vetorial + full-text) e expansão de contexto no grafo Neo4j.
 
-Contrato: seção 3 de ``CONTRATO_DADOS_E_SERVICOS.md`` (dev5 → dev1/dev6).
+Contrato oficial do dev5 para dev1/dev6: seção 7 de ``docs/recuperacao-hibrida.md``; validador
+executável em ``app/services/contract.py``. Depende de ``sentence-transformers``
+(``pip install -r requirements.txt -r requirements-dev5.txt``).
 
 Fluxo de ``retrieve_context(question, top_k)``:
 
-1. busca vetorial no índice ``trecho_embedding_vector`` com o embedding da pergunta;
+1. busca vetorial no índice ``trecho_embedding_vector`` com o embedding da pergunta, gerado pelo
+   mesmo ``SentenceEncoder`` (e a mesma segmentação por janelas) usado nos trechos;
 2. busca full-text no índice integrado de dev3 ``fiscalgraph_text_fulltext``, restrita ao
    campo ``texto`` e a nós ``Trecho``;
 3. fusão das duas listas por Reciprocal Rank Fusion (k=60), sem somar scores brutos;
@@ -18,6 +21,9 @@ Fluxo de ``retrieve_context(question, top_k)``:
 O serviço devolve evidências recuperadas: não gera resposta em linguagem natural nem afirma
 responsabilidade jurídica. ``rrf_score`` é relevância de recuperação, não probabilidade de
 irregularidade.
+
+``company_paths(cnpj_a, cnpj_b)`` expõe o caminho mínimo entre duas empresas no mesmo formato de
+nós e relacionamentos (``app/services/multi_hop.py``).
 
 Uso manual (requer ``.env`` local, Neo4j ativo e embeddings gerados)::
 
@@ -34,7 +40,13 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from .embeddings import EMBEDDING_DIMENSIONS, MODEL_NAME, VECTOR_INDEX, SentenceEncoder
+from .embeddings import (
+    EMBEDDING_DIMENSIONS,
+    EMBEDDING_PIPELINE_VERSION,
+    MODEL_NAME,
+    VECTOR_INDEX,
+    SentenceEncoder,
+)
 from .ranking import DEFAULT_RRF_K, reciprocal_rank_fusion
 
 try:
@@ -108,6 +120,14 @@ RETURN tid AS trecho_id,
        }] AS paths
 """.strip()
 
+EMBEDDING_STATUS_QUERY = """
+MATCH (t:Trecho)
+WHERE t.embedding IS NOT NULL
+RETURN count(t) AS com_embedding,
+       count(CASE WHEN t.embedding_model = $model AND t.embedding_pipeline_version = $version
+                  THEN 1 END) AS na_versao_atual
+""".strip()
+
 CYPHER_SUMMARY = (
     "// 1. Busca vetorial (índice " + VECTOR_INDEX + ")\n" + VECTOR_QUERY + ";\n\n"
     "// 2. Busca full-text (índice " + FULLTEXT_INDEX + ", campo " + FULLTEXT_FIELD + ")\n"
@@ -135,7 +155,7 @@ _COMPLIANCE_PROPERTIES = (
 # (o texto do trecho já está em ``chunks``).
 EVIDENCE_PROPERTIES: Dict[str, Tuple[str, ...]] = {
     "Trecho": ("trecho_id", "registro_id", "fonte_id", "url_fonte", "registro_origem",
-               "metodo_extracao", "embedding_model"),
+               "metodo_extracao", "embedding_model", "embedding_pipeline_version", "embedding_windows"),
     "Sancao": _COMPLIANCE_PROPERTIES,
     "Fonte": ("fonte_id", "nome", "orgao_responsavel", "url", "data_coleta", "competencia",
               "arquivo_origem"),
@@ -282,6 +302,47 @@ def _dedupe(items: Iterable[str]) -> List[str]:
     return list(dict.fromkeys(items))
 
 
+def cnpj_identifiers(text: str) -> List[str]:
+    """CNPJs de 14 posições (formatados ou contínuos, numéricos ou alfanuméricos) citados no texto.
+
+    Usa ``extract_mentions`` do dev4 (só a regra estrutural de CNPJ, sem spaCy), o mesmo critério
+    que gera ``MENCIONA``. Valores normalizados, sem pontuação.
+    """
+    from pipeline.text_to_graph.extractor import extract_mentions  # import tardio: só quando usado
+
+    return list(dict.fromkeys(m["valor"] for m in extract_mentions(text or "") if m.get("tipo") == "CNPJ"))
+
+
+def _identifier_matches(query_identifiers: List[str], texto: str) -> List[str]:
+    if not query_identifiers:
+        return []
+    found = set(cnpj_identifiers(texto))
+    return [identifier for identifier in query_identifiers if identifier in found]
+
+
+def identifier_warning(query_identifiers: List[str], chunks: List[Dict[str, Any]]) -> Optional[str]:
+    """A busca semântica não distingue números: avisa quando o 1º trecho não contém o CNPJ da pergunta.
+
+    Não reordena os resultados (a ordem continua sendo a do RRF); só aponta a correspondência literal.
+    """
+    if not query_identifiers or not chunks:
+        return None
+    missing = [i for i in query_identifiers if i not in chunks[0]["identifier_matches"]]
+    if not missing:
+        return None
+    parts = []
+    for identifier in missing:
+        position, chunk = next(((p, c) for p, c in enumerate(chunks, 1) if identifier in c["identifier_matches"]),
+                               (None, None))
+        if chunk is None:
+            parts.append(f"nenhum trecho recuperado contém o CNPJ {identifier}")
+        else:
+            parts.append(f"o CNPJ {identifier} aparece literalmente no {position}º trecho "
+                         f"({chunk['trecho_id']}, registro {chunk['registro_id']})")
+    return ("A pergunta cita CNPJ e o 1º trecho não o contém literalmente: " + "; ".join(parts)
+            + ". A busca semântica não distingue números de CNPJ; confira identifier_matches.")
+
+
 def build_response(
     question: str,
     fused: List[Dict[str, Any]],
@@ -289,6 +350,7 @@ def build_response(
     expansion: Dict[str, Dict[str, Any]],
     warnings: List[str],
     parameters: Dict[str, Any],
+    query_identifiers: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Monta a resposta do contrato a partir do ranking fundido e da expansão pelo grafo."""
     chunks: List[Dict[str, Any]] = []
@@ -332,8 +394,13 @@ def build_response(
             "vector_score": scores["vector"].get(trecho_id),
             "fulltext_score": scores["fulltext"].get(trecho_id),
             "graph_paths": [path_to_text(path, ids) for path in _maximal_paths(paths)],
+            # CNPJs da pergunta que aparecem literalmente no texto deste trecho (regra do dev4).
+            "identifier_matches": _identifier_matches(query_identifiers or [], row.get("texto") or ""),
         })
 
+    warning = identifier_warning(query_identifiers or [], chunks)
+    if warning:
+        warnings.append(warning)
     if any(rel["type"] == "MENCIONA" for rel in relationships.values()):
         warnings.append(MENCIONA_WARNING)
     if not chunks:
@@ -362,6 +429,7 @@ class GraphHybridRetriever:
         self.rrf_k = rrf_k
         self._encoder = encoder
         self._owns_driver = False
+        self._embedding_status: Optional[Dict[str, int]] = None  # conferido uma vez por instância
 
     @classmethod
     def from_env(cls, env_file: Optional[Path] = None, encoder: Any = None) -> "GraphHybridRetriever":
@@ -402,15 +470,46 @@ class GraphHybridRetriever:
             warnings.append(f"{failure}: {_error_message(exc)}")
             return None
 
+    @property
+    def pipeline_version(self) -> str:
+        return getattr(self.encoder, "pipeline_version", EMBEDDING_PIPELINE_VERSION)
+
+    def _embedding_version_warning(self, session: Any) -> Optional[str]:
+        """Avisa se os vetores gravados vêm de outra estratégia que a usada na pergunta.
+
+        Conferido uma vez por instância; após regenerar os embeddings, crie um novo recuperador.
+        """
+        if self._embedding_status is None:
+            try:
+                record = next(iter(session.run(EMBEDDING_STATUS_QUERY, {
+                    "model": MODEL_NAME, "version": self.pipeline_version})), None)
+            except _Neo4jClientError:
+                return None
+            self._embedding_status = {
+                "com_embedding": record["com_embedding"] if record else 0,
+                "na_versao_atual": record["na_versao_atual"] if record else 0,
+            }
+        status = self._embedding_status
+        outdated = status["com_embedding"] - status["na_versao_atual"]
+        if outdated > 0:
+            return (f"{outdated} de {status['com_embedding']} Trecho têm embedding de outro modelo ou de outra "
+                    f"versão da estratégia (atual: {self.pipeline_version}); execute "
+                    "python scripts/generate_embeddings.py.")
+        return None
+
     def retrieve_context(self, question: str, top_k: int = DEFAULT_TOP_K) -> Dict[str, Any]:
         question = _validate_question(question)
         warnings: List[str] = []
         top_k = _normalize_top_k(top_k, warnings)
         candidate_k = max(top_k * CANDIDATE_MULTIPLIER, MIN_CANDIDATES)
         fulltext_query = build_fulltext_query(question)
+        query_identifiers = cnpj_identifiers(question)
         embedding = self.encoder.encode([question])[0]
 
         with self.driver.session(database=self.database) as session:
+            version_warning = self._embedding_version_warning(session)
+            if version_warning:
+                warnings.append(version_warning)
             vector_result = self._search(
                 session, VECTOR_QUERY, warnings,
                 f"Busca vetorial indisponível no índice {VECTOR_INDEX}; resultado apenas full-text",
@@ -455,6 +554,11 @@ class GraphHybridRetriever:
             "vector": {row["trecho_id"]: row["score"] for row in vector_rows},
             "fulltext": {row["trecho_id"]: row["score"] for row in fulltext_rows},
         }
+        # retrieval_mode continua "hybrid" (contrato); estes campos dizem o que de fato contribuiu.
+        search_status = {
+            "vector": search_state(vector_result),
+            "fulltext": search_state(fulltext_result, executed=bool(fulltext_query)),
+        }
         parameters = {
             "top_k": top_k,
             "candidate_k": candidate_k,
@@ -462,24 +566,56 @@ class GraphHybridRetriever:
             # Máximo teórico: trecho em 1º lugar nas duas buscas. Útil para o dev1 normalizar
             # retrieval_relevance (rrf_score / rrf_max_score); não é probabilidade.
             "rrf_max_score": 2.0 / (self.rrf_k + 1),
+            "active_searches": [name for name, state in search_status.items() if state == "com_resultados"],
+            "search_status": search_status,
             "embedding_model": MODEL_NAME,
             "embedding_dimensions": EMBEDDING_DIMENSIONS,
+            "embedding_pipeline_version": self.pipeline_version,
             "vector_index": VECTOR_INDEX,
             "fulltext_index": FULLTEXT_INDEX,
             "fulltext_query": fulltext_query or None,
+            "query_identifiers": query_identifiers,
         }
-        return build_response(question, fused, scores, expansion, warnings, parameters)
+        return build_response(question, fused, scores, expansion, warnings, parameters, query_identifiers)
+
+    def company_paths(self, cnpj_a: str, cnpj_b: str, max_hops: int = 6) -> Dict[str, Any]:
+        """Caminhos mínimos societário e estrutural entre duas empresas (``app/services/multi_hop.py``).
+
+        Não usa o modelo de embeddings.
+        """
+        from .multi_hop import find_company_paths  # import local: multi_hop importa este módulo
+
+        with self.driver.session(database=self.database) as session:
+            return find_company_paths(session, cnpj_a, cnpj_b, max_hops)
+
+
+def search_state(result: Optional[List[Dict[str, Any]]], executed: bool = True) -> str:
+    """``com_resultados`` | ``sem_resultados`` | ``indisponivel`` (índice falhou) | ``nao_executada``."""
+    if not executed:
+        return "nao_executada"
+    if result is None:
+        return "indisponivel"
+    return "com_resultados" if result else "sem_resultados"
 
 
 _default_retriever: Optional[GraphHybridRetriever] = None
 
 
-def retrieve_context(question: str, top_k: int = DEFAULT_TOP_K) -> Dict[str, Any]:
-    """Ponto de entrada do contrato. Usa um recuperador compartilhado configurado pelo ``.env``."""
+def _shared_retriever() -> GraphHybridRetriever:
     global _default_retriever
     if _default_retriever is None:
         _default_retriever = GraphHybridRetriever.from_env()
-    return _default_retriever.retrieve_context(question, top_k)
+    return _default_retriever
+
+
+def retrieve_context(question: str, top_k: int = DEFAULT_TOP_K) -> Dict[str, Any]:
+    """Ponto de entrada do contrato. Usa um recuperador compartilhado configurado pelo ``.env``."""
+    return _shared_retriever().retrieve_context(question, top_k)
+
+
+def company_paths(cnpj_a: str, cnpj_b: str, max_hops: int = 6) -> Dict[str, Any]:
+    """Caminho mínimo entre duas empresas, com o recuperador compartilhado (não carrega o modelo)."""
+    return _shared_retriever().company_paths(cnpj_a, cnpj_b, max_hops)
 
 
 def format_text(result: Dict[str, Any]) -> str:
@@ -494,6 +630,8 @@ def format_text(result: Dict[str, Any]) -> str:
             f"   registro_id={chunk['registro_id']} fonte_id={chunk['fonte_id']} url_fonte={chunk['url_fonte']}",
             f"   texto: {texto[:220]}{'…' if len(texto) > 220 else ''}",
         ]
+        if result["parameters"].get("query_identifiers"):
+            lines.append(f"   identifier_matches={chunk['identifier_matches']}")
         lines += [f"   caminho: {path}" for path in chunk["graph_paths"]]
     lines += ["", f"Nós: {len(result['nodes'])} | relacionamentos: {len(result['relationships'])}"]
     lines += [f"Aviso: {warning}" for warning in result["warnings"]]

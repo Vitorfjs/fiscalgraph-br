@@ -1,9 +1,11 @@
 # dev5 — multi-hop com shortestPath (cypher/03_multi_hop.cypher)
 # Ambiente: Neo4j 5.26.32 Community (local) com a carga integrada dev3 + dev4. Sem GDS.
-# Data: 2026-11-10T19:21:46-03:00 | branch: dev5
+# Data: 2026-11-10T20:27:54-03:00 | branch: dev5
 # Ordem das saídas do arquivo: A (societário), B (estrutural por CNAE), C (contraprova sem filtro),
 # D (varredura), E1-E3 (diagnóstico societário), F (CNAEs compartilhados), G (sintético), G2 (limpeza).
 # A consulta A não imprime cabeçalho porque retorna 0 linhas (resultado vazio documentado).
+# O serviço Python company_paths (app/services/multi_hop.py) usa as mesmas consultas A e B:
+# resultado real em docs/evidencias/dev5_company_paths_exemplo.json.
 
 $ MATCH (n) RETURN count(n)  # antes
 nos_antes
