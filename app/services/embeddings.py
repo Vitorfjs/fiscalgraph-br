@@ -8,6 +8,7 @@ embeddings e recriar o índice, em ajuste coordenado com dev3.
 from __future__ import annotations
 
 import math
+import statistics
 from typing import Any, List, Optional, Sequence
 
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
@@ -54,6 +55,11 @@ class SentenceEncoder:
         self.model_name = model_name
         self.max_seq_length: Optional[int] = getattr(model, "max_seq_length", None)
 
+    def count_tokens(self, texts: Sequence[str]) -> List[int]:
+        """Tokens de cada texto (com os especiais), antes do corte em ``max_seq_length``."""
+        encoded = self.model.tokenizer(list(texts), add_special_tokens=True, verbose=False)
+        return [len(ids) for ids in encoded["input_ids"]]
+
     def encode(self, texts: Sequence[str], batch_size: int = 32) -> List[List[float]]:
         vectors = self.model.encode(
             list(texts),
@@ -66,6 +72,19 @@ class SentenceEncoder:
         for vector in result:
             validate_vector(vector)
         return result
+
+
+def truncation_summary(token_counts: Sequence[int], limit: int) -> dict:
+    """Quantos textos passam do limite do modelo; acima dele o embedding ignora o restante."""
+    counts = sorted(token_counts)
+    return {
+        "total": len(counts),
+        "limite": limit,
+        "acima_do_limite": sum(1 for count in counts if count > limit),
+        "minimo": counts[0] if counts else None,
+        "mediana": statistics.median(counts) if counts else None,
+        "maximo": counts[-1] if counts else None,
+    }
 
 
 def validate_vector(vector: Sequence[float]) -> None:

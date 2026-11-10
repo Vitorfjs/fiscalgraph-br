@@ -459,6 +459,9 @@ class GraphHybridRetriever:
             "top_k": top_k,
             "candidate_k": candidate_k,
             "rrf_k": self.rrf_k,
+            # Máximo teórico: trecho em 1º lugar nas duas buscas. Útil para o dev1 normalizar
+            # retrieval_relevance (rrf_score / rrf_max_score); não é probabilidade.
+            "rrf_max_score": 2.0 / (self.rrf_k + 1),
             "embedding_model": MODEL_NAME,
             "embedding_dimensions": EMBEDDING_DIMENSIONS,
             "vector_index": VECTOR_INDEX,

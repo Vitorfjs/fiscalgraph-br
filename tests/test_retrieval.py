@@ -5,6 +5,8 @@ Não exigem Neo4j, torch nem download de modelo. Todos os dados abaixo são sint
 Executar na raiz do repositório:
     python -m unittest discover -s tests -p "test_retrieval.py" -v
 """
+import copy
+import json
 import re
 import sys
 import unittest
@@ -15,6 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.services import embeddings, retrieval  # noqa: E402
+from app.services.contract import validate_retrieval_response  # noqa: E402
 from app.services.retrieval import (  # noqa: E402
     CANDIDATE_MULTIPLIER,
     FULLTEXT_INDEX,
@@ -360,12 +363,113 @@ class SchemaAlignmentTests(unittest.TestCase):
         self.assertTrue(embeddings.vector_index_problems(None))
 
 
+def final_response_from(context):
+    """Mapeamento da seção 7.2 de docs/recuperacao-hibrida.md: saída do dev5 → resposta do dev1.
+
+    Usa só campos da resposta de retrieve_context, sem consulta extra ao banco. ``answer`` fica
+    vazio porque é gerado pelo dev1.
+    """
+    chunks = context["chunks"]
+    sources, seen = [], set()
+    for chunk in chunks:
+        source_id = chunk["registro_id"] or chunk["trecho_id"]
+        if source_id not in seen:
+            seen.add(source_id)
+            sources.append({"id": source_id, "label": "Sancao" if chunk["registro_id"] else "Trecho",
+                            "url": chunk["url_fonte"]})
+    return {
+        "answer": "",
+        "cypher": context["cypher"],
+        "sources": sources,
+        "nodes": context["nodes"],
+        "relationships": context["relationships"],
+        "retrieval_relevance": (chunks[0]["rrf_score"] / context["parameters"]["rrf_max_score"]
+                                if chunks else None),
+        "abstained": not chunks,
+        "warnings": list(context["warnings"]),
+    }
+
+
+class ContractCompatibilityTests(unittest.TestCase):
+    """Compatibilidade com os consumidores: dev1 (resposta final) e dev6 (interface/grafo)."""
+
+    def scenarios(self):
+        return {
+            "normal": run([("T2", 0.9), ("T1", 0.8)], [("T1", 3.0)])[0],
+            "sem_evidencia": run([], [])[0],
+            "so_fulltext": run(retrieval._Neo4jClientError("sem índice"), [("T1", 2.0)])[0],
+            "so_vetorial": run([("T1", 0.6)], [])[0],
+        }
+
+    def test_service_output_passes_contract_validator_in_all_scenarios(self):
+        for name, result in self.scenarios().items():
+            with self.subTest(cenario=name):
+                self.assertEqual(validate_retrieval_response(result), [])
+
+    def test_dev6_graph_is_self_consistent(self):
+        result = self.scenarios()["normal"]
+        node_ids = [n["id"] for n in result["nodes"]]
+        self.assertEqual(len(node_ids), len(set(node_ids)))
+        for rel in result["relationships"]:
+            self.assertIn(rel["source"], node_ids)
+            self.assertIn(rel["target"], node_ids)
+        for chunk in result["chunks"]:
+            self.assertIn(f"Trecho:{chunk['trecho_id']}", node_ids)
+
+    def test_dev1_final_response_can_be_built_from_retrieval_only(self):
+        for name, context in self.scenarios().items():
+            with self.subTest(cenario=name):
+                final = final_response_from(context)
+                self.assertEqual(set(final), {"answer", "cypher", "sources", "nodes", "relationships",
+                                              "retrieval_relevance", "abstained", "warnings"})
+                for source in final["sources"]:
+                    self.assertIsInstance(source["id"], str)
+                    self.assertIsInstance(source["label"], str)
+                    self.assertTrue(source["url"] is None or isinstance(source["url"], str))
+                if context["chunks"]:
+                    self.assertFalse(final["abstained"])
+                    self.assertGreater(final["retrieval_relevance"], 0)
+                    self.assertLessEqual(final["retrieval_relevance"], 1)
+                else:
+                    self.assertTrue(final["abstained"])
+                    self.assertIsNone(final["retrieval_relevance"])
+                json.dumps(final, ensure_ascii=False)
+
+    def test_rrf_max_score_matches_first_place_in_both_lists(self):
+        result, _ = run([("T1", 0.9)], [("T1", 3.0)])
+        self.assertAlmostEqual(result["chunks"][0]["rrf_score"], result["parameters"]["rrf_max_score"])
+
+    def test_validator_detects_contract_violations(self):
+        valid = self.scenarios()["normal"]
+        cases = {
+            "campo ausente": lambda r: r.pop("cypher"),
+            "aresta para nó inexistente": lambda r: r["relationships"][0].update(target="Empresa:NAO-EXISTE"),
+            "ordem errada": lambda r: r["chunks"].reverse(),
+            "rank booleano": lambda r: r["chunks"][0].update(vector_rank=True),
+            "chunk sem rank": lambda r: r["chunks"][0].update(vector_rank=None, fulltext_rank=None),
+            "não serializável": lambda r: r["nodes"][0]["properties"].update(data=object()),
+            "modo errado": lambda r: r.update(retrieval_mode="vector"),
+            "sem evidência e sem aviso": lambda r: r.update(chunks=[], warnings=[]),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(caso=name):
+                broken = copy.deepcopy(valid)
+                mutate(broken)
+                self.assertNotEqual(validate_retrieval_response(broken), [])
+
+
 class SentenceEncoderTests(unittest.TestCase):
+    class FakeTokenizer:
+        def __call__(self, texts, add_special_tokens=True, verbose=True):
+            assert verbose is False
+            return {"input_ids": [[0] * (len(text.split()) + 2) for text in texts]}
+
     class FakeModel:
         max_seq_length = 128
 
         def __init__(self, dimension=384, value=0.1):
             self.dimension, self.value = dimension, value
+            self.tokenizer = SentenceEncoderTests.FakeTokenizer()
 
         def get_sentence_embedding_dimension(self):
             return self.dimension
@@ -386,6 +490,22 @@ class SentenceEncoderTests(unittest.TestCase):
     def test_encode_rejects_non_finite_values(self):
         with self.assertRaises(ValueError):
             embeddings.SentenceEncoder(model=self.FakeModel(value=float("nan"))).encode(["a"])
+
+    def test_count_tokens_includes_special_tokens(self):
+        encoder = embeddings.SentenceEncoder(model=self.FakeModel())
+        self.assertEqual(encoder.count_tokens(["um dois", "um"]), [4, 3])
+
+
+class TruncationSummaryTests(unittest.TestCase):
+    def test_counts_texts_above_model_limit(self):
+        summary = embeddings.truncation_summary([27, 130, 128, 720, 209], limit=128)
+        self.assertEqual(summary["acima_do_limite"], 3)  # 130, 209 e 720; 128 cabe
+        self.assertEqual((summary["total"], summary["minimo"], summary["maximo"]), (5, 27, 720))
+        self.assertEqual(summary["mediana"], 130)
+
+    def test_empty_input(self):
+        summary = embeddings.truncation_summary([], limit=128)
+        self.assertEqual((summary["total"], summary["acima_do_limite"], summary["mediana"]), (0, 0, None))
 
 
 if __name__ == "__main__":

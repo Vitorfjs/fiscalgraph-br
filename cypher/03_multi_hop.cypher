@@ -26,6 +26,8 @@ MATCH p = shortestPath((a)-[:PARTICIPA_DE*..6]-(b))
 RETURN p, length(p) AS quantidade_relacionamentos;
 
 // B. Caminho estrutural mínimo, sem ORIGINADO_DE.
+// ATENÇÃO: no recorte este caminho é ESTRUTURAL POR CNAE, não societário. Ele mostra só que as duas
+// empresas declaram a mesma atividade econômica; não indica sócio, controle ou relação comercial.
 // Resultado no recorte (4 relacionamentos):
 // (Empresa:00356328)-[:POSSUI_ESTABELECIMENTO]->(Estabelecimento:00356328000145)-[:EXERCE_CNAE]->
 // (CNAE:4211101 "Construção de rodovias e ferrovias")<-[:EXERCE_CNAE]-(Estabelecimento:01340937000179)

@@ -96,10 +96,17 @@ def generate(driver: Any, args: argparse.Namespace, database: str) -> int:
             print("Dry-run: nenhuma escrita no Neo4j.")
         return 0
 
-    from app.services.embeddings import SentenceEncoder
+    from app.services.embeddings import SentenceEncoder, truncation_summary
 
     encoder = SentenceEncoder()
     print(f"Modelo carregado: {MODEL_NAME} (máx. {encoder.max_seq_length} tokens por texto)")
+    if encoder.max_seq_length:
+        report = truncation_summary(encoder.count_tokens([r["texto"] for r in pending]), encoder.max_seq_length)
+        print(
+            f"Truncamento: {report['acima_do_limite']}/{report['total']} trechos acima de {report['limite']} "
+            f"tokens (mín. {report['minimo']}, mediana {report['mediana']:g}, máx. {report['maximo']}); "
+            f"nesses, o embedding representa só os primeiros {report['limite']} tokens."
+        )
     total = 0
     with driver.session(database=database) as session:
         for start in range(0, len(pending), args.batch_size):

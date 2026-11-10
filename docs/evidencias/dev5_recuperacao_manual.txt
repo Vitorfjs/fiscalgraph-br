@@ -1,12 +1,12 @@
 # dev5 — consultas manuais da recuperação híbrida (retrieve_context)
 # Ambiente: Neo4j 5.26.32 Community (local) com a carga integrada dev3 + dev4 (210 nós, 405 relações) e 54 embeddings.
-# Data: 2026-11-10T18:18:49-03:00 | branch: dev5
+# Python 3.9.6. Data: 2026-11-10T18:56:45-03:00 | branch: dev5
 # rrf_score é relevância de recuperação, não probabilidade de irregularidade.
 
 ================================================================================
 $ python -m app.services.retrieval "Quais empresas foram declaradas inidôneas para licitar com a administração pública?" --top-k 3
 Pergunta: Quais empresas foram declaradas inidôneas para licitar com a administração pública?
-Modo: hybrid | parâmetros: {"top_k": 3, "candidate_k": 20, "rrf_k": 60, "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "embedding_dimensions": 384, "vector_index": "trecho_embedding_vector", "fulltext_index": "fiscalgraph_text_fulltext", "fulltext_query": "texto:(empresas OR declaradas OR inidôneas OR licitar OR administração OR pública)"}
+Modo: hybrid | parâmetros: {"top_k": 3, "candidate_k": 20, "rrf_k": 60, "rrf_max_score": 0.03278688524590164, "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "embedding_dimensions": 384, "vector_index": "trecho_embedding_vector", "fulltext_index": "fiscalgraph_text_fulltext", "fulltext_query": "texto:(empresas OR declaradas OR inidôneas OR licitar OR administração OR pública)"}
 
 #1 trecho_id=47407e0fea9ecbbe3a777e85 rrf_score=0.032787 vector_rank=1 fulltext_rank=1
    registro_id=CEIS-299637 fonte_id=F-CGU-CEIS url_fonte=https://portaldatransparencia.gov.br/download-de-dados/ceis
@@ -31,7 +31,7 @@ Nós: 16 | relacionamentos: 15
 ================================================================================
 $ python -m app.services.retrieval "empresa impedida de fechar contratos com o governo" --top-k 3
 Pergunta: empresa impedida de fechar contratos com o governo
-Modo: hybrid | parâmetros: {"top_k": 3, "candidate_k": 20, "rrf_k": 60, "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "embedding_dimensions": 384, "vector_index": "trecho_embedding_vector", "fulltext_index": "fiscalgraph_text_fulltext", "fulltext_query": "texto:(empresa OR impedida OR fechar OR contratos OR governo)"}
+Modo: hybrid | parâmetros: {"top_k": 3, "candidate_k": 20, "rrf_k": 60, "rrf_max_score": 0.03278688524590164, "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "embedding_dimensions": 384, "vector_index": "trecho_embedding_vector", "fulltext_index": "fiscalgraph_text_fulltext", "fulltext_query": "texto:(empresa OR impedida OR fechar OR contratos OR governo)"}
 
 #1 trecho_id=47407e0fea9ecbbe3a777e85 rrf_score=0.032018 vector_rank=4 fulltext_rank=1
    registro_id=CEIS-299637 fonte_id=F-CGU-CEIS url_fonte=https://portaldatransparencia.gov.br/download-de-dados/ceis
@@ -58,7 +58,7 @@ Nós: 14 | relacionamentos: 14
 ================================================================================
 $ python -m app.services.retrieval "Lei 12.846 publicação extraordinária da decisão condenatória" --top-k 3
 Pergunta: Lei 12.846 publicação extraordinária da decisão condenatória
-Modo: hybrid | parâmetros: {"top_k": 3, "candidate_k": 20, "rrf_k": 60, "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "embedding_dimensions": 384, "vector_index": "trecho_embedding_vector", "fulltext_index": "fiscalgraph_text_fulltext", "fulltext_query": "texto:(12846 OR \"12.846\" OR lei OR publicação OR extraordinária OR decisão OR condenatória)"}
+Modo: hybrid | parâmetros: {"top_k": 3, "candidate_k": 20, "rrf_k": 60, "rrf_max_score": 0.03278688524590164, "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "embedding_dimensions": 384, "vector_index": "trecho_embedding_vector", "fulltext_index": "fiscalgraph_text_fulltext", "fulltext_query": "texto:(12846 OR \"12.846\" OR lei OR publicação OR extraordinária OR decisão OR condenatória)"}
 
 #1 trecho_id=b927ed9937108f6c248fdca0 rrf_score=0.032787 vector_rank=1 fulltext_rank=1
    registro_id=CNEP-388379 fonte_id=F-CGU-CNEP url_fonte=https://portaldatransparencia.gov.br/download-de-dados/cnep
@@ -85,7 +85,7 @@ Nós: 18 | relacionamentos: 17
 ================================================================================
 $ python -m app.services.retrieval "trecho que cita o CNPJ 01.340.937/0001-79" --top-k 3
 Pergunta: trecho que cita o CNPJ 01.340.937/0001-79
-Modo: hybrid | parâmetros: {"top_k": 3, "candidate_k": 20, "rrf_k": 60, "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "embedding_dimensions": 384, "vector_index": "trecho_embedding_vector", "fulltext_index": "fiscalgraph_text_fulltext", "fulltext_query": "texto:(01340937000179 OR \"01.340.937/0001-79\" OR trecho OR cita OR cnpj)"}
+Modo: hybrid | parâmetros: {"top_k": 3, "candidate_k": 20, "rrf_k": 60, "rrf_max_score": 0.03278688524590164, "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "embedding_dimensions": 384, "vector_index": "trecho_embedding_vector", "fulltext_index": "fiscalgraph_text_fulltext", "fulltext_query": "texto:(01340937000179 OR \"01.340.937/0001-79\" OR trecho OR cita OR cnpj)"}
 
 #1 trecho_id=007e95b2ecd16eca41d81b8d rrf_score=0.031778 vector_rank=5 fulltext_rank=1
    registro_id=CEIS-289814 fonte_id=F-CGU-CEIS url_fonte=https://portaldatransparencia.gov.br/download-de-dados/ceis
@@ -113,7 +113,7 @@ Aviso: Relações MENCIONA são citações textuais candidatas (status CANDIDATA
 ================================================================================
 $ python -m app.services.retrieval "receita de bolo de chocolate" --top-k 3
 Pergunta: receita de bolo de chocolate
-Modo: hybrid | parâmetros: {"top_k": 3, "candidate_k": 20, "rrf_k": 60, "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "embedding_dimensions": 384, "vector_index": "trecho_embedding_vector", "fulltext_index": "fiscalgraph_text_fulltext", "fulltext_query": "texto:(receita OR bolo OR chocolate)"}
+Modo: hybrid | parâmetros: {"top_k": 3, "candidate_k": 20, "rrf_k": 60, "rrf_max_score": 0.03278688524590164, "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", "embedding_dimensions": 384, "vector_index": "trecho_embedding_vector", "fulltext_index": "fiscalgraph_text_fulltext", "fulltext_query": "texto:(receita OR bolo OR chocolate)"}
 
 #1 trecho_id=29695e1de20de2a260a7d44b rrf_score=0.016393 vector_rank=1 fulltext_rank=None
    registro_id=CNEP-282984 fonte_id=F-CGU-CNEP url_fonte=https://portaldatransparencia.gov.br/download-de-dados/cnep

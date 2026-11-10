@@ -297,6 +297,7 @@
     "top_k": 2,
     "candidate_k": 20,
     "rrf_k": 60,
+    "rrf_max_score": 0.03278688524590164,
     "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
     "embedding_dimensions": 384,
     "vector_index": "trecho_embedding_vector",
