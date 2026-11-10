@@ -1,0 +1,37 @@
+# dev5 — geração de embeddings e índice vetorial
+# Ambiente: Neo4j 5.26.32 Community (local), Python 3.9.6, sentence-transformers 5.1.2, torch 2.8.0
+# Data: 2026-11-10T18:18:19-03:00 | branch: dev5 | base: 221c513
+
+$ python scripts/generate_embeddings.py --dry-run
+Trechos pendentes: 0 (sem texto, ignorados: 0)
+Dry-run: nenhuma escrita no Neo4j.
+
+$ python scripts/generate_embeddings.py --batch-size 32 --force   # reprocessa os 54 (mesmo modelo)
+Índice vetorial trecho_embedding_vector conferido (384 dimensões, cosine).
+Trechos pendentes: 54 (sem texto, ignorados: 0)
+Modelo carregado: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 (máx. 128 tokens por texto)
+Embeddings gravados: 32/54
+Embeddings gravados: 54/54
+Concluído. Modelo=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2; trechos atualizados=54; Trecho com embedding=54/54; dimensão min/max=384/384; modelos=['sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2']
+
+$ python scripts/generate_embeddings.py --batch-size 32   # reexecução: nada pendente
+Índice vetorial trecho_embedding_vector conferido (384 dimensões, cosine).
+Trechos pendentes: 0 (sem texto, ignorados: 0)
+
+$ cypher-shell -f cypher/04_indice_vetorial_trecho.cypher
+name, type, labelsOrTypes, properties, state, dimensoes, similaridade
+"trecho_embedding_vector", "VECTOR", ["Trecho"], ["embedding"], "ONLINE", 384, "COSINE"
+trechos, com_embedding, dimensao_min, dimensao_max, modelos
+54, 54, 384, 384, ["sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"]
+
+$ SHOW INDEXES (FULLTEXT e VECTOR)
+name, type, labelsOrTypes, properties, state
+"fiscalgraph_text_fulltext", "FULLTEXT", ["Empresa", "Socio", "Sancao", "Trecho"], ["razao_social", "nome", "descricao", "observacoes", "fundamentacao_legal", "texto"], "ONLINE"
+"trecho_embedding_vector", "VECTOR", ["Trecho"], ["embedding"], "ONLINE"
+
+$ Contagem total do grafo (inalterada pela etapa dev5, que só grava propriedades em Trecho)
+nos, relacionamentos
+210, 405
+
+$ Medição de truncamento: tokens por Trecho no tokenizer do modelo (limite max_seq_length)
+max_seq_length=128; trechos=54; tokens min/mediana/max=27/209/720; acima do limite=40
