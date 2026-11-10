@@ -1,5 +1,5 @@
 # dev5 — execução da suíte de testes
-# Data: 2026-11-10T18:57:44-03:00 | branch: dev5 | Neo4j 5.26.32 Community local (carga dev3 + dev4, 54 embeddings)
+# Data: 2026-11-10T19:22:49-03:00 | branch: dev5 | Neo4j 5.26.32 Community local (carga dev3 + dev4, 54 embeddings)
 # Linhas de aviso do ambiente (urllib3/LibreSSL, logs do torch e notificações do Neo4j) foram filtradas.
 
 ## 1. Ambiente oficial: Python 3.9.6 — neo4j 5.28.8, sentence-transformers 5.1.2, transformers 4.57.6, torch 2.8.0, numpy 2.0.2
@@ -60,6 +60,8 @@ test_count_tokens_includes_special_tokens (test_retrieval.SentenceEncoderTests) 
 test_encode_rejects_non_finite_values (test_retrieval.SentenceEncoderTests) ... ok
 test_encode_returns_python_floats_with_384_dimensions (test_retrieval.SentenceEncoderTests) ... ok
 test_rejects_model_with_other_dimension (test_retrieval.SentenceEncoderTests) ... ok
+test_embedded_text_follows_dev4_composition (test_retrieval.TruncationAuditTests) ... ok
+test_field_report_separates_legal_text_contribution (test_retrieval.TruncationAuditTests) ... ok
 test_counts_texts_above_model_limit (test_retrieval.TruncationSummaryTests) ... ok
 test_empty_input (test_retrieval.TruncationSummaryTests) ... ok
 test_missing_fulltext_index_falls_back_to_vector (test_retrieval.WarningAndFallbackTests) ... ok
@@ -69,7 +71,7 @@ test_question_without_terms_skips_fulltext (test_retrieval.WarningAndFallbackTes
 test_semantic_only_results_are_flagged (test_retrieval.WarningAndFallbackTests) ... ok
 
 ----------------------------------------------------------------------
-Ran 41 tests in 0.008s
+Ran 43 tests in 0.004s
 
 OK
 
@@ -79,7 +81,7 @@ test_every_created_node_is_marked_synthetic (test_multi_hop_sintetico.SyntheticB
 test_shortest_path_through_synthetic_partner_leaves_no_trace (test_multi_hop_sintetico.SyntheticMultiHopNeo4jTests) ... ok
 
 ----------------------------------------------------------------------
-Ran 3 tests in 0.220s
+Ran 3 tests in 0.213s
 
 OK
 
@@ -91,14 +93,14 @@ test_real_chunks_keep_provenance_and_graph_path (test_retrieval_integracao.Retri
 test_real_responses_satisfy_contract (test_retrieval_integracao.RetrieveContextIntegrationTests) ... ok
 
 ----------------------------------------------------------------------
-Ran 5 tests in 6.197s
+Ran 5 tests in 6.076s
 
 OK
 
 ## 2. Regressão dos testes do dev4 (Python 3.9.6)
 
 $ python -m unittest discover -s tests -p "test_text_to_graph.py"
-Ran 31 tests in 0.003s
+Ran 31 tests in 0.002s
 
 OK
 
@@ -106,9 +108,8 @@ OK
 
 $ env -u NEO4J_PASSWORD python -m unittest discover -s tests -v   # suíte completa
 skipped 'NEO4J_PASSWORD não configurado; teste de integração ignorado.'
-test_none_ids_are_skipped_without_consuming_rank (test_ranking.RRFRankBookkeepingTests) ... ok
 skipped 'NEO4J_PASSWORD não configurado; teste de integração ignorado.'
-Ran 88 tests in 0.008s
+Ran 90 tests in 0.008s
 OK (skipped=2)
 
 ## 4. Compatibilidade: Python 3.13.18 — neo4j 6.4.1, sentence-transformers 6.2.0, transformers 5.22.2, torch 2.15.0, numpy 2.5.4
@@ -120,17 +121,17 @@ Ran 14 tests in 0.000s
 OK
 
 $ python3.13 -m unittest discover -s tests -p "test_retrieval.py"
-Ran 41 tests in 0.003s
+Ran 43 tests in 0.004s
 
 OK
 
 $ python3.13 -m unittest discover -s tests -p "test_multi_hop_sintetico.py"
-Ran 3 tests in 0.182s
+Ran 3 tests in 0.175s
 
 OK
 
 $ python3.13 -m unittest discover -s tests -p "test_retrieval_integracao.py"
-Ran 5 tests in 4.418s
+Ran 5 tests in 4.262s
 
 OK
 

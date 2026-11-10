@@ -6,6 +6,7 @@ Executar na raiz do repositório:
     python -m unittest discover -s tests -p "test_retrieval.py" -v
 """
 import copy
+import importlib.util
 import json
 import re
 import sys
@@ -506,6 +507,49 @@ class TruncationSummaryTests(unittest.TestCase):
     def test_empty_input(self):
         summary = embeddings.truncation_summary([], limit=128)
         self.assertEqual((summary["total"], summary["acima_do_limite"], summary["mediana"]), (0, 0, None))
+
+
+def load_audit_script():
+    spec = importlib.util.spec_from_file_location(
+        "audit_embedding_truncation", ROOT / "scripts" / "audit_embedding_truncation.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class TruncationAuditTests(unittest.TestCase):
+    """scripts/audit_embedding_truncation.py, com tokenizador falso (1 token por palavra)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.audit = load_audit_script()
+
+    @staticmethod
+    def words(text):
+        return len(text.split())
+
+    def test_field_report_separates_legal_text_contribution(self):
+        records = [
+            {"descricao": "a b", "observacoes": "", "fundamentacao_legal": "x " * 10},
+            {"descricao": "a", "observacoes": "c d", "fundamentacao_legal": "y"},
+        ]
+        # limite 8 com 2 especiais: passa do limite quem tem mais de 6 palavras.
+        report = self.audit.field_report(records, self.words, limit=8, special_tokens=2)
+        self.assertEqual(report["acima_com_texto_completo"], 1)
+        self.assertEqual(report["acima_sem_fundamentacao_legal"], 0)
+        self.assertEqual(report["fundamentacao_legal_sozinha_acima"], 1)
+        self.assertEqual(report["campos"]["descricao"]["mediana"], 1.5)
+        self.assertEqual(report["campos"]["observacoes"]["vazios"], 1)
+        self.assertEqual(report["campos"]["fundamentacao_legal"]["maximo"], 10)
+
+    def test_embedded_text_follows_dev4_composition(self):
+        from pipeline.text_to_graph.extractor import CPF_MASK
+
+        record = {"descricao": " Multa ", "observacoes": "", "fundamentacao_legal": "CPF 123.456.789-00"}
+        text = self.audit.embedded_text(record)
+        self.assertTrue(text.startswith("Multa"))
+        self.assertIn(CPF_MASK, text)
+        self.assertNotIn("123.456.789-00", text)
 
 
 if __name__ == "__main__":

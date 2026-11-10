@@ -22,7 +22,7 @@ A geração da resposta em linguagem natural fica com dev1; este serviço devolv
 | Candidatos por busca | `max(4 × top_k, 20)` antes da fusão |
 | Expansão | `Trecho → Fonte`, `Trecho → Sancao → Estabelecimento ← Empresa ← Socio`, `Trecho → MENCIONA → Estabelecimento` |
 | Multi-hop | `shortestPath` em Cypher puro, até 6 relacionamentos, sem GDS |
-| Caminho societário real | **inexistente no recorte**; só há caminhos estruturais por CNAE (seção 8) |
+| Caminho societário real | **inexistente no recorte** (0 de 153 pares); só há caminhos estruturais por CNAE (seção 8.1) |
 
 ## 2. Alinhamento com o schema integrado
 
@@ -64,6 +64,7 @@ Arquivos:
 | `app/services/retrieval.py` | `retrieve_context(question, top_k=5)`, classe `GraphHybridRetriever` e CLI de consulta manual. |
 | `app/services/contract.py` | `validate_retrieval_response(result)`: validador executável do contrato, para dev1/dev6 usarem nos testes. |
 | `scripts/generate_embeddings.py` | Cria/confere o índice vetorial, mede o truncamento e grava `embedding` + `embedding_model` nos `Trecho` pendentes. |
+| `scripts/audit_embedding_truncation.py` | Auditoria do truncamento: origem do limite, tokens por campo e exemplo do corte (seção 4.1). Não usa o Neo4j. |
 | `cypher/04_indice_vetorial_trecho.cypher` | DDL e conferência do índice vetorial. |
 | `cypher/03_multi_hop.cypher` | Consultas de caminho mínimo (reais e cenário sintético). |
 | `tests/test_ranking.py`, `tests/test_retrieval.py` | Testes unitários (sem Neo4j e sem modelo). |
@@ -84,32 +85,98 @@ Arquivos:
 
 ### 4.1. Limitação: 40 dos 54 trechos ultrapassam os 128 tokens do modelo
 
-O modelo lê no máximo **128 tokens** por texto (`max_seq_length`); o que passa disso é cortado antes de
-gerar o vetor. Medição sobre os 54 `Trecho` carregados, com o tokenizador do próprio modelo:
+> **Resumo:** todos os 54 trechos têm embedding, mas em **40** deles o vetor é calculado só sobre o
+> começo do texto. A parte ignorada é quase sempre o fim da transcrição da lei (`fundamentacao_legal`).
+> A busca full-text lê o texto inteiro dos 54 trechos e compensa no modo híbrido.
 
 | Medida | Valor |
 | --- | --- |
 | Trechos que cabem inteiros (≤ 128 tokens) | **14** |
 | Trechos truncados (> 128 tokens) | **40** (74%) |
 | Tokens por trecho: mínimo / mediana / máximo | 27 / 209 / 720 |
+| Tokens ignorados no exemplo `CEIS-132342` | 81 de 209 |
 
-O que isso significa:
+#### De onde vem o limite
 
-- **Todos os 54 trechos têm embedding.** Nos 40 truncados, o vetor representa só os primeiros 128 tokens:
-  a `descricao` (tipo da sanção) e o começo das observações ou da fundamentação legal. O restante,
-  geralmente o fim da transcrição da lei, não influencia a busca vetorial.
-- **A busca full-text cobre o texto inteiro** dos 54 trechos. Um termo que só aparece no fim de um
-  trecho longo continua sendo encontrado pela busca textual e entra no RRF. Essa é a principal razão
-  para manter o modo híbrido.
-- Não foi feita mudança para contornar o corte. A alternativa (dividir cada trecho em janelas menores,
-  cada uma com seu vetor) muda a granularidade do `Trecho` definida pelo dev4 e precisa ser combinada
-  com dev3/dev4; trocar de modelo muda a dimensão do índice.
+- É uma configuração do próprio modelo, definida pelos autores no arquivo `sentence_bert_config.json`
+  que acompanha o modelo: `"max_seq_length": 128`. O sentence-transformers corta todo texto nesse
+  tamanho antes de gerar o vetor, **sem aviso**.
+- A arquitetura por baixo (um BERT de 12 camadas, `config.json`) aceita até 512 posições
+  (`max_position_embeddings: 512`). Essa é a capacidade máxima, não o tamanho de trabalho: o modelo foi
+  preparado para frases e parágrafos curtos, e os autores fixaram 128.
+- Duas dessas 128 posições são tokens especiais de início e fim; sobram **126** para o conteúdo.
 
-A medição é refeita a cada execução do gerador, que imprime:
+#### O que é um token
+
+Token não é palavra: é um pedaço de palavra tirado do vocabulário do modelo (250.037 pedaços). Nos
+trechos, a mediana é de 94 palavras e **2,18 tokens por palavra**. Texto em caixa alta rende mais
+pedaços, porque é raro nos textos com que o vocabulário foi construído:
+
+| Palavra | Tokens | Palavra | Tokens |
+| --- | --- | --- | --- |
+| administração | 1 | ADMINISTRAÇÃO | 2 |
+| inidoneidade | 3 | INIDONEIDADE | 4 |
+| contratado | 1 | CONTRATADO | 3 |
+
+A `fundamentacao_legal` vem da fonte (CGU) em caixa alta, por isso consome muitos tokens.
+
+#### Por que 40 trechos passam do limite
+
+O dev4 monta cada trecho juntando, nesta ordem, `descricao`, `observacoes` e `fundamentacao_legal`
+(`compose_text` em `pipeline/text_to_graph/extractor.py`). Medindo cada campo nos 54 registros:
+
+| Campo | Tokens (mediana) | Máximo | Observação |
+| --- | --- | --- | --- |
+| `descricao` | 9 | 23 | tipo da sanção, sempre curto |
+| `observacoes` | 0 | 266 | vazio em 32 dos 54 |
+| `fundamentacao_legal` | **198** | **691** | transcrição do artigo da lei, em caixa alta |
+
+- Em **35 dos 54** registros a `fundamentacao_legal` sozinha já passa do limite.
+- Sem esse campo, só **7** trechos passariam de 128, em vez de 40.
+- Os 54 textos recompostos pela auditoria são idênticos aos de `trechos.jsonl`, então a análise
+  corresponde exatamente ao que virou embedding.
+
+#### Exemplo do corte
+
+Registro `CEIS-132342` (94 palavras, 209 tokens, 81 ignorados):
+
+- **Última parte que o modelo lê:** "…ENQUANTO PERDURAREM OS MOTIVOS DETERMINANTES DA PUNIÇÃO OU ATÉ QUE SEJA PROMOVIDA"
+- **Início do que é ignorado:** "A REABILITAÇÃO PERANTE A PRÓPRIA AUTORIDADE QUE APLICOU A PENALIDADE, QUE SERÁ CONCEDIDA…"
+
+#### Impacto na recuperação
+
+- **O que entra no vetor:** em geral, o tipo da sanção, as observações (quando existem) e o começo da
+  fundamentação, que traz a lei e o artigo (ex.: "LEI 8666 - ART. 87, IV"). É a parte que mais
+  diferencia um registro de outro.
+- **O que fica de fora:** o restante da transcrição da lei, texto que se repete em muitos registros.
+- Uma pergunta cujo conteúdo só aparece na parte ignorada **não é encontrada pela busca vetorial**,
+  mas **é encontrada pela busca full-text**, que indexa o texto inteiro, e entra no resultado pelo RRF.
+
+#### Opções avaliadas (nenhuma aplicada)
+
+| Opção | Efeito | Custo / risco |
+| --- | --- | --- |
+| Aumentar `max_seq_length` para até 512 | o vetor passa a considerar mais texto; dimensão 384 e índice não mudam | o modelo não foi ajustado para textos longos: a qualidade precisaria ser avaliada; reprocessar com `--force` |
+| Dividir trechos longos em janelas de até 128 tokens | cobre o texto inteiro | muda a granularidade do `Trecho` (dev4) e o contrato (vários vetores por trecho) |
+| Trocar por um modelo de contexto maior | cobre mais texto | muda a dimensão: recriar o índice e alinhar com dev3 |
+
+Decisão: manter como está. A parte perdida é sobretudo texto legal repetido, a busca full-text cobre
+o texto inteiro e, sem um conjunto de perguntas com respostas esperadas, não há como medir se alguma
+das opções melhoraria a recuperação.
+
+#### Como reproduzir
+
+```bash
+python scripts/audit_embedding_truncation.py    # análise completa; não usa o Neo4j
+```
+
+O gerador também mede o truncamento sempre que processa trechos (primeira execução ou `--force`):
 
 ```text
 Truncamento: 40/54 trechos acima de 128 tokens (mín. 27, mediana 209, máx. 720); nesses, o embedding representa só os primeiros 128 tokens.
 ```
+
+Evidências: `docs/evidencias/dev5_truncamento_embeddings.txt` e `docs/evidencias/dev5_embeddings_e_indice.txt`.
 
 ## 5. Busca full-text
 
@@ -237,21 +304,75 @@ o driver (Streamlit, testes), use `GraphHybridRetriever(driver, database=...)`.
 
 ### 8.1. Caminho societário × caminho estrutural por CNAE
 
-São dois tipos de caminho entre empresas, com significados diferentes. No recorte atual **só o segundo existe**.
+> **Resumo:** no recorte **não existe nenhum caminho societário** entre empresas (0 de 153 pares). Os 14
+> caminhos reais encontrados são **estruturais, por CNAE**: mostram só que duas empresas declaram a mesma
+> atividade econômica. Não indicam sócio, controle ou relação comercial.
 
 | | Caminho societário | Caminho estrutural por CNAE |
 | --- | --- | --- |
 | Padrão | `Empresa ← PARTICIPA_DE ← Socio → PARTICIPA_DE → Empresa` | `Empresa → POSSUI_ESTABELECIMENTO → Estabelecimento → EXERCE_CNAE → CNAE ← … ← Empresa` |
 | O que indicaria | o mesmo sócio registrado em duas empresas | as duas empresas declaram a mesma atividade econômica |
 | Existe no recorte? | **Não**: 0 de 153 pares de empresas | **Sim**: 14 pares (8 com 4 relacionamentos, 6 com 6) |
-| Por quê | `socio_id` é uma chave local ao quadro societário de cada empresa (`docs/modelagem-lpg.md`, 6.3); o recorte não tem identificador nacional do sócio, e nome nunca cria identidade | CNAE é um código compartilhado por estabelecimentos de empresas diferentes |
-| Interpretação | seria um vínculo societário (que, sozinho, ainda não prova irregularidade) | **não** é vínculo societário, comercial ou de controle |
-| Como foi demonstrado | consulta A vazia com dados reais + cenário **sintético** E | consultas B e D com CNPJs reais |
+| Por quê | regra de identidade do sócio e ausência de casos nos dados (abaixo) | 8 códigos CNAE são declarados por mais de uma empresa |
+| Interpretação | seria um vínculo societário (que, sozinho, ainda não prova irregularidade) | **não** é vínculo societário, de controle ou comercial |
+| Como foi demonstrado | consulta A vazia + diagnóstico E com dados reais; cenário **sintético** G | consultas B, D e F com CNPJs reais |
 
-A ausência de caminho societário é **limitação do dataset**, não da consulta: o mesmo `shortestPath`
-encontra o caminho de 2 relacionamentos no cenário sintético. Com um recorte maior ou um identificador
-de sócio comparável entre empresas, a consulta A passaria a ter resultado. Quem consumir esses caminhos
-não deve apresentar um caminho por CNAE como relação societária entre as empresas.
+#### Por que não há caminho societário
+
+São dois motivos independentes:
+
+1. **Regra de identidade do sócio (modelagem).** O `socio_id` é gerado por
+   `generate_socio_id` em `scripts/build_canonical_dataset.py` como
+   `"SOC-" + sha256("cnpj_basico:índice:NOME")[:12]`. Como o `cnpj_basico` da empresa entra no cálculo,
+   a mesma pessoa registrada em duas empresas vira **dois nós `Socio` diferentes**, e um caminho
+   `Empresa ← Socio → Empresa` não pode se formar. A decisão é intencional (`docs/modelagem-lpg.md`, 6.3):
+   sem CPF e sem identificador nacional do sócio, não há como afirmar que dois registros são a mesma
+   pessoa, e nome não cria identidade (homônimos são comuns).
+2. **Dados do recorte.** Mesmo com outra regra de identidade, o recorte de 18 empresas não tem nenhum
+   caso. Verificações da seção E de `cypher/03_multi_hop.cypher` (só contagens, sem exibir nomes):
+
+| Verificação | Resultado |
+| --- | --- |
+| Quantas empresas cada nó `Socio` alcança | 26 sócios, **todos com 1 empresa** |
+| Nomes de sócio presentes em mais de uma empresa (só diagnóstico; o projeto não liga por nome) | **0** |
+| Sócios pessoa jurídica que são empresas do próprio recorte | 1 sócio PJ, **0** no recorte (o QSA não traz o CNPJ do sócio PJ) |
+| Pares de empresas com caminho só por `PARTICIPA_DE` | **0 de 153** |
+
+Portanto a ausência vem dos dados e da regra de identidade, **não de erro na consulta**: o mesmo
+`shortestPath` encontra o caminho de 2 relacionamentos no cenário sintético G. A ausência também vale só
+para o recorte: ela não prova que essas empresas não tenham sócios em comum na base completa da Receita
+(`docs/modelagem-lpg.md`, princípio 8: ausência não é evidência negativa). Com um recorte maior e um
+identificador de sócio comparável entre empresas (por exemplo, o CNPJ do sócio pessoa jurídica), a
+consulta A poderia ter resultado.
+
+#### O que os caminhos por CNAE significam
+
+CNAE é o código oficial (IBGE/CONCLA) da atividade econômica que cada estabelecimento declara à Receita.
+Dois estabelecimentos com o mesmo código apontam para o mesmo nó `CNAE`, e isso cria o caminho. No recorte,
+8 CNAEs são declarados por mais de uma empresa (consulta F):
+
+| CNAE | Descrição | Empresas |
+| --- | --- | --- |
+| 9430800 | Atividades de associações de defesa de direitos sociais | 00000104, 00000113, 00000145 |
+| 4120400 | Construção de edifícios | 01278154, 01340937 |
+| 4211101 | Construção de rodovias e ferrovias | 00356328, 01340937 |
+| 4299599 | Outras obras de engenharia civil não especificadas anteriormente | 00764466, 01340937 |
+| 4321500 | Instalação e manutenção elétrica | 00073357, 01278154 |
+| 8511200 | Educação infantil - creche | 00000104, 00090616 |
+| 9493600 | Atividades de organizações associativas ligadas à cultura e à arte | 00000113, 00000145 |
+| 9499500 | Atividades associativas não especificadas anteriormente | 00000113, 00000145 |
+
+Nenhum dos 14 caminhos estruturais passa por um `Socio` (coluna `socios_no_caminho = 0` na varredura D).
+Um caminho por CNAE diz apenas que as empresas atuam na mesma classificação de atividade; não indica
+sócio comum, grupo econômico, consórcio, relação comercial nem participação conjunta em licitação.
+
+#### Como apresentar esses resultados (dev1 e dev6)
+
+| Correto | Incorreto |
+| --- | --- |
+| "00356328 e 01340937 declaram a mesma atividade econômica (CNAE 4211101 – Construção de rodovias e ferrovias)." | "00356328 e 01340937 estão ligadas" ou "são relacionadas" |
+| "Não foi encontrado vínculo societário entre as empresas no recorte analisado." | "As empresas não têm sócios em comum." |
+| Exibir a aresta `EXERCE_CNAE` e o nó `CNAE` no caminho | Desenhar uma aresta direta entre as duas empresas |
 
 ### 8.2. Consultas e resultados
 
@@ -263,8 +384,10 @@ não deve apresentar um caminho por CNAE como relação societária entre as emp
 | A — societário | `shortestPath((a)-[:PARTICIPA_DE*..6]-(b))` | **vazio**; 0 dos 153 pares de empresas tem caminho societário |
 | B — estrutural | todos os tipos exceto `ORIGINADO_DE` | 4 relacionamentos: `Empresa:00356328 → Estabelecimento:00356328000145 → CNAE:4211101 ← Estabelecimento:01340937000179 ← Empresa:01340937` |
 | C — contraprova | sem filtro de tipo | 2 relacionamentos via `Fonte:F-RFB-CNPJ` (caminho sem significado) |
-| D — varredura | B para todos os pares | 14 pares: 8 com 4 relacionamentos (um CNAE em comum) e 6 com 6 (dois CNAEs) |
-| E — **sintético** | `Empresa A ← Socio → Empresa B` | 2 relacionamentos `PARTICIPA_DE`; nós apagados na mesma instrução |
+| D — varredura | B para todos os pares | 14 pares: 8 com 4 relacionamentos (um CNAE em comum) e 6 com 6 (dois CNAEs); nenhum passa por `Socio` |
+| E1–E3 — diagnóstico societário | contagens de sócios, nomes e sócios PJ | 26 sócios com 1 empresa cada; 0 nomes em mais de uma empresa; 1 sócio PJ, 0 no recorte |
+| F — CNAEs compartilhados | CNAEs declarados por mais de uma empresa | 8 CNAEs (tabela da seção 8.1) |
+| G — **sintético** | `Empresa A ← Socio → Empresa B` | 2 relacionamentos `PARTICIPA_DE`; nós apagados na mesma instrução |
 
 O CNAE 4211101 do caminho B é "Construção de rodovias e ferrovias": as duas empresas declaram essa
 atividade, e nada além disso pode ser concluído desse caminho.
@@ -297,6 +420,7 @@ python -m unittest discover -s tests -p "test_retrieval_integracao.py" -v   # ex
 # Embeddings e índice vetorial
 python scripts/generate_embeddings.py --dry-run
 python scripts/generate_embeddings.py --batch-size 32
+python scripts/audit_embedding_truncation.py      # auditoria do limite de 128 tokens
 
 # Consulta manual (texto ou JSON do contrato)
 python -m app.services.retrieval "Quais empresas foram declaradas inidôneas?" --top-k 5
@@ -319,13 +443,13 @@ Executados em 2026-11-10; saída completa em `docs/evidencias/dev5_testes.txt`.
 | Módulo | Tipo | Testes | Python 3.9.6 | Python 3.13.18 |
 | --- | --- | --- | --- | --- |
 | `tests/test_ranking.py` | unitário (RRF) | 14 | OK | OK |
-| `tests/test_retrieval.py` | unitário (serviço, contrato, compatibilidade dev1/dev6, schema, tokens) | 41 | OK | OK |
+| `tests/test_retrieval.py` | unitário (serviço, contrato, compatibilidade dev1/dev6, schema, tokens, auditoria de truncamento) | 43 | OK | OK |
 | `tests/test_multi_hop_sintetico.py` | arquivo Cypher + integração (cenário sintético com rollback) | 3 | OK | OK |
 | `tests/test_retrieval_integracao.py` | integração com banco e modelo reais | 5 | OK | OK |
-| **Total Dev5** | | **63** | **63 OK** | **63 OK** |
+| **Total Dev5** | | **65** | **65 OK** | **65 OK** |
 | `tests/test_text_to_graph.py` (dev4, regressão) | unitário | 31 | OK | OK |
 
-Sem Neo4j configurado, a suíte completa roda 88 testes e as 2 classes de integração são ignoradas (skip),
+Sem Neo4j configurado, a suíte completa roda 90 testes e as 2 classes de integração são ignoradas (skip),
 sem falha.
 
 ### 10.2. Embeddings e buscas
@@ -361,12 +485,15 @@ Exemplo de caminho devolvido para o 1º resultado da primeira pergunta:
 
 ## 11. Limitações
 
-1. **Truncamento do modelo:** 40 dos 54 trechos ultrapassam os 128 tokens do modelo e têm embedding
-   calculado só sobre o início do texto. A busca full-text cobre o texto inteiro (detalhes na seção 4.1).
-2. **Sem caminho societário real no recorte:** nenhum par das 18 empresas tem sócio em comum, porque
-   `socio_id` é local a cada empresa. Os caminhos reais entre empresas são estruturais, por CNAE, e
-   significam só atividade econômica em comum (seção 8.1). O caminho societário foi demonstrado com
-   dados sintéticos.
+1. **Truncamento do modelo:** 40 dos 54 trechos ultrapassam o limite de 128 tokens, fixado na configuração
+   do modelo (`sentence_bert_config.json`), e têm embedding calculado só sobre o início do texto. A causa
+   principal é a `fundamentacao_legal` (mediana de 198 tokens, em caixa alta): sem ela, só 7 trechos
+   passariam do limite. A busca full-text cobre o texto inteiro (seção 4.1).
+2. **Sem caminho societário real no recorte:** nenhum dos 153 pares das 18 empresas tem sócio em comum.
+   O `socio_id` inclui o `cnpj_basico`, então cada nó `Socio` pertence a uma só empresa; e, no recorte,
+   nenhum sócio aparece em duas empresas nem por nome. Os 14 caminhos reais entre empresas são
+   estruturais, por CNAE, e significam só atividade econômica em comum, não vínculo (seção 8.1). O caminho
+   societário foi demonstrado apenas com dados sintéticos.
 3. **A busca vetorial sempre devolve vizinhos**, mesmo para perguntas fora de escopo. O serviço avisa quando
    nenhum termo aparece nos textos; a decisão de abster cabe ao dev1 (`abstained`), usando esses avisos e
    os ranks, não o `rrf_score` como probabilidade.
@@ -390,7 +517,10 @@ Exemplo de caminho devolvido para o 1º resultado da primeira pergunta:
 
 - `docs/evidencias/dev5_testes.txt` — execução da suíte Dev5 em Python 3.9 e 3.13, regressão do dev4,
   comportamento sem Neo4j e equivalência dos embeddings entre ambientes.
+- `docs/evidencias/dev5_truncamento_embeddings.txt` — auditoria do limite de 128 tokens: origem do limite,
+  tokens por campo, caixa alta e exemplo do corte.
 - `docs/evidencias/dev5_embeddings_e_indice.txt` — geração, truncamento, idempotência e índice.
 - `docs/evidencias/dev5_recuperacao_manual.txt` — cinco consultas manuais com ranks, RRF, procedência e caminhos.
 - `docs/evidencias/dev5_retrieve_context_exemplo.json` — resposta completa do contrato para uma pergunta.
-- `docs/evidencias/dev5_multi_hop.txt` — saída de `cypher/03_multi_hop.cypher` e contagens antes/depois.
+- `docs/evidencias/dev5_multi_hop.txt` — saída de `cypher/03_multi_hop.cypher` (caminhos, diagnóstico
+  societário, CNAEs compartilhados e cenário sintético) e contagens antes/depois.
