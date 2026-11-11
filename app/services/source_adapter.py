@@ -8,8 +8,8 @@ def normalize_source(source: Dict[str, Any]) -> Dict[str, Any]:
     record_id = source.get("registro_id")
     source_id = (
         source.get("id")
-        or source.get("fonte_id")
         or record_id
+        or source.get("fonte_id")
         or source.get("trecho_id")
     )
     label = source.get("label") or ("Sancao" if record_id else "Trecho")
