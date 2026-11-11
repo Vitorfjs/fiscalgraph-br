@@ -51,9 +51,7 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: |
-            requirements.txt
-            requirements-dev4.txt
-            requirements-dev5.txt
+            requirements-ci.txt
 
       - name: Cache do modelo Hugging Face
         uses: actions/cache@v4
@@ -61,10 +59,14 @@ jobs:
           path: ~/.cache/huggingface/hub
           key: ${{ runner.os }}-paraphrase-multilingual-MiniLM-L12-v2
 
-      - name: Instalar dependências
+      - name: Instalar PyTorch CPU-only
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -r requirements-dev4.txt -r requirements-dev5.txt
+          # Evita baixar a distribuição CUDA (multi-GB) em runners sem GPU.
+          pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch
+
+      - name: Instalar dependências de teste
+        run: pip install --no-cache-dir -r requirements-ci.txt
 
       - name: Aplicar schema Neo4j
         run: |
