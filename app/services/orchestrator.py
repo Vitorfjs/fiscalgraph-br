@@ -29,11 +29,23 @@ def _evidence_payload(context: Dict[str, Any]) -> Dict[str, Any]:
             "graph_paths": chunk.get("graph_paths", []),
             "rrf_score": chunk.get("rrf_score"),
         })
+    # Envia apenas a topologia mínima; propriedades de pessoas naturais e
+    # identificadores pessoais não são necessários para redigir a síntese.
+    safe_nodes = [
+        {"label": node.get("label", "Nó")}
+        for node in context.get("nodes", [])
+        if isinstance(node, dict)
+    ]
+    safe_relationships = [
+        {"type": rel.get("type", "RELACIONAMENTO")}
+        for rel in context.get("relationships", [])
+        if isinstance(rel, dict)
+    ]
     return {
         "pergunta": context.get("query", ""),
         "trechos": chunks,
-        "nos": context.get("nodes", []),
-        "relacionamentos": context.get("relationships", []),
+        "rotulos_nos": safe_nodes,
+        "tipos_relacionamentos": safe_relationships,
         "avisos_recuperacao": context.get("warnings", []),
     }
 
@@ -69,6 +81,8 @@ def _llm_answer(context: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
     model = os.getenv("LLM_MODEL", "").strip()
     if not (endpoint and api_key and model):
         return None, None
+    if os.getenv("LLM_SEND_EVIDENCE", "").strip().lower() != "true":
+        return None, "Envio de evidências a provedor externo está desabilitado; configure LLM_SEND_EVIDENCE=true somente após aprovação."
 
     system_prompt = (
         "Você é um assistente de pesquisa documental do FiscalGraph BR. Responda em português, "
