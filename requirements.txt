@@ -2,3 +2,5 @@ neo4j>=5.18.1
 python-dotenv>=1.0
 streamlit>=1.30
 pandas>=2.0
+streamlit-agraph
+sentence-transformers>=3.0
