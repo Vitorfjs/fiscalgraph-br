@@ -322,8 +322,7 @@ foge do escopo.
 
 ### 7.3. Mapeamento para a resposta final do dev1
 
-Situação em 2026-11-10: a branch `dev1` contém só a preparação do ambiente e não há branch `dev6`.
-A compatibilidade foi verificada contra a especificação acima com testes executáveis.
+Status verificado em 2026-11-11: a branch `dev1` ainda contém somente a tela inicial/estrutura de ambiente, sem serviço de orquestração final; a branch `dev6` existe e o PR #6 está aberto, com interface em modo mock. A compatibilidade do Dev5 foi validada contra o contrato documentado, mas ainda não contra uma implementação funcional do Dev1 ou uma chamada real da interface.
 
 | Campo do dev1 | Origem na resposta do dev5 |
 | --- | --- |
@@ -360,6 +359,9 @@ traz o campo `_aviso` dizendo isso.
 | avisos | `warnings` (exibir sempre) |
 
 A resposta inteira é serializável em JSON (validado), então pode ir para `st.session_state` ou `st.json`.
+
+**Atenção à compatibilidade com o mock atual do Dev6 (verificado em 2026-11-11):** o renderer da branch `dev6` lê `sources[].fonte_id`, `sources[].texto` e `sources[].url_fonte`, enquanto o contrato final acima define `sources[].id`, `sources[].label` e `sources[].url`. As fixtures do Dev6 usam o primeiro formato e, portanto, não comprovam compatibilidade com a resposta final real. Antes de substituir o mock, o Dev6 deve adaptar o renderer ao contrato final ou o grupo deve aprovar explicitamente uma extensão com campo de trecho (`excerpt`); não tratar `sources[]` como `chunks[]`. A branch Dev1 examinada ainda não contém a implementação da orquestração, então essa integração permanece pendente.
+
 
 ### 7.5. `company_paths(cnpj_a, cnpj_b, max_hops=6)`
 
