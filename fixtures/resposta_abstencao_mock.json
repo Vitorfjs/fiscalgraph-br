@@ -1,0 +1,13 @@
+{
+  "answer": "Não há evidências suficientes na recuperação para apresentar uma conclusão. Consulte os avisos e verifique se a consulta pode ser reformulada.",
+  "cypher": null,
+  "sources": [],
+  "nodes": [],
+  "relationships": [],
+  "retrieval_relevance": null,
+  "abstained": true,
+  "warnings": [
+    "Nenhum trecho relevante foi retornado nesta fixture.",
+    "Este cenário é sintético e serve apenas para validar o estado de abstenção da interface."
+  ]
+}
