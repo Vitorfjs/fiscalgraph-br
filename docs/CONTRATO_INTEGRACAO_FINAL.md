@@ -55,7 +55,8 @@ O formato final documentado é:
     {
       "id": "registro_id ou trecho_id",
       "label": "Sancao ou Trecho",
-      "url": "URL da fonte ou null"
+      "url": "URL da fonte ou null",
+      "excerpt": "Trecho textual usado como evidência"
     }
   ],
   "nodes": [],
@@ -72,7 +73,7 @@ Regras de mapeamento:
 | --- | --- |
 | `answer` | Produzido pelo Dev1 a partir dos trechos e das evidências; não copiar o texto demonstrativo do exemplo. |
 | `cypher` | `context["cypher"]`. |
-| `sources` | Uma fonte por identificador distinto: `id = registro_id` ou, quando ausente, `trecho_id`; `label = "Sancao"` quando houver `registro_id`, caso contrário `"Trecho"`; `url = url_fonte`. |
+| `sources` | Uma fonte por identificador distinto: `id = registro_id` ou, quando ausente, `trecho_id`; `label = "Sancao"` quando houver `registro_id`, caso contrário `"Trecho"`; `url = url_fonte`; `excerpt = texto` do chunk. |
 | `nodes`, `relationships` | Repassar sem renomear IDs, endpoints ou tipos. |
 | `retrieval_relevance` | Sugestão já implementada em `example_final_response`: `chunks[0].rrf_score / parameters.rrf_max_score`; `null` sem chunks. É relevância de recuperação, não probabilidade de fraude, culpa ou irregularidade. |
 | `abstained` | Decisão final do Dev1. O exemplo do Dev5 usa `not chunks` apenas como mapeamento estrutural; não substitui a política de escopo/suficiência que o Dev1 deve implementar. |
@@ -90,13 +91,13 @@ A interface atualmente existente na branch `dev6` foi implementada com fixtures 
 - `texto`
 - `url_fonte`
 
-Ela também tenta exibir esses campos diretamente. Isso **não corresponde** ao contrato final acima, que define `sources[]` como `id`, `label` e `url`. Portanto, a substituição do mock por uma resposta real sem ajustar o consumidor fará a tela exibir valores ausentes (por exemplo, `N/A` e "Sem texto disponível") e não mostrará o link pela chave esperada.
+Ela também tenta exibir esses campos diretamente. Isso **não corresponde** ao contrato final acima, que define `sources[]` como `id`, `label`, `url` e `excerpt`. Portanto, a substituição do mock por uma resposta real sem ajustar o consumidor fará a tela exibir valores ausentes (por exemplo, `N/A` e "Sem texto disponível") e não mostrará o link pela chave esperada.
 
 Decisão de integração:
 
 1. Manter o contrato final documentado (`id`, `label`, `url`) como formato de `sources[]`.
 2. Ajustar o renderer/adaptador do Dev6 para ler essas chaves.
-3. Se a interface precisar exibir o trecho textual, consumir um campo `excerpt`/trecho explícito, aprovado pelo Dev1 e adicionado ao contrato final; não tratar `sources[]` como se fosse `chunks[]` nem duplicar texto sob nomes diferentes sem acordo.
+3. Se a interface precisar exibir o trecho textual, consumir `sources[].excerpt`, campo textual explicitamente incluído no contrato final; não tratar `sources[]` como se fosse `chunks[]` nem duplicar texto sob nomes diferentes sem acordo.
 4. Manter `nodes[]` e `relationships[]` na estrutura do grafo devolvida pelo Dev5. Não fabricar arestas no frontend.
 5. Renderizar `MENCIONA` com `properties.status = "CANDIDATA"` como menção candidata, nunca como vínculo confirmado.
 
