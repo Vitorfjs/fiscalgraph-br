@@ -434,7 +434,19 @@ class ContractCompatibilityTests(unittest.TestCase):
                 final = example_final_response(context)
                 self.assertEqual(set(final), {"answer", "cypher", "sources", "nodes", "relationships",
                                               "retrieval_relevance", "abstained", "warnings"})
+                expected_sources, seen_ids = [], set()
+                for chunk in context["chunks"]:
+                    source_id = chunk["registro_id"] or chunk["trecho_id"]
+                    if source_id not in seen_ids:
+                        seen_ids.add(source_id)
+                        expected_sources.append({
+                            "id": source_id,
+                            "label": "Sancao" if chunk["registro_id"] else "Trecho",
+                            "url": chunk["url_fonte"],
+                        })
+                self.assertEqual(final["sources"], expected_sources)
                 for source in final["sources"]:
+                    self.assertEqual(set(source), {"id", "label", "url"})
                     self.assertIsInstance(source["id"], str)
                     self.assertIsInstance(source["label"], str)
                     self.assertTrue(source["url"] is None or isinstance(source["url"], str))
@@ -446,6 +458,16 @@ class ContractCompatibilityTests(unittest.TestCase):
                     self.assertTrue(final["abstained"])
                     self.assertIsNone(final["retrieval_relevance"])
                 json.dumps(final, ensure_ascii=False)
+
+    def test_final_response_deduplicates_sources_by_record_id(self):
+        context = copy.deepcopy(self.scenarios()["normal"])
+        duplicate = copy.deepcopy(context["chunks"][0])
+        duplicate["trecho_id"] = "TRECHO-DUPLICADO-MESMO-REGISTRO"
+        context["chunks"].append(duplicate)
+
+        final = example_final_response(context)
+        ids = [source["id"] for source in final["sources"]]
+        self.assertEqual(ids.count(context["chunks"][0]["registro_id"]), 1)
 
     def test_rrf_max_score_matches_first_place_in_both_lists(self):
         result, _ = run([("T1", 0.9)], [("T1", 3.0)])
