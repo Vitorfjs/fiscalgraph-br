@@ -9,8 +9,8 @@
 | Módulo | Estado observado | Consequência |
 | --- | --- | --- |
 | Dev5 — recuperação híbrida | Serviço, validadores, testes unitários e testes de integração presentes na branch `dev5`. | Pode ser consumido por Dev1. |
-| Dev1 — orquestração e resposta | A branch `dev1` examinada contém somente a tela Streamlit inicial; não foi encontrado serviço de orquestração, chamada a LLM ou montagem de resposta final. | A integração funcional Dev1–Dev5 ainda não pode ser validada contra uma implementação real. |
-| Dev6 — interface | Branch `dev6` com interface em modo mock; PR #6 aberto. | A tela demonstra apresentação de fixtures, não execução do fluxo real. |
+| Dev1 — orquestração e resposta | A branch `integracao-e2e` adiciona `orchestrator.py`, validação do contrato e adaptador de resposta. | O fluxo está implementado no branch de integração; precisa de ambiente Neo4j com índices/dados para validação ponta a ponta real. |
+| Dev6 — interface | A branch `integracao-e2e` substitui a tela inicial por consulta real e mantém demonstração mock. | A interface já chama o orquestrador; teste visual/manual depende do ambiente local. |
 
 Esta documentação define o contrato esperado; ela não afirma que os módulos Dev1 e Dev6 já estejam integrados.
 
@@ -134,3 +134,17 @@ A branch `dev6` e o PR #6 precisam ser atualizados pelo responsável da interfac
 - PR #8 (branch `dev1-integracao` → `dev1`) adiciona `app/services/response_adapter.py` e testes para montar a resposta final com `id/label/url/excerpt`, preservando grafo e avisos. O adaptador ainda precisa ser chamado pelo fluxo real do Dev1, junto à recuperação e ao gerador de resposta.
 - PR #6 atualiza o renderer Dev6 com `normalize_source`, aceitando tanto o contrato atual quanto as fixtures legadas, e inclui testes unitários.
 - A suíte Dev5 foi executada com Neo4j descartável e PyTorch CPU-only: 139 testes passaram no run [43103032289](https://github.com/Vitorfjs/fiscalgraph-br/actions/runs/43103032289). Os testes isolados dos adaptadores Dev1 e Dev6 também passaram em seus workflows próprios.
+
+
+## 9. Branch de integração ponta a ponta
+
+A branch `integracao-e2e` reúne a recuperação Dev5, o orquestrador Dev1 e a interface Dev6.
+
+- `app/services/orchestrator.py`: chama `GraphHybridRetriever`, valida o retorno com `validate_retrieval_response`, tenta usar um endpoint OpenAI-compatible opcional e monta o contrato final.
+- Sem LLM configurado, apresenta síntese determinística explicitamente identificada em `warnings`; não afirma que houve geração por LLM.
+- `app/streamlit_app.py`: oferece consulta real e modo Mock separado.
+- O cache do Streamlit mantém o retriever/encoder entre interações.
+- A visualização usa somente nós e relacionamentos retornados pelo serviço; menções candidatas permanecem identificadas.
+- `docs/EXECUCAO_APLICACAO_INTEGRADA.md` contém os passos de configuração.
+
+A suíte unitária da orquestração usa um retriever falso e não substitui teste de ponta a ponta contra um Neo4j real com dados e embeddings.
