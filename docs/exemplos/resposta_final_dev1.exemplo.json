@@ -11,12 +11,14 @@
     {
       "id": "CNEP-310577",
       "label": "Sancao",
-      "url": "https://portaldatransparencia.gov.br/download-de-dados/cnep"
+      "url": "https://portaldatransparencia.gov.br/download-de-dados/cnep",
+      "excerpt": "[Trecho textual omitido neste exemplo demonstrativo]"
     },
     {
       "id": "CEIS-289814",
       "label": "Sancao",
-      "url": "https://portaldatransparencia.gov.br/download-de-dados/ceis"
+      "url": "https://portaldatransparencia.gov.br/download-de-dados/ceis",
+      "excerpt": "[Trecho textual omitido neste exemplo demonstrativo]"
     }
   ],
   "nodes": [
