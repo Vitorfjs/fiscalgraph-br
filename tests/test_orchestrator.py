@@ -35,7 +35,7 @@ def valid_context(with_chunk=True):
         "warnings": [] if with_chunk else ["Nenhum trecho foi recuperado."],
         "parameters": {
             "top_k": 5, "candidate_k": 20, "rrf_k": 60, "rrf_max_score": float(2 / 61),
-            "active_searches": ["vector", "fulltext"],
+            "active_searches": ["vector", "fulltext"] if with_chunk else [],
             "search_status": {"vector": "com_resultados", "fulltext": "com_resultados"} if with_chunk else {"vector": "sem_resultados", "fulltext": "sem_resultados"},
             "query_identifiers": [],
         },
@@ -63,7 +63,7 @@ class OrchestratorTests(unittest.TestCase):
 
     def test_invalid_retrieval_contract_is_rejected(self):
         context = valid_context()
-        del context["parameters"]["rrf_k"]
+        del context["parameters"]["query_identifiers"]
         retriever = FakeRetriever(context)
         with self.assertRaisesRegex(ValueError, "fora do contrato"):
             answer_question("sanção documental", retriever=retriever)
