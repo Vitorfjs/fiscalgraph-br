@@ -328,7 +328,7 @@ Status verificado em 2026-11-11: a branch `dev1` ainda contém somente a tela in
 | --- | --- |
 | `answer` | gerado pelo dev1 a partir de `chunks[].texto` |
 | `cypher` | `cypher`, sem alteração |
-| `sources[]` (`id`, `label`, `url`) | um por identificador distinto: `id = registro_id` (ou `trecho_id` se ausente), `label = "Sancao"` (ou `"Trecho"`), `url = url_fonte`; órgão, competência e data de coleta estão no nó `Fonte` em `nodes` |
+| `sources[]` (`id`, `label`, `url`, `excerpt`) | um por identificador distinto: `id = registro_id` (ou `trecho_id` se ausente), `label = "Sancao"` (ou `"Trecho"`), `url = url_fonte`; órgão, competência e data de coleta estão no nó `Fonte` em `nodes` |
 | `nodes`, `relationships` | sem alteração |
 | `retrieval_relevance` | sugestão: `chunks[0].rrf_score / parameters.rrf_max_score` (1,0 = 1º nas duas buscas; 0,5 = 1º em só uma); `None` sem chunks. É relevância, não probabilidade |
 | `abstained` | `True` quando `chunks` vem vazio. Sinais adicionais para a regra do dev1: `active_searches` sem `fulltext` e o aviso "Nenhum termo da pergunta…" |
@@ -360,7 +360,7 @@ traz o campo `_aviso` dizendo isso.
 
 A resposta inteira é serializável em JSON (validado), então pode ir para `st.session_state` ou `st.json`.
 
-**Atenção à compatibilidade com o mock atual do Dev6 (verificado em 2026-11-11):** o renderer da branch `dev6` lê `sources[].fonte_id`, `sources[].texto` e `sources[].url_fonte`, enquanto o contrato final acima define `sources[].id`, `sources[].label` e `sources[].url`. As fixtures do Dev6 usam o primeiro formato e, portanto, não comprovam compatibilidade com a resposta final real. Antes de substituir o mock, o Dev6 deve adaptar o renderer ao contrato final ou o grupo deve aprovar explicitamente uma extensão com campo de trecho (`excerpt`); não tratar `sources[]` como `chunks[]`. A branch Dev1 examinada ainda não contém a implementação da orquestração, então essa integração permanece pendente.
+**Atenção à compatibilidade com o mock atual do Dev6 (verificado em 2026-11-11):** o renderer da branch `dev6` lê `sources[].fonte_id`, `sources[].texto` e `sources[].url_fonte`, enquanto o contrato final acima define `sources[].id`, `sources[].label` e `sources[].url`. As fixtures do Dev6 usam o primeiro formato e, portanto, não comprovam compatibilidade com a resposta final real. Antes de substituir o mock, o Dev6 deve adaptar o renderer ao contrato final ou o grupo deve aprovar explicitamente uma extensão com campo de trecho (`excerpt`) agora incluído no contrato; não tratar `sources[]` como `chunks[]`. A branch Dev1 examinada ainda não contém a implementação da orquestração, então essa integração permanece pendente.
 
 
 ### 7.5. `company_paths(cnpj_a, cnpj_b, max_hops=6)`
