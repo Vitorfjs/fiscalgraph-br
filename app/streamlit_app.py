@@ -11,6 +11,7 @@ from neo4j.exceptions import AuthError, ServiceUnavailable
 from streamlit_agraph import agraph, Node, Edge, Config
 
 from services.mock_service import get_mock_response
+from services.source_adapter import normalize_source
 
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
@@ -85,11 +86,15 @@ if st.button("Pesquisar"):
     # Fontes e Evidências
     if payload.get("sources"):
         with st.expander("📚 Fontes e Evidências Utilizadas"):
-            for source in payload["sources"]:
-                st.markdown(f"**ID da Fonte:** `{source.get('fonte_id', 'N/A')}`")
-                st.markdown(f"> {source.get('texto', 'Sem texto disponível.')}")
-                if source.get("url_fonte"):
-                    st.markdown(f"🔗 [Acessar documento original]({source['url_fonte']})")
+            for raw_source in payload["sources"]:
+                source = normalize_source(raw_source)
+                st.markdown(
+                    f"**{source['label']} — ID:** `{source['id'] or 'N/A'}`"
+                )
+                if source["excerpt"]:
+                    st.markdown(f"> {source['excerpt']}")
+                if source["url"]:
+                    st.markdown(f"🔗 [Acessar documento original]({source['url']})")
                 st.divider()
 
     # Cypher
