@@ -65,3 +65,25 @@ Na Fase 1, essas são fontes planejadas. Registrem a competência, a data de ace
 - [ ] Pull Requests revisados e integrados
 
 Consulte o documento de proposta em `docs/modelo/`. O conteúdo é uma base inicial de trabalho e deve ser revisado, executado e validado pelo grupo — não representa comprovação de execução do Neo4j.
+
+
+## 🖥️ Como Executar a Interface (Modo Mock - Módulo Dev6)
+
+Para testar a interface de visualização sem depender da integração final e do
+pipeline completo do Neo4j, utilize os dados sintéticos:
+
+1. Crie e ative um ambiente virtual:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+2. Instale as dependências:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+3. Inicie a aplicação Streamlit:
+    ```bash
+    streamlit run app/streamlit_app.py
+    ```

@@ -10,7 +10,6 @@ from neo4j import GraphDatabase
 from neo4j.exceptions import AuthError, ServiceUnavailable
 from streamlit_agraph import agraph, Node, Edge, Config
 
-# Adaptador Mock
 from services.mock_service import get_mock_response
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,7 +24,6 @@ st.info(
     "não comprovam fraude, sonegação ou responsabilidade de terceiros."
 )
 
-# --- 1. VERIFICAÇÃO DO BANCO DE DADOS (Código original mantido) ---
 uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 user = os.getenv("NEO4J_USER", "neo4j")
 password = os.getenv("NEO4J_PASSWORD")
@@ -58,10 +56,8 @@ with st.expander("🔌 Status da Conexão Neo4j (Opcional para esta etapa)"):
 
 st.divider()
 
-# --- 2. INTERFACE DE BUSCA (Dev6) ---
 st.subheader("Consulta ao conhecimento (Modo Mock)")
 
-# Menu lateral para controle dos mocks
 st.sidebar.header("🛠️ Módulo Dev6 - Mock")
 cenario = st.sidebar.radio(
     "Escolha a Fixture:",
@@ -69,8 +65,9 @@ cenario = st.sidebar.radio(
 )
 
 query = st.text_input("Pergunta para o grafo", placeholder="Ex.: Quais empresas estão ligadas a uma empresa que possui registro de sanção?")
+st.caption("ℹ️ **Nota:** Como estamos rodando em modo Mock, o resultado exibido abaixo é demonstrativo e independe do texto digitado na consulta.")
 
-if st.button("Pesquisar") or query:
+if st.button("Pesquisar"):
     tipo_cenario = "sucesso" if cenario == "Sucesso (Grafo e Fontes)" else "abstencao"
     payload = get_mock_response(tipo_cenario)
 
@@ -108,7 +105,7 @@ if st.button("Pesquisar") or query:
     nodes_data = payload.get("nodes", [])
     rels_data = payload.get("relationships", [])
 
-    if nodes_data and rels_data:
+    if nodes_data:
         st.write("### 🕸️ Visualização do Subgrafo")
         
         nodes, edges = [], []
