@@ -58,10 +58,9 @@ OPTIONAL MATCH (emp:Empresa {cnpj_basico: e.cnpj_basico})
 WITH e, emp WHERE emp IS NULL
 RETURN count(e) AS estabelecimentos_sem_empresa;
 
-// F. Integridade: sócios sem Empresa correspondente. Esperado: 0.
+// F. Integridade: sócios sem vínculo PARTICIPA_DE com Empresa. Esperado: 0.
 MATCH (s:Socio)
-OPTIONAL MATCH (emp:Empresa {cnpj_basico: s.cnpj_basico})
-WITH s, emp WHERE emp IS NULL
+WHERE NOT EXISTS { MATCH (s)-[:PARTICIPA_DE]->(:Empresa) }
 RETURN count(s) AS socios_sem_empresa;
 
 // G. Integridade: sanções sem Estabelecimento de CNPJ exato. Esperado: 0.
