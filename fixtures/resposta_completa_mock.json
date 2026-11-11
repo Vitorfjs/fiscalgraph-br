@@ -1,0 +1,83 @@
+{
+  "answer": "Resposta demonstrativa: foi recuperado um trecho associado a uma sanção de exemplo. A menção ao estabelecimento está marcada como candidata e não deve ser interpretada isoladamente como vínculo jurídico confirmado.",
+  "cypher": "MATCH (t:Trecho)-[r:EXTRATO_DE]->(s:Sancao) RETURN t, r, s LIMIT 10",
+  "sources": [
+    {
+      "trecho_id": "TRECHO_MOCK_001",
+      "texto": "Trecho textual sintético criado apenas para demonstrar a apresentação de evidências na interface.",
+      "registro_id": "REGISTRO_MOCK_001",
+      "fonte_id": "FONTE_MOCK_001",
+      "url_fonte": "https://example.org/fonte-demonstrativa",
+      "ranks": {},
+      "scores": {},
+      "graph_paths": []
+    }
+  ],
+  "nodes": [
+    {
+      "id": "trecho-mock-001",
+      "label": "Trecho",
+      "properties": {
+        "trecho_id": "TRECHO_MOCK_001",
+        "texto": "Trecho textual sintético criado apenas para demonstrar a apresentação de evidências na interface.",
+        "registro_id": "REGISTRO_MOCK_001",
+        "fonte_id": "FONTE_MOCK_001"
+      }
+    },
+    {
+      "id": "sancao-mock-001",
+      "label": "Sancao",
+      "properties": {
+        "sancao_id": "SANCAO_MOCK_001",
+        "descricao": "Sanção demonstrativa — dado sintético"
+      }
+    },
+    {
+      "id": "fonte-mock-001",
+      "label": "Fonte",
+      "properties": {
+        "fonte_id": "FONTE_MOCK_001",
+        "nome": "Fonte demonstrativa"
+      }
+    },
+    {
+      "id": "estabelecimento-mock-001",
+      "label": "Estabelecimento",
+      "properties": {
+        "estabelecimento_id": "ESTABELECIMENTO_MOCK_001",
+        "identificador": "ESTABELECIMENTO_FICTICIO"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "source": "trecho-mock-001",
+      "target": "sancao-mock-001",
+      "type": "EXTRATO_DE",
+      "properties": {}
+    },
+    {
+      "source": "trecho-mock-001",
+      "target": "fonte-mock-001",
+      "type": "ORIGINADO_DE",
+      "properties": {}
+    },
+    {
+      "source": "trecho-mock-001",
+      "target": "estabelecimento-mock-001",
+      "type": "MENCIONA",
+      "properties": {
+        "metodo": "EXATO_CNPJ_MOCK",
+        "status": "CANDIDATA",
+        "inicio": 0,
+        "fim": 20
+      }
+    }
+  ],
+  "retrieval_relevance": 0.82,
+  "abstained": false,
+  "warnings": [
+    "Fixture sintética: não utilizar como evidência factual.",
+    "A relação MENCIONA está em estado CANDIDATA."
+  ]
+}

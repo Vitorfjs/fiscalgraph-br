@@ -1,0 +1,124 @@
+{
+  "empresas": [
+    "00356328",
+    "01340937"
+  ],
+  "max_hops": 6,
+  "paths": [
+    {
+      "kind": "atividade_cnae",
+      "length": 4,
+      "nodes": [
+        "Empresa:00356328",
+        "Estabelecimento:00356328000145",
+        "CNAE:4211101",
+        "Estabelecimento:01340937000179",
+        "Empresa:01340937"
+      ],
+      "relationship_types": [
+        "POSSUI_ESTABELECIMENTO",
+        "EXERCE_CNAE",
+        "EXERCE_CNAE",
+        "POSSUI_ESTABELECIMENTO"
+      ],
+      "text": "(Empresa:00356328)-[:POSSUI_ESTABELECIMENTO]->(Estabelecimento:00356328000145)-[:EXERCE_CNAE]->(CNAE:4211101)<-[:EXERCE_CNAE]-(Estabelecimento:01340937000179)<-[:POSSUI_ESTABELECIMENTO]-(Empresa:01340937)"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "Empresa:00356328",
+      "label": "Empresa",
+      "properties": {
+        "natureza_juridica": "Sociedade Empresária Limitada",
+        "razao_social": "CONSTRUTORA ZAG LTDA",
+        "porte": "DEMAIS",
+        "cnpj_basico": "00356328"
+      }
+    },
+    {
+      "id": "Estabelecimento:00356328000145",
+      "label": "Estabelecimento",
+      "properties": {
+        "uf": "MG",
+        "situacao_cadastral": "ATIVA",
+        "municipio": "PEDRO LEOPOLDO",
+        "cnpj": "00356328000145",
+        "nome_fantasia": "",
+        "cnpj_basico": "00356328"
+      }
+    },
+    {
+      "id": "CNAE:4211101",
+      "label": "CNAE",
+      "properties": {
+        "codigo": "4211101",
+        "descricao": "Construção de rodovias e ferrovias"
+      }
+    },
+    {
+      "id": "Estabelecimento:01340937000179",
+      "label": "Estabelecimento",
+      "properties": {
+        "uf": "SP",
+        "situacao_cadastral": "ATIVA",
+        "municipio": "SAO PAULO",
+        "cnpj": "01340937000179",
+        "nome_fantasia": "",
+        "cnpj_basico": "01340937"
+      }
+    },
+    {
+      "id": "Empresa:01340937",
+      "label": "Empresa",
+      "properties": {
+        "natureza_juridica": "Sociedade Anônima Fechada",
+        "razao_social": "GALVAO ENGENHARIA S/A",
+        "porte": "DEMAIS",
+        "cnpj_basico": "01340937"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "source": "Empresa:00356328",
+      "target": "Estabelecimento:00356328000145",
+      "type": "POSSUI_ESTABELECIMENTO",
+      "properties": {
+        "registro_origem": "ReceitaFederal:Estabelecimento:00356328000145"
+      }
+    },
+    {
+      "source": "Estabelecimento:00356328000145",
+      "target": "CNAE:4211101",
+      "type": "EXERCE_CNAE",
+      "properties": {
+        "principal": true,
+        "fonte_id": "F-RFB-CNPJ",
+        "registro_origem": "ReceitaFederal:CNAE:00356328000145"
+      }
+    },
+    {
+      "source": "Estabelecimento:01340937000179",
+      "target": "CNAE:4211101",
+      "type": "EXERCE_CNAE",
+      "properties": {
+        "principal": true,
+        "fonte_id": "F-RFB-CNPJ",
+        "registro_origem": "ReceitaFederal:CNAE:01340937000179"
+      }
+    },
+    {
+      "source": "Empresa:01340937",
+      "target": "Estabelecimento:01340937000179",
+      "type": "POSSUI_ESTABELECIMENTO",
+      "properties": {
+        "registro_origem": "ReceitaFederal:Estabelecimento:01340937000179"
+      }
+    }
+  ],
+  "cypher": "// Caminho societario\nMATCH (a:Empresa {cnpj_basico: $cnpj_a}), (b:Empresa {cnpj_basico: $cnpj_b})\nWHERE a <> b\nMATCH p = shortestPath((a)-[:PARTICIPA_DE*..6]-(b))\nRETURN [n IN nodes(p) | {element_id: elementId(n), labels: labels(n),\n          properties: n {.*, embedding: null, texto: null, mencoes_json: null}}] AS nodes,\n       [r IN relationships(p) | {element_id: elementId(r), type: type(r),\n          start: elementId(startNode(r)), end: elementId(endNode(r)), properties: properties(r)}] AS relationships;\n\n// Caminho estrutural\nMATCH (a:Empresa {cnpj_basico: $cnpj_a}), (b:Empresa {cnpj_basico: $cnpj_b})\nWHERE a <> b\nMATCH p = shortestPath((a)-[:PARTICIPA_DE|POSSUI_ESTABELECIMENTO|EXERCE_CNAE|APLICADA_A|EXTRATO_DE|MENCIONA*..6]-(b))\nRETURN [n IN nodes(p) | {element_id: elementId(n), labels: labels(n),\n          properties: n {.*, embedding: null, texto: null, mencoes_json: null}}] AS nodes,\n       [r IN relationships(p) | {element_id: elementId(r), type: type(r),\n          start: elementId(startNode(r)), end: elementId(endNode(r)), properties: properties(r)}] AS relationships;",
+  "warnings": [
+    "Nenhum caminho societário (sócio em comum) entre 00356328 e 01340937 com até 6 relacionamentos no grafo. A ausência no recorte não prova ausência na base completa.",
+    "Caminho por CNAE indica apenas atividade econômica declarada em comum; não é vínculo societário, de controle ou comercial."
+  ]
+}

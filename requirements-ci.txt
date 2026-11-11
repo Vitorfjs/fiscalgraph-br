@@ -1,0 +1,6 @@
+# Dependências necessárias para executar a suíte de testes no CI.
+# O workflow instala torch CPU-only antes deste arquivo.
+neo4j>=5.18.1
+python-dotenv>=1.0
+spacy>=3.7,<4
+sentence-transformers>=3.0

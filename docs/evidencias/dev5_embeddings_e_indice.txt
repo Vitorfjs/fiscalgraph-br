@@ -1,0 +1,63 @@
+# dev5 — geração de embeddings (estratégia por janelas) e índice vetorial
+# Ambiente: Neo4j 5.26.32 Community (local), Python 3.9.6, sentence-transformers 5.1.2, torch 2.8.0, driver neo4j 5.28.8
+# Data: 2026-11-10T20:19:48-03:00 | branch: dev5 | base: 7a2170c + alterações desta entrega
+# Estado inicial: 54 Trecho com embeddings da estratégia anterior (truncamento em 128, sem embedding_pipeline_version).
+
+$ contagem do grafo antes
+nos, relacionamentos
+210, 405
+
+$ python scripts/generate_embeddings.py --dry-run   # detecta a versão antiga
+Versão da estratégia: v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2
+Trechos pendentes: 54 {'versao_antiga': 54} (sem texto, ignorados: 0)
+Dry-run: nenhuma escrita no Neo4j.
+
+$ python scripts/generate_embeddings.py --batch-size 32   # sem --force: recalcula pela versão
+Índice vetorial trecho_embedding_vector conferido (384 dimensões, cosine).
+Versão da estratégia: v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2
+Trechos pendentes: 54 {'versao_antiga': 54} (sem texto, ignorados: 0)
+Modelo carregado: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 | limite padrão do modelo: 128 | janela: 126 tokens + 2 especiais = 128 | sobreposição: 32
+Cobertura: 54/54 trechos representados integralmente | 150 janelas (máx. 8 por trecho; 40 trechos com mais de uma) | tokens não representados: 0
+Embeddings gravados: 32/54
+Embeddings gravados: 54/54
+Concluído. trechos atualizados=54; Trecho com embedding=54/54; na versão atual=54/54; dimensão min/max=384/384; norma min/max=1.000000/1.000000; janelas=150 (máx. 8); versões=['v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2']
+real 7.87
+
+$ python scripts/generate_embeddings.py --batch-size 32   # reexecução: nada pendente
+Índice vetorial trecho_embedding_vector conferido (384 dimensões, cosine).
+Versão da estratégia: v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2
+Trechos pendentes: 0 {} (sem texto, ignorados: 0)
+
+$ python scripts/generate_embeddings.py --batch-size 32 --force   # reprocessa os 54
+Índice vetorial trecho_embedding_vector conferido (384 dimensões, cosine).
+Versão da estratégia: v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2
+Trechos pendentes: 54 {'forcado': 54} (sem texto, ignorados: 0)
+Modelo carregado: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 | limite padrão do modelo: 128 | janela: 126 tokens + 2 especiais = 128 | sobreposição: 32
+Cobertura: 54/54 trechos representados integralmente | 150 janelas (máx. 8 por trecho; 40 trechos com mais de uma) | tokens não representados: 0
+Embeddings gravados: 32/54
+Embeddings gravados: 54/54
+Concluído. trechos atualizados=54; Trecho com embedding=54/54; na versão atual=54/54; dimensão min/max=384/384; norma min/max=1.000000/1.000000; janelas=150 (máx. 8); versões=['v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2']
+real 6.81
+
+$ python scripts/generate_embeddings.py --dry-run   # idempotência após --force
+Versão da estratégia: v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2
+Trechos pendentes: 0 {} (sem texto, ignorados: 0)
+Dry-run: nenhuma escrita no Neo4j.
+
+$ cypher-shell -f cypher/04_indice_vetorial_trecho.cypher
+name, type, labelsOrTypes, properties, state, dimensoes, similaridade
+"trecho_embedding_vector", "VECTOR", ["Trecho"], ["embedding"], "ONLINE", 384, "COSINE"
+trechos, com_embedding, dimensao_min, dimensao_max, norma_min, norma_max, modelos, versoes, janelas, janelas_max
+54, 54, 384, 384, 1.0, 1.0, ["sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"], ["v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2"], 150, 8
+
+$ SHOW INDEXES (FULLTEXT e VECTOR)
+name, type, labelsOrTypes, properties, state
+"fiscalgraph_text_fulltext", "FULLTEXT", ["Empresa", "Socio", "Sancao", "Trecho"], ["razao_social", "nome", "descricao", "observacoes", "fundamentacao_legal", "texto"], "ONLINE"
+"trecho_embedding_vector", "VECTOR", ["Trecho"], ["embedding"], "ONLINE"
+
+$ Trecho.texto preservado: textos do banco idênticos aos de data/processed/trechos.jsonl
+Trecho no banco: 54 | idênticos ao JSONL: 54/54
+
+$ contagem do grafo depois (a etapa só grava propriedades em Trecho)
+nos, relacionamentos
+210, 405

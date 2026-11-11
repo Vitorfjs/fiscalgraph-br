@@ -1,0 +1,46 @@
+# dev5 — auditoria da representação dos trechos no embedding
+# Python 3.9.6, sentence-transformers 5.1.2 | Data: 2026-11-10T20:27:48-03:00 | branch: dev5
+
+$ python scripts/audit_embedding_truncation.py
+Modelo: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+1. Origem do limite
+   max_seq_length padrão = 128 tokens (sentence_bert_config.json do modelo; o sentence-transformers corta o texto nesse tamanho)
+   max_position_embeddings = 512 (config.json da arquitetura: capacidade máxima)
+   tokens especiais por janela = 2 (início e fim)
+   limite efetivo por janela na estratégia atual = 126 tokens de conteúdo + 2 especiais = 128 posições; sobreposição = 32
+
+2. Trechos (data/processed/trechos.jsonl)
+   total = 54 | tokens de conteúdo por trecho: mín. 25 | mediana 207 | máx. 718
+   palavras por trecho (mediana) = 94 | tokens por palavra (mediana) = 2.18
+
+3. Contribuição de cada campo (compliance.csv, mesma composição do dev4; limite de 128)
+   textos recompostos idênticos aos de trechos.jsonl: 54/54
+   descricao            mediana      9 | máx.   23 | vazio em 0
+   observacoes          mediana      0 | máx.  266 | vazio em 32
+   fundamentacao_legal  mediana    198 | máx.  691 | vazio em 0
+   acima de 128 com o texto completo: 40/54
+   acima de 128 sem fundamentacao_legal: 7/54
+   fundamentacao_legal sozinha acima de 128: 35/54
+
+4. Caixa alta x minúsculas (pedaços de palavra no vocabulário do modelo)
+   administração  1 token(s): ▁administração
+   ADMINISTRAÇÃO  2 token(s): ▁ADMINISTR AÇÃO
+   inidoneidade   3 token(s): ▁ini done idade
+   INIDONEIDADE   4 token(s): ▁INI D ONE IDADE
+   contratado     1 token(s): ▁contratado
+   CONTRATADO     3 token(s): ▁CONTRA T ADO
+
+5. Representação no embedding: estratégia anterior x atual
+   anterior (truncamento em 128): 1 trecho = 1 passada; trechos com tokens descartados = 40/54; tokens não representados = 7557
+   atual (v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2):
+     janelas = 150 (1 janela: 14 trechos; mais de uma: 40; máx. 8 por trecho)
+     trechos representados integralmente = 54/54 | tokens não representados = 0
+     agregação: média dos vetores das janelas ponderada pelos tokens novos de cada janela, normalizada em L2 (1 vetor de 384 dimensões por Trecho)
+
+6. Exemplo: CEIS-132342 (94 palavras, 207 tokens de conteúdo)
+   truncamento anterior lia até: …NQUANTO PERDURAREM OS MOTIVOS DETERMINANTES DA PUNIÇÃO OU ATÉ QUE SEJA PROMOVIDA
+   e descartava 81 tokens a partir de: A REABILITAÇÃO PERANTE A PRÓPRIA AUTORIDADE QUE APLICOU A PEN…
+   estratégia atual: 2 janelas, pesos [126, 81], tokens não representados = 0
+   janela 1: tokens [0, 126) | começa em "Declaração de Inidoneidade…" | termina em "…QUE SEJA PROMOVIDA"
+   janela 2: tokens [81, 207) | começa em "LICITAR OU CONTRA…" | termina em "…INCISO ANTERIOR."
+   fim do texto original: "…APLICADA COM BASE NO INCISO ANTERIOR."

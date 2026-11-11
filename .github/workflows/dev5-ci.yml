@@ -1,0 +1,121 @@
+name: Dev5 - testes integrados
+
+on:
+  push:
+    branches:
+      - dev5-integracao-final
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dev5-tests:
+    name: Neo4j + embeddings + suíte completa
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NEO4J_URI: bolt://127.0.0.1:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: fiscalgraph_ci_password
+      NEO4J_DATABASE: neo4j
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      TOKENIZERS_PARALLELISM: "false"
+
+    services:
+      neo4j:
+        image: neo4j:5.26-community
+        env:
+          NEO4J_AUTH: neo4j/fiscalgraph_ci_password
+          NEO4J_server_memory_heap_initial__size: 512m
+          NEO4J_server_memory_heap_max__size: 1G
+          NEO4J_server_memory_pagecache_size: 512m
+        ports:
+          - 7687:7687
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p fiscalgraph_ci_password 'RETURN 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements-ci.txt
+
+      - name: Cache do modelo Hugging Face
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface/hub
+          key: ${{ runner.os }}-paraphrase-multilingual-MiniLM-L12-v2
+
+      - name: Instalar PyTorch CPU-only
+        run: |
+          python -m pip install --upgrade pip
+          # Evita baixar a distribuição CUDA (multi-GB) em runners sem GPU.
+          pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch
+
+      - name: Instalar dependências de teste
+        run: pip install --no-cache-dir -r requirements-ci.txt
+
+      - name: Aplicar schema Neo4j
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from neo4j import GraphDatabase
+          import os
+
+          source = Path("cypher/01_schema_fiscalgraph.cypher").read_text(encoding="utf-8")
+          source = "\n".join(
+              line for line in source.splitlines()
+              if not line.lstrip().startswith("//")
+          )
+          statements = [part.strip() for part in source.split(";") if part.strip()]
+
+          with GraphDatabase.driver(
+              os.environ["NEO4J_URI"],
+              auth=(os.environ["NEO4J_USER"], os.environ["NEO4J_PASSWORD"]),
+          ) as driver:
+              driver.verify_connectivity()
+              with driver.session(database=os.environ["NEO4J_DATABASE"]) as session:
+                  for statement in statements:
+                      session.run(statement).consume()
+                  session.run("CALL db.awaitIndexes(300)").consume()
+
+          print(f"Schema aplicado: {len(statements)} comandos.")
+          PY
+
+      - name: Carregar dados canônicos
+        run: python scripts/load_canonical_data.py
+
+      - name: Carregar trechos e menções
+        run: python pipeline/text_to_graph/load_graph.py --input data/processed/trechos.jsonl
+
+      - name: Gerar embeddings e índice vetorial
+        run: python scripts/generate_embeddings.py --batch-size 32
+
+      - name: Executar suíte completa
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m compileall -q app pipeline scripts tests
+          python -m unittest discover -s tests -v 2>&1 | tee test-results.log
+
+      - name: Publicar log da suíte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev5-ci-test-results
+          path: test-results.log
+          if-no-files-found: ignore
+          retention-days: 14

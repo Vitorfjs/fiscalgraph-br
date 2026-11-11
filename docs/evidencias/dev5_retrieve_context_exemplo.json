@@ -1,0 +1,328 @@
+{
+  "query": "trecho que cita o CNPJ 01.340.937/0001-79",
+  "retrieval_mode": "hybrid",
+  "chunks": [
+    {
+      "trecho_id": "774ff7e9be41084f7e659653",
+      "texto": "Multa\na) multa no valor de R$ 561.955,01 (quinhentos e sessenta e um mil novecentos e cinquenta e cinco reais e um centavo), com fundamento no artigo 6º, inciso I, da Lei nº 12.846, de 1º de agosto de 2013, assim como no artigo 19, inciso I, do Decreto nº 11.129, de 11 de julho de 2022; (...) determino a desconsideração da personalidade jurídica da empesa Agroservice Empreiteira Agrícola EIRELI, CNPJ nº 00.478.727/0001-89, para que os efeitos da condenação sejam estendidos ao patrimônio do Senhor Paulo Henrique Santos, CPF nº ***.127.101-**. Sanção aplicada pela Decisão nº 209, publicada no DOU de 2/7/2024, seção 1, p. 243, a qual estava suspensa, em razão de pedido de reconsideração, conhecido e indeferido, nos termos da Decisão nº 120, publicada no DOU de 15/4/2026, seção 1, p. 148.\nLEI 12846 - ART. 6º, I - MULTA, NO VALOR DE 0,1% (UM DÉCIMO POR CENTO) A 20% (VINTE POR CENTO) DO FATURAMENTO BRUTO DO ÚLTIMO EXERCÍCIO ANTERIOR AO DA INSTAURAÇÃO DO PROCESSO ADMINISTRATIVO, EXCLUÍDOS OS TRIBUTOS, A QUAL NUNCA SERÁ INFERIOR À VANTAGEM AUFERIDA, QUANDO FOR POSSÍVEL SUA ESTIMAÇÃO;LEI 12846 - ART. 5º, IV, A - NO TOCANTE A LICITAÇÕES E CONTRATOS: FRUSTRAR OU FRAUDAR, MEDIANTE AJUSTE, COMBINAÇÃO OU QUALQUER OUTRO EXPEDIENTE, O CARÁTER COMPETITIVO DE PROCEDIMENTO LICITATÓRIO PÚBLICO",
+      "registro_id": "CNEP-310577",
+      "fonte_id": "F-CGU-CNEP",
+      "url_fonte": "https://portaldatransparencia.gov.br/download-de-dados/cnep",
+      "vector_rank": 1,
+      "fulltext_rank": 2,
+      "rrf_score": 0.03252247488101534,
+      "vector_score": 0.7501378059387207,
+      "fulltext_score": 1.061830759048462,
+      "graph_paths": [
+        "(Trecho:774ff7e9be41084f7e659653)-[:ORIGINADO_DE]->(Fonte:F-CGU-CNEP)",
+        "(Trecho:774ff7e9be41084f7e659653)-[:EXTRATO_DE]->(Sancao:CNEP-310577)-[:APLICADA_A]->(Estabelecimento:00478727000189)<-[:POSSUI_ESTABELECIMENTO]-(Empresa:00478727)<-[:PARTICIPA_DE]-(Socio:SOC-63AB85D34B10)",
+        "(Trecho:774ff7e9be41084f7e659653)-[:MENCIONA]->(Estabelecimento:00478727000189)"
+      ],
+      "identifier_matches": []
+    },
+    {
+      "trecho_id": "007e95b2ecd16eca41d81b8d",
+      "texto": "Declaração de Inidoneidade sem prazo determinado\n(...) para, com fundamento no artigo 87, IV, da Lei nº. 8.666, de 21 de junho de 1993, declarar a inidoneidade para licitar ou contratar com a Administração Pública da pessoa jurídica GALVÃO ENGENHARIA S/A, CNPJ nº 01.340.937/0001-79, pela prática da infração prevista no art. 88, III, da Lei nº. 8.666/93, (...) Sanção aplicada pela Decisão nº 340, publicada no DOU nº 205, de 27/10/2023, Seção 1, p. 92, a qual estava suspensa, em razão de Pedido de Reconsideração, conhecido e INDEFERIDO, nos termos da Decisão nº 25, publicada no DOU nº 24, de 04/02/2026, Seção 1, p. 86.\nLEI 8666 - ART. 87, IV - PELA INEXECUÇÃO TOTAL OU PARCIAL DO CONTRATO A ADMINISTRAÇÃO PODERÁ, GARANTIDA A PRÉVIA DEFESA, APLICAR AO CONTRATADO AS SEGUINTES SANÇÕES: IV - DECLARAÇÃO DE INIDONEIDADE PARA LICITAR OU CONTRATAR COM A ADMINISTRAÇÃO PÚBLICA ENQUANTO PERDURAREM OS MOTIVOS DETERMINANTES DA PUNIÇÃO OU ATÉ QUE SEJA PROMOVIDA A REABILITAÇÃO PERANTE A PRÓPRIA AUTORIDADE QUE APLICOU A PENALIDADE, QUE SERÁ CONCEDIDA SEMPRE QUE O CONTRATADO RESSARCIR A ADMINISTRAÇÃO PELOS PREJUÍZOS RESULTANTES E APÓS DECORRIDO O PRAZO DA SANÇÃO APLICADA COM BASE NO INCISO ANTERIOR.;LEI 8666 - ART. 88, III - AS SANÇÕES PREVISTAS NOS INCISOS III E IV DO ARTIGO ANTERIOR PODERÃO TAMBÉM SER APLICADAS ÀS EMPRESAS OU AOS PROFISSIONAIS QUE, EM RAZÃO DOS CONTRATOS REGIDOS POR ESTA LEI: III - DEMONSTREM NÃO POSSUIR IDONEIDADE PARA CONTRATAR COM A ADMINISTRAÇÃO EM VIRTUDE DE ATOS ILÍCITOS PRATICADOS.",
+      "registro_id": "CEIS-289814",
+      "fonte_id": "F-CGU-CEIS",
+      "url_fonte": "https://portaldatransparencia.gov.br/download-de-dados/ceis",
+      "vector_rank": 5,
+      "fulltext_rank": 1,
+      "rrf_score": 0.03177805800756621,
+      "vector_score": 0.7246605157852173,
+      "fulltext_score": 4.41719913482666,
+      "graph_paths": [
+        "(Trecho:007e95b2ecd16eca41d81b8d)-[:ORIGINADO_DE]->(Fonte:F-CGU-CEIS)",
+        "(Trecho:007e95b2ecd16eca41d81b8d)-[:EXTRATO_DE]->(Sancao:CEIS-289814)-[:APLICADA_A]->(Estabelecimento:01340937000179)<-[:POSSUI_ESTABELECIMENTO]-(Empresa:01340937)<-[:PARTICIPA_DE]-(Socio:SOC-9075C4C7DAE2)",
+        "(Trecho:007e95b2ecd16eca41d81b8d)-[:MENCIONA]->(Estabelecimento:01340937000179)"
+      ],
+      "identifier_matches": [
+        "01340937000179"
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "id": "Trecho:774ff7e9be41084f7e659653",
+      "label": "Trecho",
+      "properties": {
+        "embedding_pipeline_version": "v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2",
+        "fonte_id": "F-CGU-CNEP",
+        "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        "registro_id": "CNEP-310577",
+        "metodo_extracao": "regex_cnpj",
+        "embedding_windows": 5,
+        "trecho_id": "774ff7e9be41084f7e659653",
+        "url_fonte": "https://portaldatransparencia.gov.br/download-de-dados/cnep",
+        "registro_origem": "20261105_CNEP.csv:L772"
+      }
+    },
+    {
+      "id": "Fonte:F-CGU-CNEP",
+      "label": "Fonte",
+      "properties": {
+        "orgao_responsavel": "Controladoria-Geral da União (CGU)",
+        "fonte_id": "F-CGU-CNEP",
+        "nome": "Cadastro Nacional de Empresas Punidas",
+        "arquivo_origem": "20261105_CNEP.csv",
+        "data_coleta": "2026-11-05T10:34:00-03:00",
+        "competencia": "2026-11-04",
+        "url": "https://portaldatransparencia.gov.br/download-de-dados/cnep"
+      }
+    },
+    {
+      "id": "Sancao:CNEP-310577",
+      "label": "Sancao",
+      "properties": {
+        "data_inicio": "2026-05-20",
+        "situacao": "Todas as Esferas em todos os Poderes",
+        "data_fim": "",
+        "numero_processo": "00190104770202254",
+        "orgao_responsavel": "Controladoria-Geral da União",
+        "cnpj_sancionado": "00478727000189",
+        "registro_id": "CNEP-310577",
+        "tipo_registro": "CNEP",
+        "url_fonte": "https://portaldatransparencia.gov.br/download-de-dados/cnep",
+        "descricao": "Multa"
+      }
+    },
+    {
+      "id": "Estabelecimento:00478727000189",
+      "label": "Estabelecimento",
+      "properties": {
+        "uf": "DF",
+        "situacao_cadastral": "SUSPENSA",
+        "municipio": "BRASILIA",
+        "cnpj": "00478727000189",
+        "nome_fantasia": "",
+        "cnpj_basico": "00478727"
+      }
+    },
+    {
+      "id": "Empresa:00478727",
+      "label": "Empresa",
+      "properties": {
+        "natureza_juridica": "Sociedade Empresária Limitada",
+        "razao_social": "AGROSERVICE EMPREITEIRA AGRICOLA LTDA",
+        "porte": "DEMAIS",
+        "cnpj_basico": "00478727"
+      }
+    },
+    {
+      "id": "Socio:SOC-63AB85D34B10",
+      "label": "Socio",
+      "properties": {
+        "qualificacao": "Sócio-Administrador",
+        "data_entrada": "1998-11-13",
+        "tipo_pessoa": "PESSOA FISICA",
+        "socio_id": "SOC-63AB85D34B10"
+      }
+    },
+    {
+      "id": "Trecho:007e95b2ecd16eca41d81b8d",
+      "label": "Trecho",
+      "properties": {
+        "embedding_pipeline_version": "v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2",
+        "fonte_id": "F-CGU-CEIS",
+        "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        "registro_id": "CEIS-289814",
+        "metodo_extracao": "regex_cnpj",
+        "embedding_windows": 5,
+        "trecho_id": "007e95b2ecd16eca41d81b8d",
+        "url_fonte": "https://portaldatransparencia.gov.br/download-de-dados/ceis",
+        "registro_origem": "20261105_CEIS.csv:L6531"
+      }
+    },
+    {
+      "id": "Fonte:F-CGU-CEIS",
+      "label": "Fonte",
+      "properties": {
+        "orgao_responsavel": "Controladoria-Geral da União (CGU)",
+        "fonte_id": "F-CGU-CEIS",
+        "nome": "Cadastro de Empresas Inidôneas e Suspensas",
+        "arquivo_origem": "20261105_CEIS.csv",
+        "data_coleta": "2026-11-05T10:34:00-03:00",
+        "competencia": "2026-11-04",
+        "url": "https://portaldatransparencia.gov.br/download-de-dados/ceis"
+      }
+    },
+    {
+      "id": "Sancao:CEIS-289814",
+      "label": "Sancao",
+      "properties": {
+        "data_inicio": "2026-02-04",
+        "situacao": "Todas as Esferas em todos os Poderes",
+        "data_fim": "",
+        "numero_processo": "00190101875202171",
+        "orgao_responsavel": "Controladoria-Geral da União",
+        "cnpj_sancionado": "01340937000179",
+        "registro_id": "CEIS-289814",
+        "tipo_registro": "CEIS",
+        "url_fonte": "https://portaldatransparencia.gov.br/download-de-dados/ceis",
+        "descricao": "Declaração de Inidoneidade sem prazo determinado"
+      }
+    },
+    {
+      "id": "Estabelecimento:01340937000179",
+      "label": "Estabelecimento",
+      "properties": {
+        "uf": "SP",
+        "situacao_cadastral": "ATIVA",
+        "municipio": "SAO PAULO",
+        "cnpj": "01340937000179",
+        "nome_fantasia": "",
+        "cnpj_basico": "01340937"
+      }
+    },
+    {
+      "id": "Empresa:01340937",
+      "label": "Empresa",
+      "properties": {
+        "natureza_juridica": "Sociedade Anônima Fechada",
+        "razao_social": "GALVAO ENGENHARIA S/A",
+        "porte": "DEMAIS",
+        "cnpj_basico": "01340937"
+      }
+    },
+    {
+      "id": "Socio:SOC-9075C4C7DAE2",
+      "label": "Socio",
+      "properties": {
+        "qualificacao": "Diretor",
+        "data_entrada": "2022-12-12",
+        "tipo_pessoa": "PESSOA FISICA",
+        "socio_id": "SOC-9075C4C7DAE2"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "source": "Trecho:774ff7e9be41084f7e659653",
+      "target": "Fonte:F-CGU-CNEP",
+      "type": "ORIGINADO_DE",
+      "properties": {}
+    },
+    {
+      "source": "Trecho:774ff7e9be41084f7e659653",
+      "target": "Sancao:CNEP-310577",
+      "type": "EXTRATO_DE",
+      "properties": {}
+    },
+    {
+      "source": "Sancao:CNEP-310577",
+      "target": "Estabelecimento:00478727000189",
+      "type": "APLICADA_A",
+      "properties": {
+        "cnpj_correspondencia": "00478727000189",
+        "registro_origem": "20261105_CNEP.csv:L772"
+      }
+    },
+    {
+      "source": "Empresa:00478727",
+      "target": "Estabelecimento:00478727000189",
+      "type": "POSSUI_ESTABELECIMENTO",
+      "properties": {
+        "registro_origem": "ReceitaFederal:Estabelecimento:00478727000189"
+      }
+    },
+    {
+      "source": "Socio:SOC-63AB85D34B10",
+      "target": "Empresa:00478727",
+      "type": "PARTICIPA_DE",
+      "properties": {
+        "qualificacao": "Sócio-Administrador",
+        "data_entrada": "1998-11-13",
+        "registro_origem": "ReceitaFederal:QSA:00478727000189:S1"
+      }
+    },
+    {
+      "source": "Trecho:774ff7e9be41084f7e659653",
+      "target": "Estabelecimento:00478727000189",
+      "type": "MENCIONA",
+      "properties": {
+        "inicio": 407,
+        "metodo": "regex_cnpj_estrutural",
+        "fim": 425,
+        "status": "CANDIDATA"
+      }
+    },
+    {
+      "source": "Trecho:007e95b2ecd16eca41d81b8d",
+      "target": "Fonte:F-CGU-CEIS",
+      "type": "ORIGINADO_DE",
+      "properties": {}
+    },
+    {
+      "source": "Trecho:007e95b2ecd16eca41d81b8d",
+      "target": "Sancao:CEIS-289814",
+      "type": "EXTRATO_DE",
+      "properties": {}
+    },
+    {
+      "source": "Sancao:CEIS-289814",
+      "target": "Estabelecimento:01340937000179",
+      "type": "APLICADA_A",
+      "properties": {
+        "cnpj_correspondencia": "01340937000179",
+        "registro_origem": "20261105_CEIS.csv:L6531"
+      }
+    },
+    {
+      "source": "Empresa:01340937",
+      "target": "Estabelecimento:01340937000179",
+      "type": "POSSUI_ESTABELECIMENTO",
+      "properties": {
+        "registro_origem": "ReceitaFederal:Estabelecimento:01340937000179"
+      }
+    },
+    {
+      "source": "Socio:SOC-9075C4C7DAE2",
+      "target": "Empresa:01340937",
+      "type": "PARTICIPA_DE",
+      "properties": {
+        "qualificacao": "Diretor",
+        "data_entrada": "2022-12-12",
+        "registro_origem": "ReceitaFederal:QSA:01340937000179:S1"
+      }
+    },
+    {
+      "source": "Trecho:007e95b2ecd16eca41d81b8d",
+      "target": "Estabelecimento:01340937000179",
+      "type": "MENCIONA",
+      "properties": {
+        "inicio": 264,
+        "metodo": "regex_cnpj_estrutural",
+        "fim": 282,
+        "status": "CANDIDATA"
+      }
+    }
+  ],
+  "cypher": "// 1. Busca vetorial (índice trecho_embedding_vector)\nCALL db.index.vector.queryNodes($index_name, $limit, $embedding)\nYIELD node, score\nWHERE node:Trecho\nRETURN node.trecho_id AS trecho_id, score\nORDER BY score DESC;\n\n// 2. Busca full-text (índice fiscalgraph_text_fulltext, campo texto)\nCALL db.index.fulltext.queryNodes($index_name, $query, {limit: $limit})\nYIELD node, score\nWHERE node:Trecho\nRETURN node.trecho_id AS trecho_id, score\nORDER BY score DESC\nLIMIT $limit;\n\n// 3. Fusão por Reciprocal Rank Fusion em Python (app/services/ranking.py).\n\n// 4. Expansão pelo grafo dos trechos selecionados\nUNWIND $trecho_ids AS tid\nMATCH (t:Trecho {trecho_id: tid})\nWITH tid, t,\n     [p = (t)-[:ORIGINADO_DE]->(:Fonte) | p]\n   + [p = (t)-[:EXTRATO_DE]->(:Sancao) | p]\n   + [p = (t)-[:EXTRATO_DE]->(:Sancao)-[:APLICADA_A]->(:Estabelecimento) | p]\n   + [p = (t)-[:EXTRATO_DE]->(:Sancao)-[:APLICADA_A]->(:Estabelecimento)\n          <-[:POSSUI_ESTABELECIMENTO]-(:Empresa) | p]\n   + [p = (t)-[:EXTRATO_DE]->(:Sancao)-[:APLICADA_A]->(:Estabelecimento)\n          <-[:POSSUI_ESTABELECIMENTO]-(:Empresa)<-[:PARTICIPA_DE]-(:Socio) | p]\n   + [p = (t)-[:MENCIONA]->(:Estabelecimento) | p] AS paths\nRETURN tid AS trecho_id,\n       t.texto AS texto,\n       {element_id: elementId(t), labels: labels(t),\n        properties: t {.*, embedding: null, texto: null, mencoes_json: null}} AS trecho,\n       [p IN paths | {\n           nodes: [n IN nodes(p) | {\n               element_id: elementId(n), labels: labels(n),\n               properties: n {.*, embedding: null, texto: null, mencoes_json: null}}],\n           relationships: [rel IN relationships(p) | {\n               element_id: elementId(rel), type: type(rel),\n               start: elementId(startNode(rel)), end: elementId(endNode(rel)),\n               properties: properties(rel)}]\n       }] AS paths;",
+  "warnings": [
+    "A pergunta cita CNPJ e o 1º trecho não o contém literalmente: o CNPJ 01340937000179 aparece literalmente no 2º trecho (007e95b2ecd16eca41d81b8d, registro CEIS-289814). A busca semântica não distingue números de CNPJ; confira identifier_matches.",
+    "Relações MENCIONA são citações textuais candidatas (status CANDIDATA); não confirmam vínculo nem responsabilidade."
+  ],
+  "parameters": {
+    "top_k": 2,
+    "candidate_k": 20,
+    "rrf_k": 60,
+    "rrf_max_score": 0.03278688524590164,
+    "active_searches": [
+      "vector",
+      "fulltext"
+    ],
+    "search_status": {
+      "vector": "com_resultados",
+      "fulltext": "com_resultados"
+    },
+    "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "embedding_dimensions": 384,
+    "embedding_pipeline_version": "v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2",
+    "vector_index": "trecho_embedding_vector",
+    "fulltext_index": "fiscalgraph_text_fulltext",
+    "fulltext_query": "texto:(01340937000179 OR \"01.340.937/0001-79\" OR trecho OR cita OR cnpj)",
+    "query_identifiers": [
+      "01340937000179"
+    ]
+  }
+}

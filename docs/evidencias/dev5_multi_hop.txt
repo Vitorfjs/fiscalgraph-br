@@ -1,0 +1,64 @@
+# dev5 — multi-hop com shortestPath (cypher/03_multi_hop.cypher)
+# Ambiente: Neo4j 5.26.32 Community (local) com a carga integrada dev3 + dev4. Sem GDS.
+# Data: 2026-11-10T20:27:54-03:00 | branch: dev5
+# Ordem das saídas do arquivo: A (societário), B (estrutural por CNAE), C (contraprova sem filtro),
+# D (varredura), E1-E3 (diagnóstico societário), F (CNAEs compartilhados), G (sintético), G2 (limpeza).
+# A consulta A não imprime cabeçalho porque retorna 0 linhas (resultado vazio documentado).
+# O serviço Python company_paths (app/services/multi_hop.py) usa as mesmas consultas A e B:
+# resultado real em docs/evidencias/dev5_company_paths_exemplo.json.
+
+$ MATCH (n) RETURN count(n)  # antes
+nos_antes
+210
+
+$ cypher-shell --format plain -f cypher/03_multi_hop.cypher
+p, nos, relacionamentos, quantidade_relacionamentos
+(:Empresa {capital_social: "10000000", razao_social: "CONSTRUTORA ZAG LTDA", porte: "DEMAIS", natureza_juridica: "Sociedade Empresária Limitada", cnpj_basico: "00356328"})-[:POSSUI_ESTABELECIMENTO {registro_origem: "ReceitaFederal:Estabelecimento:00356328000145"}]->(:Estabelecimento {data_inicio_atividade: "1994-12-19", uf: "MG", situacao_cadastral: "ATIVA", municipio: "PEDRO LEOPOLDO", cnpj: "00356328000145", nome_fantasia: "", cnpj_basico: "00356328"})-[:EXERCE_CNAE {principal: TRUE, fonte_id: "F-RFB-CNPJ", registro_origem: "ReceitaFederal:CNAE:00356328000145"}]->(:CNAE {codigo: "4211101", descricao: "Construção de rodovias e ferrovias"})<-[:EXERCE_CNAE {principal: TRUE, fonte_id: "F-RFB-CNPJ", registro_origem: "ReceitaFederal:CNAE:01340937000179"}]-(:Estabelecimento {data_inicio_atividade: "1996-07-29", uf: "SP", situacao_cadastral: "ATIVA", municipio: "SAO PAULO", cnpj: "01340937000179", nome_fantasia: "", cnpj_basico: "01340937"})<-[:POSSUI_ESTABELECIMENTO {registro_origem: "ReceitaFederal:Estabelecimento:01340937000179"}]-(:Empresa {capital_social: "860143600", razao_social: "GALVAO ENGENHARIA S/A", porte: "DEMAIS", natureza_juridica: "Sociedade Anônima Fechada", cnpj_basico: "01340937"}), ["Empresa:00356328", "Estabelecimento:00356328000145", "CNAE:4211101", "Estabelecimento:01340937000179", "Empresa:01340937"], ["POSSUI_ESTABELECIMENTO", "EXERCE_CNAE", "EXERCE_CNAE", "POSSUI_ESTABELECIMENTO"], 4
+nos, relacionamentos, quantidade_relacionamentos
+["Empresa:00356328", "Fonte:F-RFB-CNPJ", "Empresa:01340937"], ["ORIGINADO_DE", "ORIGINADO_DE"], 2
+empresa_a, empresa_b, quantidade_relacionamentos, cnaes_intermediarios, socios_no_caminho
+"00000104", "00000113", 4, ["9430800"], 0
+"00000104", "00000145", 4, ["9430800"], 0
+"00000104", "00090616", 4, ["8511200"], 0
+"00000113", "00000145", 4, ["9430800"], 0
+"00073357", "01278154", 4, ["4321500"], 0
+"00356328", "01340937", 4, ["4211101"], 0
+"00764466", "01340937", 4, ["4299599"], 0
+"01278154", "01340937", 4, ["4120400"], 0
+"00000113", "00090616", 6, ["9430800", "8511200"], 0
+"00000145", "00090616", 6, ["9430800", "8511200"], 0
+"00073357", "01340937", 6, ["4321500", "4120400"], 0
+"00356328", "00764466", 6, ["4211101", "4299599"], 0
+"00356328", "01278154", 6, ["4211101", "4120400"], 0
+"00764466", "01278154", 6, ["4299599", "4120400"], 0
+empresas_por_socio, socios
+1, 26
+nomes_em_mais_de_uma_empresa
+0
+socios_pessoa_juridica, coincidem_com_empresa_do_recorte
+1, 0
+cnae, descricao, quantidade_empresas, empresas
+"9430800", "Atividades de associações de defesa de direitos sociais", 3, ["00000104", "00000113", "00000145"]
+"4120400", "Construção de edifícios", 2, ["01278154", "01340937"]
+"4211101", "Construção de rodovias e ferrovias", 2, ["00356328", "01340937"]
+"4299599", "Outras obras de engenharia civil não especificadas anteriormente", 2, ["00764466", "01340937"]
+"4321500", "Instalação e manutenção elétrica", 2, ["01278154", "00073357"]
+"8511200", "Educação infantil - creche", 2, ["00000104", "00090616"]
+"9493600", "Atividades de organizações associativas ligadas à cultura e à arte", 2, ["00000113", "00000145"]
+"9499500", "Atividades associativas não especificadas anteriormente", 2, ["00000113", "00000145"]
+cenario, nos, relacionamentos, quantidade_relacionamentos
+"SINTETICO", ["Empresa:SINT-EMP-A", "Socio:SINT-SOC-1", "Empresa:SINT-EMP-B"], ["PARTICIPA_DE", "PARTICIPA_DE"], 2
+nos_sinteticos_restantes
+0
+
+$ Consulta A isolada, com contagem explícita (esperado 0)
+caminhos_societarios
+0
+
+$ Varredura societária em todos os pares (esperado 0)
+pares_com_caminho_societario
+0
+
+$ MATCH (n) RETURN count(n)  # depois (o cenário sintético não persistiu)
+nos_depois
+210
