@@ -127,3 +127,10 @@ A branch `dev6` e o PR #6 precisam ser atualizados pelo responsável da interfac
 - `docs/recuperacao-hibrida.md`, seção 7
 - `docs/exemplos/resposta_final_dev1.exemplo.json` — demonstrativo, não saída real de LLM
 - PR #6 — interface Dev6 em modo mock
+
+
+## 8. Estado das adaptações de integração
+
+- PR #8 (branch `dev1-integracao` → `dev1`) adiciona `app/services/response_adapter.py` e testes para montar a resposta final com `id/label/url/excerpt`, preservando grafo e avisos. O adaptador ainda precisa ser chamado pelo fluxo real do Dev1, junto à recuperação e ao gerador de resposta.
+- PR #6 atualiza o renderer Dev6 com `normalize_source`, aceitando tanto o contrato atual quanto as fixtures legadas, e inclui testes unitários.
+- A suíte Dev5 foi executada com Neo4j descartável e PyTorch CPU-only: 139 testes passaram no run [43103032289](https://github.com/Vitorfjs/fiscalgraph-br/actions/runs/43103032289). Os testes isolados dos adaptadores Dev1 e Dev6 também passaram em seus workflows próprios.
