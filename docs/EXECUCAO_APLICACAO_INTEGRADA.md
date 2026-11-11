@@ -7,13 +7,13 @@ Em ambientes CPU, instale PyTorch CPU-only antes das dependências do projeto:
 ```bash
 python -m pip install --upgrade pip
 python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
-python -m pip install -r requirements.txt -r requirements-dev4.txt
+python -m pip install -r requirements.txt -r requirements-ci.txt
 ```
 
 ## Neo4j e dados
 
 1. Copie `.env.example` para `.env` e defina uma senha local forte.
-2. Inicie o Neo4j definido em `infra/compose.yaml`.
+2. Inicie o Neo4j definido em `infra/compose.yaml` com `docker compose -f infra/compose.yaml up -d`.
 3. Aplique o schema Cypher integrado.
 4. Carregue os dados canônicos e os trechos conforme os scripts do projeto.
 5. Gere os embeddings com `python scripts/generate_embeddings.py`.
