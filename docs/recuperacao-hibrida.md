@@ -328,7 +328,7 @@ Status verificado em 2026-11-11: a branch `dev1` ainda contém somente a tela in
 | --- | --- |
 | `answer` | gerado pelo dev1 a partir de `chunks[].texto` |
 | `cypher` | `cypher`, sem alteração |
-| `sources[]` (`id`, `label`, `url`, `excerpt`) | um por identificador distinto: `id = registro_id` (ou `trecho_id` se ausente), `label = "Sancao"` (ou `"Trecho"`), `url = url_fonte`; órgão, competência e data de coleta estão no nó `Fonte` em `nodes` |
+| `sources[]` (`id`, `label`, `url`, `excerpt`) | um por identificador distinto: `id = registro_id` (ou `trecho_id` se ausente), `label = "Sancao"` (ou `"Trecho"`), `url = url_fonte`, `excerpt = texto` do chunk; órgão, competência e data de coleta estão no nó `Fonte` em `nodes` |
 | `nodes`, `relationships` | sem alteração |
 | `retrieval_relevance` | sugestão: `chunks[0].rrf_score / parameters.rrf_max_score` (1,0 = 1º nas duas buscas; 0,5 = 1º em só uma); `None` sem chunks. É relevância, não probabilidade |
 | `abstained` | `True` quando `chunks` vem vazio. Sinais adicionais para a regra do dev1: `active_searches` sem `fulltext` e o aviso "Nenhum termo da pergunta…" |
