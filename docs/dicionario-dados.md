@@ -67,6 +67,6 @@ Este documento descreve o contrato canónico de dados gerado pela branch `dev2`,
 
 ## 2. Regras de Privacidade, Segurança e Semântica
 
-1. **Minimização de Dados Pessoais:** Nenhuma coluna ou valor referente a CPF bruto é persistido nas tabelas canónicas[cite: 4].
-2. **Escopo Semântico do `socio_id`:** O identificador sintético `socio_id` representa estritamente uma ocorrência/posição no snapshot atual do Quadro de Sócios e Administradores (QSA) associado a uma empresa específica (`cnpj_basico + index + nome`)[cite: 4]. **Não deve ser utilizado para deduplicar pessoas nem para inferir ou afirmar identidade/homonímia entre sócios de empresas distintas.**
-3. **Identificação Rigorosa por CNPJ:** Registos de sanções (compliance) são vinculados às entidades exclusivamente por correspondência exata do identificador oficial `cnpj_sancionado`[cite: 4]. Nenhuma inferência ou correspondência probabilística é realizada a partir de similaridade textual de razões sociais ou nomes de fantasia[cite: 4].
+1. **Minimização de Dados Pessoais:** Nenhuma coluna ou valor referente a CPF bruto é persistido nas tabelas canónicas.
+2. **Escopo Semântico do `socio_id`:** O identificador sintético `socio_id` representa estritamente uma ocorrência/posição no snapshot atual do Quadro de Sócios e Administradores (QSA) associado a uma empresa específica (`cnpj_basico + index + nome`). **Não deve ser utilizado para deduplicar pessoas nem para inferir ou afirmar identidade/homonímia entre sócios de empresas distintas.**
+3. **Identificação Rigorosa por CNPJ:** Registos de sanções (compliance) são vinculados às entidades exclusivamente por correspondência exata do identificador oficial `cnpj_sancionado`. Nenhuma inferência ou correspondência probabilística é realizada a partir de similaridade textual de razões sociais ou nomes de fantasia.

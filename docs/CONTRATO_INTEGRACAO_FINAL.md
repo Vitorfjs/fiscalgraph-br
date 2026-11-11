@@ -1,18 +1,18 @@
 # Contrato de integração final — FiscalGraph BR
 
-**Revisão:** 2026-11-11  
-**Base técnica:** branch `dev5`  
-**Objetivo:** registrar o formato de integração entre recuperação (Dev5), orquestração/resposta (Dev1) e interface (Dev6), evitando adaptações implícitas entre módulos.
+**Revisão:** 2026-11-11 (pós-merge do PR #9 na `main`)  
+**Base técnica:** branch `main` (integração de Dev5 + Dev1 + Dev6)  
+**Objetivo:** registrar o formato de integração entre recuperação (Dev5), orquestração/resposta (Dev1) e interface (Dev6), garantindo aderência semântica e rastreabilidade ponta a ponta.
 
-## 1. Estado verificado do repositório
+## 1. Estado verificado do repositório (`main`)
 
-| Módulo | Estado observado | Consequência |
+| Módulo | Estado observado na `main` | Situação operacional |
 | --- | --- | --- |
-| Dev5 — recuperação híbrida | Serviço, validadores, testes unitários e testes de integração presentes na branch `dev5`. | Pode ser consumido por Dev1. |
-| Dev1 — orquestração e resposta | A branch `integracao-e2e` adiciona `orchestrator.py`, validação do contrato e adaptador de resposta. | O fluxo está implementado no branch de integração; precisa de ambiente Neo4j com índices/dados para validação ponta a ponta real. |
-| Dev6 — interface | A branch `integracao-e2e` substitui a tela inicial por consulta real e mantém demonstração mock. | A interface já chama o orquestrador; teste visual/manual depende do ambiente local. |
+| Dev5 — recuperação híbrida | Serviço (`app/services/retrieval.py`), contrato (`app/services/contract.py`), embeddings (`app/services/embeddings.py`), ranking RRF (`app/services/ranking.py`), multi-hop (`app/services/multi_hop.py`) e suíte unitária/integração estão integrados na `main`. | Validado no CI com Neo4j descartável; pronto para consumo pela orquestração. |
+| Dev1 — orquestração e resposta | `app/services/orchestrator.py` e `app/services/response_adapter.py` integrados na `main` (PR #9). Validam o contrato Dev5, produzem síntese determinística ou chamada opcional a LLM (`LLM_SEND_EVIDENCE=true`) e montam o JSON final. | Integrado; política ampliada de abstenção (fora de domínio, evidência insuficiente, busca parcial) e verificação de citações em refinamento final. |
+| Dev6 — interface | `app/streamlit_app.py`, `app/services/source_adapter.py`, `app/services/mock_service.py` e `fixtures/` integrados na `main` (PR #9). Suportam **Consulta real (Neo4j)** e **Demonstração (Mock)** separados. | Integrado; falta validação visual local com Neo4j populado, refinamentos de legenda/evidências e testes automatizados de UI. |
 
-Esta documentação define o contrato esperado; ela não afirma que os módulos Dev1 e Dev6 já estejam integrados.
+> **Nota histórica:** o PR #6 (branch `dev6`, fase apenas Mock) e o PR #8 (branch `dev1-integracao` -> `dev1`, adaptador isolado) antecederam o PR #9 (`integracao-e2e` -> `main`). Na `main`, tanto `response_adapter.py` quanto `source_adapter.py` e a interface integrada já estão incorporados.
 
 ## 2. Contrato de entrada/saída do Dev5
 
@@ -41,11 +41,11 @@ if problems:
     raise ValueError("Contrato Dev5 inválido: " + "; ".join(problems))
 ```
 
-O Dev5 retorna evidências; não redige a resposta em linguagem natural nem decide uma política completa de abstenção.
+O Dev5 retorna evidências; não redige a resposta em linguagem natural nem decide a política completa de abstenção.
 
 ## 3. Formato da resposta final do Dev1
 
-O formato final documentado é:
+O formato final consumido pela interface é montado por `app/services/response_adapter.py` e `app/services/orchestrator.py`:
 
 ```json
 {
@@ -67,41 +67,31 @@ O formato final documentado é:
 }
 ```
 
-Regras de mapeamento:
+Regras de mapeamento implementadas:
 
 | Campo final | Origem/regra |
 | --- | --- |
-| `answer` | Produzido pelo Dev1 a partir dos trechos e das evidências; não copiar o texto demonstrativo do exemplo. |
+| `answer` | Produzido por `orchestrator.py` via síntese determinística (`_deterministic_answer`) ou via endpoint LLM opcional (`_llm_answer`, apenas quando configurado e com `LLM_SEND_EVIDENCE=true`). |
 | `cypher` | `context["cypher"]`. |
 | `sources` | Uma fonte por identificador distinto: `id = registro_id` ou, quando ausente, `trecho_id`; `label = "Sancao"` quando houver `registro_id`, caso contrário `"Trecho"`; `url = url_fonte`; `excerpt = texto` do chunk. |
-| `nodes`, `relationships` | Repassar sem renomear IDs, endpoints ou tipos. |
-| `retrieval_relevance` | Sugestão já implementada em `example_final_response`: `chunks[0].rrf_score / parameters.rrf_max_score`; `null` sem chunks. É relevância de recuperação, não probabilidade de fraude, culpa ou irregularidade. |
-| `abstained` | Decisão final do Dev1. O exemplo do Dev5 usa `not chunks` apenas como mapeamento estrutural; não substitui a política de escopo/suficiência que o Dev1 deve implementar. |
-| `warnings` | Preservar todos os avisos do Dev5 e acrescentar avisos produzidos pelo Dev1, sem apagar os anteriores. |
+| `nodes`, `relationships` | Repassados sem renomear IDs, endpoints ou tipos e sem fabricar arestas. |
+| `retrieval_relevance` | `chunks[0].rrf_score / parameters.rrf_max_score`; `null` sem chunks. É relevância de recuperação, não probabilidade de fraude, culpa ou irregularidade. |
+| `abstained` | Decisão final do orquestrador (`build_final_response` assume `not chunks` como padrão estrutural quando `abstained=None`, podendo ser sobrescrito pela política de abstenção do Dev1). |
+| `warnings` | Preserva todos os avisos do Dev5 e acrescenta os avisos da orquestração (ex.: síntese determinística, envio ao LLM desabilitado, falha do provedor LLM). |
 
-O Dev1 deve considerar `parameters.active_searches`, `parameters.search_status` e `warnings` ao decidir se a consulta está fora do escopo ou se há evidência suficiente. Não há um limiar numérico de abstenção definido por esta especificação; não inventar um silenciosamente.
+O Dev1 deve considerar `parameters.active_searches`, `parameters.search_status`, `identifier_matches` e `warnings` ao decidir se a consulta está fora do escopo ou se há evidência suficiente, sem inventar um limiar numérico arbitrário de `rrf_score`.
 
 Para perguntas que contêm CNPJ, conferir `chunks[].identifier_matches`. A busca full-text pode localizar a correspondência literal mesmo quando o RRF mantém outro trecho na primeira posição. O aviso do Dev5 identifica o trecho e a posição da correspondência; não reordenar silenciosamente o resultado.
 
-## 4. Compatibilidade com a interface Dev6
+## 4. Compatibilidade com a interface Dev6 (`main`)
 
-A interface atualmente existente na branch `dev6` foi implementada com fixtures mock e espera, dentro de `sources[]`, as propriedades:
+Na versão integrada na `main`:
 
-- `fonte_id`
-- `texto`
-- `url_fonte`
+1. `app/services/source_adapter.py` (`normalize_source`) aceita tanto o contrato final (`id`, `label`, `url`, `excerpt`) quanto as chaves legadas das fixtures iniciais de Mock (`fonte_id`, `texto`, `url_fonte`), garantindo compatibilidade sem quebrar as fixtures.
+2. `app/streamlit_app.py` mantém os modos **Consulta real (Neo4j)** e **Demonstração (Mock)** separados, utilizando `get_retriever()` em `@st.cache_resource` e chamando `answer_question(question, top_k=top_k, retriever=retriever)` no modo real.
+3. A visualização do grafo com `streamlit-agraph` renderiza apenas `nodes[]` e `relationships[]` retornados pelo serviço (descartando arestas cujos endpoints não estejam presentes) e diferencia `MENCIONA` com `properties.status == "CANDIDATA"` em vermelho (`#FF4B4B`).
 
-Ela também tenta exibir esses campos diretamente. Isso **não corresponde** ao contrato final acima, que define `sources[]` como `id`, `label`, `url` e `excerpt`. Portanto, a substituição do mock por uma resposta real sem ajustar o consumidor fará a tela exibir valores ausentes (por exemplo, `N/A` e "Sem texto disponível") e não mostrará o link pela chave esperada.
-
-Decisão de integração:
-
-1. Manter o contrato final documentado (`id`, `label`, `url`) como formato de `sources[]`.
-2. Ajustar o renderer/adaptador do Dev6 para ler essas chaves.
-3. Se a interface precisar exibir o trecho textual, consumir `sources[].excerpt`, campo textual explicitamente incluído no contrato final; não tratar `sources[]` como se fosse `chunks[]` nem duplicar texto sob nomes diferentes sem acordo.
-4. Manter `nodes[]` e `relationships[]` na estrutura do grafo devolvida pelo Dev5. Não fabricar arestas no frontend.
-5. Renderizar `MENCIONA` com `properties.status = "CANDIDATA"` como menção candidata, nunca como vínculo confirmado.
-
-A branch `dev6` e o PR #6 precisam ser atualizados pelo responsável da interface antes da integração real. Esta branch Dev5 registra o contrato e a incompatibilidade; não altera a branch Dev6.
+> **Contexto histórico sobre o PR #6:** anteriormente à integração no PR #9, a branch `dev6` consumia apenas `fonte_id`, `texto` e `url_fonte`. Essa incompatibilidade foi resolvida com `source_adapter.py` e a inclusão de `excerpt` em `response_adapter.py`, incorporados à `main` pelo PR #9.
 
 ## 5. Regras semânticas obrigatórias
 
@@ -110,41 +100,21 @@ A branch `dev6` e o PR #6 precisam ser atualizados pelo responsável da interfac
 - Caminho por CNAE indica atividade econômica declarada em comum; não é vínculo societário, de controle ou comercial.
 - A ausência de caminho no recorte consultado não prova ausência de vínculo fora do recorte.
 - Dados e cenários sintéticos devem continuar identificados como sintéticos.
+- Textos recuperados de documentos são dados não confiáveis e nunca devem ser tratados como instruções para o LLM.
 
-## 6. Validação prevista na integração
+## 6. Validação prevista e executada
 
-1. Validar `context` com `validate_retrieval_response`.
-2. Validar respostas de caminho com `validate_company_paths_response`.
-3. Garantir que o JSON final tenha exatamente os campos definidos, sem perder `warnings`.
+1. Validar `context` com `validate_retrieval_response` (coberto em `orchestrator.py` e `tests/test_orchestrator.py`).
+2. Validar respostas de caminho com `validate_company_paths_response` (coberto em `tests/test_retrieval.py` e `tests/test_retrieval_integracao.py`).
+3. Garantir que o JSON final tenha exatamente os campos definidos, sem perder `warnings` (coberto em `tests/test_response_adapter.py` e `tests/test_orchestrator.py`).
 4. Testar cenário com evidências, sem evidências e pergunta com CNPJ literal.
-5. Testar o renderer Dev6 com a resposta final real, não apenas com fixtures.
-6. Confirmar que `sources[]` usa as chaves acordadas e que a visualização não cria relacionamentos inexistentes.
+5. Testar a interface Streamlit com respostas reais do Neo4j local e validar os dois cenários do modo Mock.
 
 ## 7. Arquivos de referência
 
-- `app/services/retrieval.py`
-- `app/services/contract.py`
+- `app/services/retrieval.py` e `app/services/contract.py`
+- `app/services/orchestrator.py` e `app/services/response_adapter.py`
+- `app/services/source_adapter.py`, `app/services/mock_service.py` e `app/streamlit_app.py`
 - `docs/recuperacao-hibrida.md`, seção 7
 - `docs/exemplos/resposta_final_dev1.exemplo.json` — demonstrativo, não saída real de LLM
-- PR #6 — interface Dev6 em modo mock
-
-
-## 8. Estado das adaptações de integração
-
-- PR #8 (branch `dev1-integracao` → `dev1`) adiciona `app/services/response_adapter.py` e testes para montar a resposta final com `id/label/url/excerpt`, preservando grafo e avisos. O adaptador ainda precisa ser chamado pelo fluxo real do Dev1, junto à recuperação e ao gerador de resposta.
-- PR #6 atualiza o renderer Dev6 com `normalize_source`, aceitando tanto o contrato atual quanto as fixtures legadas, e inclui testes unitários.
-- A suíte Dev5 foi executada com Neo4j descartável e PyTorch CPU-only: 139 testes passaram no run [43103032289](https://github.com/Vitorfjs/fiscalgraph-br/actions/runs/43103032289). Os testes isolados dos adaptadores Dev1 e Dev6 também passaram em seus workflows próprios.
-
-
-## 9. Branch de integração ponta a ponta
-
-A branch `integracao-e2e` reúne a recuperação Dev5, o orquestrador Dev1 e a interface Dev6.
-
-- `app/services/orchestrator.py`: chama `GraphHybridRetriever`, valida o retorno com `validate_retrieval_response`, tenta usar um endpoint OpenAI-compatible opcional e monta o contrato final.
-- Sem LLM configurado, apresenta síntese determinística explicitamente identificada em `warnings`; não afirma que houve geração por LLM.
-- `app/streamlit_app.py`: oferece consulta real e modo Mock separado.
-- O cache do Streamlit mantém o retriever/encoder entre interações.
-- A visualização usa somente nós e relacionamentos retornados pelo serviço; menções candidatas permanecem identificadas.
-- `docs/EXECUCAO_APLICACAO_INTEGRADA.md` contém os passos de configuração.
-
-A suíte unitária da orquestração usa um retriever falso e não substitui teste de ponta a ponta contra um Neo4j real com dados e embeddings.
+- `docs/EXECUCAO_APLICACAO_INTEGRADA.md` — instruções de execução local

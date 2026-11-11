@@ -284,7 +284,7 @@ Para `EXERCE_CNAE`, a combinação `cnpj` + `codigo` forma a chave composta do v
 
 | Entidade / Funcionalidade | Situação no Modelo | Condição / Responsabilidade |
 |---|---|---|
-| `Trecho` | **Integrado ao modelo conceitual** como parte da extensão Text-to-Graph | Produzido pelo pipeline do marco Dev 4, ligando-se a `Sancao`, `Fonte` e `Estabelecimento`; embeddings e busca vetorial são responsabilidade posterior do Dev 5 |
+| `Trecho` | **Integrado ao modelo conceitual e implementado** como parte da extensão Text-to-Graph | Produzido pelo pipeline do marco Dev 4, ligando-se a `Sancao`, `Fonte` e `Estabelecimento`; embeddings de 384 dimensões (`Trecho.embedding`) e índice vetorial `trecho_embedding_vector` integrados pelo marco Dev 5 |
 | `Documento` | Preservado como metadados de fonte e arquivo de origem | Ingestão futura de arquivos binários completos (PDFs na íntegra) |
 | `RegimeTributario` | Não integra o núcleo atual; porte não equivale a regime tributário | Disponibilização de base pública oficial específica com histórico de enquadramento |
 | `RegraTributaria` | Não integra o núcleo atual | Corpus normativo estruturado e validação jurídica |
@@ -318,7 +318,7 @@ Antes da integração no Neo4j, conferir:
 - Portal da Transparência — Download CEIS: <https://portaldatransparencia.gov.br/download-de-dados/ceis>
 - Portal da Transparência — Download CNEP: <https://portaldatransparencia.gov.br/download-de-dados/cnep>
 - IBGE/CONCLA — Classificação Nacional de Atividades Económicas: <https://concla.ibge.gov.br/>
-- Documentos internos de base: `docs/fontes-datasets.md`, `docs/dicionario-dados.md`, `docs/ADENDO_MODELO_TRECHO.md`, `cypher/01_schema_fiscalgraph.cypher`.
+- Documentos internos de base: `docs/fontes-datasets.md`, `docs/dicionario-dados.md`, `docs/text-to-graph.md`, `cypher/01_schema_fiscalgraph.cypher`, `cypher/04_indice_vetorial_trecho.cypher`.
 
 ---
 

@@ -39,12 +39,11 @@ Seguindo a regra "não codificar nomes diferentes do schema integrado", o códig
 | `RegistroCompliance -[:REFERE_SE_A]-> Empresa` | `Sancao -[:APLICADA_A]-> Estabelecimento <-[:POSSUI_ESTABELECIMENTO]- Empresa` | Ligação por CNPJ completo exato (dev3). |
 | documento de modelo do grafo citado no pacote | `docs/modelagem-lpg.md` | O nome citado no pacote não existe na `main`; usado o documento de modelagem integrado. |
 
-A especificação de contrato do coordenador veio no pacote do dev5 e não está versionada no repositório;
-as partes que valem para o dev5 estão reproduzidas na seção 7.2.
+A especificação de contrato do coordenador veio originalmente no pacote do dev5 e hoje encontra-se consolidada em `docs/CONTRATO_INTEGRACAO_FINAL.md`; as partes que valem para o dev5 permanecem reproduzidas na seção 7.2.
 
 Os testes `SchemaAlignmentTests` (`tests/test_retrieval.py`) leem `cypher/01_schema_fiscalgraph.cypher` e
 `cypher/04_indice_vetorial_trecho.cypher` e falham se os nomes no código divergirem dos arquivos versionados.
-**Pendente:** confirmar com dev3 a inclusão do índice vetorial (arquivo 04) no fluxo oficial de schema.
+O índice vetorial (`cypher/04_indice_vetorial_trecho.cypher`) já integra o pipeline oficial pós-PR #9 via `scripts/generate_embeddings.py`.
 
 ## 3. Arquitetura
 
@@ -302,7 +301,7 @@ Exemplo real: `docs/evidencias/dev5_retrieve_context_exemplo.json`.
 
 ### 7.2. Especificação original do coordenador (reproduzida)
 
-O pacote do dev5 trouxe esta especificação, que não está versionada no repositório. A seção 7.1 a
+O pacote do dev5 trouxe originalmente esta especificação (hoje consolidada em `docs/CONTRATO_INTEGRACAO_FINAL.md`). A seção 7.1 a
 cumpre integralmente e acrescenta campos.
 
 Serviço de recuperação (dev5 → dev1/dev6): `retrieve_context(question: str, top_k: int = 5) -> dict`
@@ -322,7 +321,7 @@ foge do escopo.
 
 ### 7.3. Mapeamento para a resposta final do dev1
 
-Status verificado em 2026-11-11: a branch `dev1` ainda contém somente a tela inicial/estrutura de ambiente, sem serviço de orquestração final; a branch `dev6` existe e o PR #6 está aberto, com interface em modo mock. A compatibilidade do Dev5 foi validada contra o contrato documentado, mas ainda não contra uma implementação funcional do Dev1 ou uma chamada real da interface.
+> **Nota de atualização pós-PR #9 (`main`):** originalmente (em 2026-11-11, antes do PR #9), as branches `dev1` e `dev6` ainda não estavam integradas ao fluxo real. Após o PR #9 (`integracao-e2e` → `main`), o orquestrador (`app/services/orchestrator.py`), o adaptador de resposta (`app/services/response_adapter.py`), o adaptador de fontes (`app/services/source_adapter.py`) e a interface Streamlit (`app/streamlit_app.py`) já estão integrados na `main`, mantendo as responsabilidades originais de cada módulo abaixo.
 
 | Campo do dev1 | Origem na resposta do dev5 |
 | --- | --- |
@@ -360,7 +359,7 @@ traz o campo `_aviso` dizendo isso.
 
 A resposta inteira é serializável em JSON (validado), então pode ir para `st.session_state` ou `st.json`.
 
-**Atenção à compatibilidade com o mock atual do Dev6 (verificado em 2026-11-11):** o renderer da branch `dev6` lê `sources[].fonte_id`, `sources[].texto` e `sources[].url_fonte`, enquanto o contrato final acima define `sources[].id`, `sources[].label` e `sources[].url`. As fixtures do Dev6 usam o primeiro formato e, portanto, não comprovam compatibilidade com a resposta final real. Antes de substituir o mock, o Dev6 deve adaptar o renderer ao contrato final ou o grupo deve aprovar explicitamente uma extensão com campo de trecho (`excerpt`) agora incluído no contrato; não tratar `sources[]` como `chunks[]`. A branch Dev1 examinada ainda não contém a implementação da orquestração, então essa integração permanece pendente.
+**Compatibilidade com a interface Dev6 (atualizada no PR #9):** historicamente, a branch `dev6` lia apenas `sources[].fonte_id`, `sources[].texto` e `sources[].url_fonte`. Na integração incorporada à `main` (PR #9), `app/services/response_adapter.py` fornece `id`, `label`, `url` e `excerpt`, enquanto `app/services/source_adapter.py` (`normalize_source`) normaliza tanto o contrato final quanto as fixtures legadas do modo Mock, garantindo compatibilidade sem tratar `sources[]` como `chunks[]`.
 
 
 ### 7.5. `company_paths(cnpj_a, cnpj_b, max_hops=6)`
