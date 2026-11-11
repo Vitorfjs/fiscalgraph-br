@@ -160,7 +160,10 @@ class SentenceEncoder:
             except ImportError as exc:
                 raise RuntimeError(f"sentence-transformers não está instalado. {INSTALL_HINT}") from exc
             model = SentenceTransformer(model_name)
-        dimension = model.get_sentence_embedding_dimension()
+        if hasattr(model, "get_embedding_dimension"):
+            dimension = model.get_embedding_dimension()
+        else:
+            dimension = model.get_sentence_embedding_dimension()
         if dimension != EMBEDDING_DIMENSIONS:
             raise RuntimeError(
                 f"O modelo {model_name} produz {dimension} dimensões; o índice "
