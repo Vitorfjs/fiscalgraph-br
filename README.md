@@ -204,6 +204,7 @@ python -m unittest discover -s tests -v
 - `docs/text-to-graph.md` — pipeline de extração de `Trecho` e menções `MENCIONA (CANDIDATA)`.
 - `docs/recuperacao-hibrida.md` — embeddings, busca vetorial/full-text, RRF e multi-hop.
 - `docs/CONTRATO_INTEGRACAO_FINAL.md` — contrato entre recuperação, orquestração e interface.
+- `docs/politica-abstencao.md` — regras verificáveis de abstenção, fallback determinístico e verificação de citações.
 - `docs/EXECUCAO_APLICACAO_INTEGRADA.md` — guia operacional de execução integrada.
 - `docs/validacao-neo4j.md` — registros de validação do schema, cargas e índices.
 
