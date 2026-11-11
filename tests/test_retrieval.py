@@ -443,10 +443,11 @@ class ContractCompatibilityTests(unittest.TestCase):
                             "id": source_id,
                             "label": "Sancao" if chunk["registro_id"] else "Trecho",
                             "url": chunk["url_fonte"],
+                            "excerpt": chunk["texto"],
                         })
                 self.assertEqual(final["sources"], expected_sources)
                 for source in final["sources"]:
-                    self.assertEqual(set(source), {"id", "label", "url"})
+                    self.assertEqual(set(source), {"id", "label", "url", "excerpt"})
                     self.assertIsInstance(source["id"], str)
                     self.assertIsInstance(source["label"], str)
                     self.assertTrue(source["url"] is None or isinstance(source["url"], str))
