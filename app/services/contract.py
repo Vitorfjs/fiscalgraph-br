@@ -240,8 +240,12 @@ def example_final_response(context: Dict[str, Any], answer: str = "") -> Dict[st
         source_id = chunk["registro_id"] or chunk["trecho_id"]
         if source_id not in seen:
             seen.add(source_id)
-            sources.append({"id": source_id, "label": "Sancao" if chunk["registro_id"] else "Trecho",
-                            "url": chunk["url_fonte"]})
+            sources.append({
+                "id": source_id,
+                "label": "Sancao" if chunk["registro_id"] else "Trecho",
+                "url": chunk["url_fonte"],
+                "excerpt": chunk["texto"],
+            })
     max_score = context["parameters"]["rrf_max_score"]
     return {
         "answer": answer,
