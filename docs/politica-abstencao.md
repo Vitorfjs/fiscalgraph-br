@@ -51,7 +51,7 @@ Quando o LLM retorna uma resposta:
 
 ---
 
-## 4. Exemplos Reais Verificados (Neo4j Local — 2026-11-11)
+## 5. Exemplos Reais Verificados (Neo4j Local — 2026-11-11)
 
 - **Domínio com evidências (`"Quais empresas foram declaradas inidôneas para licitar com a administração pública?"`):** `abstained=false`, 5 fontes rastreáveis, 27 nós, 26 relacionamentos, síntese determinística sinalizada em `warnings`.
 - **CNPJ literal (`"trecho que cita o CNPJ 01.340.937/0001-79"`):** `abstained=false`, 5 fontes, síntese determinística priorizando `CEIS-289814` (`[Correspondência literal de CNPJ]`) e preservando o aviso do Dev5 sobre a 2ª posição no RRF.
