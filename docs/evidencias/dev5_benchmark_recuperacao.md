@@ -10,6 +10,8 @@
 | Full-text puro | 16 | 0.4125 | 0.9821 | 1.0000 | 1.0000 | 1.0000 |
 | Híbrido (RRF) | 16 | 0.3000 | 0.7061 | 0.6250 | 0.6218 | 0.8125 |
 
+**Leitura correta do resultado:** neste benchmark, o **Full-text foi superior ao híbrido RRF em todas as métricas agregadas apresentadas**. O RRF superou a busca vetorial pura, mas não superou o Full-text isolado. Portanto, os dados sustentam a complementaridade do vetor em relação ao Full-text e a melhora sobre o vetor puro, não uma superioridade geral da fusão híbrida. A conclusão se limita a este recorte de 54 trechos e às 16 consultas positivas rotuladas.
+
 ## 2. Desempenho do Modo Híbrido (RRF) por Categoria (`k=5`)
 
 | Categoria | Consultas | Precision@5 | Recall@5 | MRR@5 | nDCG@5 |
