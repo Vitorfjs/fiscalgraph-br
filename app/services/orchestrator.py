@@ -46,6 +46,16 @@ _DOMAIN_EXACT_WORDS: Tuple[str, ...] = (
     "fontes",
     "fraude",
     "fraudes",
+    "engenharia",
+    "construtora",
+    "empreiteira",
+    "ltda",
+    "eireli",
+    "comercio",
+    "industria",
+    "servicos",
+    "transportadora",
+    "juridica",
 )
 
 _DOMAIN_PREFIXES: Tuple[str, ...] = (
@@ -92,28 +102,27 @@ def _normalize_text(text: str) -> str:
     return stripped.lower()
 
 
-def _has_domain_anchor(query: str, nodes: Iterable[Dict[str, Any]]) -> bool:
+def _has_domain_anchor(query: str) -> bool:
+    """Reconhece âncoras do domínio exclusivamente na pergunta do usuário.
+
+    Não consulta nós, propriedades ou trechos recuperados: usar o resultado da busca
+    como prova de que a própria pergunta pertence ao domínio criaria uma validação
+    circular e permitiria que coincidências lexicais (por exemplo, "João Pessoa" /
+    "pessoa jurídica") desativassem a abstenção.
+    """
     normalized_query = _normalize_text(query)
     if any(phrase in normalized_query for phrase in _DOMAIN_PHRASES):
         return True
+
     tokens = re.findall(r"[a-z0-9]+", normalized_query)
     if any(token in _DOMAIN_EXACT_WORDS for token in tokens):
         return True
     if any(token.startswith(prefix) for token in tokens for prefix in _DOMAIN_PREFIXES):
         return True
 
-    for node in nodes:
-        if not isinstance(node, dict):
-            continue
-        props = node.get("properties") or {}
-        for field in ("razao_social", "nome_fantasia", "descricao"):
-            value = props.get(field)
-            if not isinstance(value, str) or len(value.strip()) < 4:
-                continue
-            node_tokens = [tok for tok in re.findall(r"[a-z0-9]+", _normalize_text(value)) if len(tok) >= 4]
-            if any(tok in tokens for tok in node_tokens):
-                return True
-    return False
+    # Identificadores de registros permitem consulta direta sem exigir palavras genéricas.
+    return bool(_RECORD_ID_PATTERN.search(query))
+
 
 
 def _matched_cnpjs_in_context(context: Dict[str, Any]) -> Set[str]:
@@ -139,7 +148,6 @@ def evaluate_abstention_policy(context: Dict[str, Any]) -> Tuple[bool, Optional[
     search_status = parameters.get("search_status", {})
     active_searches = parameters.get("active_searches", [])
     query_identifiers = parameters.get("query_identifiers", [])
-    nodes = context.get("nodes", [])
     query = context.get("query", "")
 
     vector_status = search_status.get("vector")
@@ -160,7 +168,7 @@ def evaluate_abstention_policy(context: Dict[str, Any]) -> Tuple[bool, Optional[
             [],
         )
 
-    domain_anchor = _has_domain_anchor(query, nodes)
+    domain_anchor = _has_domain_anchor(query)
 
     if query_identifiers:
         found_cnpjs = _matched_cnpjs_in_context(context)
@@ -174,21 +182,21 @@ def evaluate_abstention_policy(context: Dict[str, Any]) -> Tuple[bool, Optional[
                 [f"CNPJ(s) {joined} informado(s) na pergunta sem correspondência literal ou cadastral recuperada."],
             )
 
-    if fulltext_status == "nao_executada" and not query_identifiers and not domain_anchor:
+    # A ausência de âncora é avaliada somente pela pergunta original. Um resultado
+    # Full-Text não transforma uma pergunta fora do domínio em consulta válida: palavras
+    # genéricas como "pessoa" podem coincidir com "pessoa jurídica" em documentos legais.
+    if not query_identifiers and not domain_anchor:
         return (
             True,
-            "A pergunta está fora do escopo verificável ou não contém termos específicos para consulta "
-            "(empresas, sócios, CNAEs ou sanções CEIS/CNEP).",
-            ["Evidência insuficiente: a pergunta não gerou termos pesquisáveis para a busca full-text."],
+            "A pergunta não contém um termo ou identificador verificável do domínio do "
+            "FiscalGraph BR (empresas, quadro societário, CNAE ou registros CEIS/CNEP). "
+            "Os resultados recuperados por coincidência lexical não são evidência suficiente.",
+            [
+                "Consulta sem âncora de domínio na pergunta; resultados recuperados por "
+                "coincidência lexical foram descartados."
+            ],
         )
 
-    if fulltext_status == "sem_resultados" and active_searches == ["vector"] and not query_identifiers and not domain_anchor:
-        return (
-            True,
-            "A pergunta está fora do escopo do FiscalGraph BR (empresas, sócios, atividades CNAE e "
-            "sanções CEIS/CNEP) e nenhum termo foi encontrado nos trechos indexados.",
-            ["Consulta fora do domínio: apenas a busca vetorial retornou resultados sem correspondência lexical ou termos do domínio."],
-        )
 
     warnings: List[str] = []
     if vector_status == "indisponivel" or fulltext_status == "indisponivel":
