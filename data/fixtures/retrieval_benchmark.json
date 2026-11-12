@@ -1,0 +1,208 @@
+{
+  "version": "1.0",
+  "description": "Conjunto rotulado de 20 perguntas em 10 categorias sobre o recorte canônico (54 trechos CEIS/CNEP e 18 empresas).",
+  "k_default": 5,
+  "cases": [
+    {
+      "id": "Q01",
+      "category": "cnpj_exato",
+      "question": "Quais registros mencionam literalmente o CNPJ 01.340.937/0001-79?",
+      "expected_trecho_ids": ["007e95b2ecd16eca41d81b8d"],
+      "expected_registro_ids": ["CEIS-289814"],
+      "expected_abstained": false,
+      "notes": "Menção literal com status CANDIDATA no trecho de declaração de inidoneidade."
+    },
+    {
+      "id": "Q02",
+      "category": "cnpj_exato",
+      "question": "Registro de multa envolvendo o CNPJ 00.478.727/0001-89",
+      "expected_trecho_ids": ["774ff7e9be41084f7e659653"],
+      "expected_registro_ids": ["CNEP-310577"],
+      "expected_abstained": false,
+      "notes": "Menção literal no trecho CNEP-310577."
+    },
+    {
+      "id": "Q03",
+      "category": "entidade_mencionada",
+      "question": "Decisões que citam nominalmente a empresa GALVÃO ENGENHARIA S/A",
+      "expected_trecho_ids": ["d76c5d331554b24b2f51157e", "007e95b2ecd16eca41d81b8d"],
+      "expected_registro_ids": ["CEIS-387835", "CEIS-289814"],
+      "expected_abstained": false,
+      "notes": "Únicos dois trechos que contêm textualmente o nome GALVÃO ENGENHARIA S/A."
+    },
+    {
+      "id": "Q04",
+      "category": "entidade_mencionada",
+      "question": "Desconsideração da personalidade jurídica da Agroservice Empreiteira Agrícola EIRELI",
+      "expected_trecho_ids": ["774ff7e9be41084f7e659653"],
+      "expected_registro_ids": ["CNEP-310577"],
+      "expected_abstained": false,
+      "notes": "Único trecho que menciona a empresa Agroservice Empreiteira Agrícola EIRELI."
+    },
+    {
+      "id": "Q05",
+      "category": "tipo_sancao_especifica",
+      "question": "Descumprimento dos termos do acordo de leniência no CNEP",
+      "expected_trecho_ids": ["f3bd501d347ae374eb0ab6cd", "97de6dae3f0e10d37e333d0c"],
+      "expected_registro_ids": ["CNEP-362404", "CNEP-362401"],
+      "expected_abstained": false,
+      "notes": "Únicos dois trechos com referência ao art. 22, §4º sobre acordo de leniência."
+    },
+    {
+      "id": "Q06",
+      "category": "tipo_sancao_especifica",
+      "question": "Parcelamento do débito de multa em 60 vezes pelo REFIS",
+      "expected_trecho_ids": ["9415a6e425ab906d32125d74"],
+      "expected_registro_ids": ["CNEP-349213"],
+      "expected_abstained": false,
+      "notes": "Único trecho com parcelamento REFIS em 60 vezes."
+    },
+    {
+      "id": "Q07",
+      "category": "dispositivo_legal",
+      "question": "Sanções baseadas na Lei 13.303 artigo 83 das empresas estatais",
+      "expected_trecho_ids": ["0c195928a121023b7b8c3180", "7e05acacd045d4e1bd15ccf7"],
+      "expected_registro_ids": ["CEIS-389098", "CEIS-388380"],
+      "expected_abstained": false,
+      "notes": "Únicos dois trechos com fundamento na Lei 13.303/2016."
+    },
+    {
+      "id": "Q08",
+      "category": "dispositivo_legal",
+      "question": "Impedimento de contratar com fundamento no artigo 7º da Lei 10.520",
+      "expected_trecho_ids": ["907fc40336afd9a789f2c176", "4ddbd378568013fda481822e"],
+      "expected_registro_ids": ["CEIS-282985", "CEIS-310579"],
+      "expected_abstained": false,
+      "notes": "Únicos dois trechos que citam o art. 7º da Lei 10.520/2002."
+    },
+    {
+      "id": "Q09",
+      "category": "busca_semantica_parafrase",
+      "question": "Condenação cível com perda patrimonial e suspensão de direitos políticos de agente público",
+      "expected_trecho_ids": ["121ccdfa2acdb6b97f9aba3b"],
+      "expected_registro_ids": ["CEIS-105428"],
+      "expected_abstained": false,
+      "notes": "Paráfrase sobre improbidade administrativa (Lei 8.429/92 art. 12)."
+    },
+    {
+      "id": "Q10",
+      "category": "busca_semantica_parafrase",
+      "question": "Restrição estadual no Rio Grande do Sul prevista no cadastro CFIL",
+      "expected_trecho_ids": ["340b0572640273e7aea2d96a"],
+      "expected_registro_ids": ["CEIS-138581"],
+      "expected_abstained": false,
+      "notes": "Trecho curto da Lei 11.389 (RS) - CFIL/RS."
+    },
+    {
+      "id": "Q11",
+      "category": "decisao_reconsideracao",
+      "question": "Sanções da Decisão nº 209 mantidas pela Decisão nº 120 após pedido de reconsideração",
+      "expected_trecho_ids": ["4ddbd378568013fda481822e", "6ba2da7c8671449a69250d17", "774ff7e9be41084f7e659653"],
+      "expected_registro_ids": ["CEIS-310579", "CNEP-310578", "CNEP-310577"],
+      "expected_abstained": false,
+      "notes": "Conjunto completo das 3 sanções vinculadas à Decisão nº 209."
+    },
+    {
+      "id": "Q12",
+      "category": "decisao_reconsideracao",
+      "question": "Decisão nº 250 de 09/08/2024 publicada no D.O.U sobre pedido de reconsideração",
+      "expected_trecho_ids": ["e8379253b0f5a406559389dc", "f5cde44191dd1a9ab969eb09", "9246403b7a27ccc208a83714"],
+      "expected_registro_ids": ["CEIS-315330", "CNEP-315328", "CNEP-315329"],
+      "expected_abstained": false,
+      "notes": "Conjunto completo das 3 sanções vinculadas à Decisão nº 250."
+    },
+    {
+      "id": "Q13",
+      "category": "retificacao_dou",
+      "question": "Decisão retificada no DOU nº 247 de 31/12/2021 e mantida pela Decisão nº 6",
+      "expected_trecho_ids": [
+        "907fc40336afd9a789f2c176",
+        "23b28fac7a96d602701105db",
+        "671a41dbebd827e213de814d",
+        "29695e1de20de2a260a7d44b"
+      ],
+      "expected_registro_ids": ["CEIS-282985", "CEIS-282986", "CNEP-282983", "CNEP-282984"],
+      "expected_abstained": false,
+      "notes": "Conjunto completo dos 4 registros retificados no DOU nº 247."
+    },
+    {
+      "id": "Q14",
+      "category": "retificacao_dou",
+      "question": "Sanção aplicada pela Decisão n. 414 publicada em 02/01/2023 com recurso indeferido pela Decisão n. 397",
+      "expected_trecho_ids": ["c0e24d07270958cef2dea350", "81ee8c2d87bb5495a6036373"],
+      "expected_registro_ids": ["CEIS-278776", "CNEP-278775"],
+      "expected_abstained": false,
+      "notes": "Únicos dois registros da Decisão n. 414 / Decisão n. 397."
+    },
+    {
+      "id": "Q15",
+      "category": "fundamentacao_detalhada",
+      "question": "Aplicação da Lei 12.846 combinada com o Decreto 11.129/2022",
+      "expected_trecho_ids": ["9246403b7a27ccc208a83714", "774ff7e9be41084f7e659653"],
+      "expected_registro_ids": ["CNEP-315329", "CNEP-310577"],
+      "expected_abstained": false,
+      "notes": "Únicos dois trechos que citam expressamente o Decreto nº 11.129/2022."
+    },
+    {
+      "id": "Q16",
+      "category": "fundamentacao_detalhada",
+      "question": "Publicação extraordinária com afixação de edital pelo prazo mínimo de 30 dias",
+      "expected_trecho_ids": [
+        "5519e2576d4fa5a6238fba36",
+        "29695e1de20de2a260a7d44b",
+        "9246403b7a27ccc208a83714",
+        "6ba2da7c8671449a69250d17",
+        "81ee8c2d87bb5495a6036373",
+        "a1c322c234696b48ba1dfcbd",
+        "e60322e3edc8134b46f6b717"
+      ],
+      "expected_registro_ids": [
+        "CNEP-132343",
+        "CNEP-282984",
+        "CNEP-315329",
+        "CNEP-310578",
+        "CNEP-278775",
+        "CNEP-292529",
+        "CNEP-336309"
+      ],
+      "expected_abstained": false,
+      "notes": "Todos os 7 trechos do recorte que trazem a redação do art. 6º, §5º, II com edital por 30 dias."
+    },
+    {
+      "id": "Q17",
+      "category": "cnpj_ausente_recorte",
+      "question": "Qual a situação de compliance do CNPJ 99.999.999/0001-99?",
+      "expected_trecho_ids": [],
+      "expected_registro_ids": [],
+      "expected_abstained": true,
+      "notes": "CNPJ fictício inexistente no recorte; sistema deve se abster."
+    },
+    {
+      "id": "Q18",
+      "category": "cnpj_ausente_recorte",
+      "question": "Existem sanções no CEIS para o CNPJ 11.222.333/0001-81?",
+      "expected_trecho_ids": [],
+      "expected_registro_ids": [],
+      "expected_abstained": true,
+      "notes": "CNPJ ausente no recorte de 18 empresas; sistema deve se abster."
+    },
+    {
+      "id": "Q19",
+      "category": "fora_de_dominio",
+      "question": "receita de bolo de chocolate com cobertura",
+      "expected_trecho_ids": [],
+      "expected_registro_ids": [],
+      "expected_abstained": true,
+      "notes": "Pergunta fora do domínio; busca full-text sem termos e orquestrador deve se abster."
+    },
+    {
+      "id": "Q20",
+      "category": "fora_de_dominio",
+      "question": "qual a previsão do tempo para amanhã em Porto Alegre?",
+      "expected_trecho_ids": [],
+      "expected_registro_ids": [],
+      "expected_abstained": true,
+      "notes": "Pergunta fora do domínio meteorológico; deve acionar abstenção."
+    }
+  ]
+}

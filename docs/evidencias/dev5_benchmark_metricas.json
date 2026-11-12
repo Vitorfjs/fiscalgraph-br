@@ -1,0 +1,1253 @@
+{
+  "k": 5,
+  "dataset_version": "1.0",
+  "total_cases": 20,
+  "modes": {
+    "vector": {
+      "evaluated_queries": 16,
+      "precision_at_k": 0.17500000000000002,
+      "recall_at_k": 0.43526785714285715,
+      "mrr_at_k": 0.4479166666666667,
+      "ndcg_at_k": 0.4064704526723475,
+      "hit_rate_at_k": 0.5625,
+      "k": 5,
+      "by_category": {
+        "cnpj_exato": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 0.6666666666666666,
+          "ndcg_at_k": 0.75,
+          "hit_rate_at_k": 1.0
+        },
+        "entidade_mencionada": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.1,
+          "recall_at_k": 0.5,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.5,
+          "hit_rate_at_k": 0.5
+        },
+        "tipo_sancao_especifica": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.1,
+          "recall_at_k": 0.5,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.5,
+          "hit_rate_at_k": 0.5
+        },
+        "dispositivo_legal": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.5,
+          "mrr_at_k": 0.25,
+          "ndcg_at_k": 0.3467132018086354,
+          "hit_rate_at_k": 0.5
+        },
+        "busca_semantica_parafrase": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "hit_rate_at_k": 0.0
+        },
+        "decisao_reconsideracao": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0,
+          "hit_rate_at_k": 0.0
+        },
+        "retificacao_dou": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.375,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 0.5017636213787801,
+          "hit_rate_at_k": 1.0
+        },
+        "fundamentacao_detalhada": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.6,
+          "recall_at_k": 0.6071428571428572,
+          "mrr_at_k": 0.6666666666666666,
+          "ndcg_at_k": 0.6532867981913646,
+          "hit_rate_at_k": 1.0
+        }
+      },
+      "cases": [
+        {
+          "id": "Q01",
+          "category": "cnpj_exato",
+          "question": "Quais registros mencionam literalmente o CNPJ 01.340.937/0001-79?",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "774ff7e9be41084f7e659653",
+            "b927ed9937108f6c248fdca0",
+            "007e95b2ecd16eca41d81b8d",
+            "f5cde44191dd1a9ab969eb09",
+            "a8a577a11785eed08f581061"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 0.3333333333333333,
+          "ndcg_at_k": 0.5
+        },
+        {
+          "id": "Q02",
+          "category": "cnpj_exato",
+          "question": "Registro de multa envolvendo o CNPJ 00.478.727/0001-89",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "774ff7e9be41084f7e659653",
+            "007e95b2ecd16eca41d81b8d",
+            "e8379253b0f5a406559389dc",
+            "c0e24d07270958cef2dea350",
+            "23b28fac7a96d602701105db"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q03",
+          "category": "entidade_mencionada",
+          "question": "Decisões que citam nominalmente a empresa GALVÃO ENGENHARIA S/A",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "6ba2da7c8671449a69250d17",
+            "9246403b7a27ccc208a83714",
+            "774ff7e9be41084f7e659653",
+            "4ddbd378568013fda481822e",
+            "81ee8c2d87bb5495a6036373"
+          ],
+          "hits": 0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0
+        },
+        {
+          "id": "Q04",
+          "category": "entidade_mencionada",
+          "question": "Desconsideração da personalidade jurídica da Agroservice Empreiteira Agrícola EIRELI",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "774ff7e9be41084f7e659653",
+            "87c2078c8db77325641c0362",
+            "4ddbd378568013fda481822e",
+            "907fc40336afd9a789f2c176",
+            "007e95b2ecd16eca41d81b8d"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q05",
+          "category": "tipo_sancao_especifica",
+          "question": "Descumprimento dos termos do acordo de leniência no CNEP",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "23b28fac7a96d602701105db",
+            "b7b7665d9030d74d05ab0c8a",
+            "c0e24d07270958cef2dea350",
+            "87c2078c8db77325641c0362",
+            "007e95b2ecd16eca41d81b8d"
+          ],
+          "hits": 0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0
+        },
+        {
+          "id": "Q06",
+          "category": "tipo_sancao_especifica",
+          "question": "Parcelamento do débito de multa em 60 vezes pelo REFIS",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "9415a6e425ab906d32125d74",
+            "23b28fac7a96d602701105db",
+            "671a41dbebd827e213de814d",
+            "c0e24d07270958cef2dea350",
+            "e8379253b0f5a406559389dc"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q07",
+          "category": "dispositivo_legal",
+          "question": "Sanções baseadas na Lei 13.303 artigo 83 das empresas estatais",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "e8379253b0f5a406559389dc",
+            "007e95b2ecd16eca41d81b8d",
+            "87c2078c8db77325641c0362",
+            "7601376020798d2fc46101f9",
+            "47407e0fea9ecbbe3a777e85"
+          ],
+          "hits": 0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0
+        },
+        {
+          "id": "Q08",
+          "category": "dispositivo_legal",
+          "question": "Impedimento de contratar com fundamento no artigo 7º da Lei 10.520",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "7601376020798d2fc46101f9",
+            "907fc40336afd9a789f2c176",
+            "4ddbd378568013fda481822e",
+            "e8379253b0f5a406559389dc",
+            "97de6dae3f0e10d37e333d0c"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.6934264036172708
+        },
+        {
+          "id": "Q09",
+          "category": "busca_semantica_parafrase",
+          "question": "Condenação cível com perda patrimonial e suspensão de direitos políticos de agente público",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "c0e24d07270958cef2dea350",
+            "23b28fac7a96d602701105db",
+            "e8379253b0f5a406559389dc",
+            "3e844a1b104afbd46a035f09",
+            "5d02f7ee9f93bc3d4e143583"
+          ],
+          "hits": 0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0
+        },
+        {
+          "id": "Q10",
+          "category": "busca_semantica_parafrase",
+          "question": "Restrição estadual no Rio Grande do Sul prevista no cadastro CFIL",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "4ddbd378568013fda481822e",
+            "6ba2da7c8671449a69250d17",
+            "a8a577a11785eed08f581061",
+            "ebda1040bb12ffc26ab6e5d7",
+            "907fc40336afd9a789f2c176"
+          ],
+          "hits": 0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0
+        },
+        {
+          "id": "Q11",
+          "category": "decisao_reconsideracao",
+          "question": "Sanções da Decisão nº 209 mantidas pela Decisão nº 120 após pedido de reconsideração",
+          "expected_count": 3,
+          "retrieved_top_k": [
+            "c0e24d07270958cef2dea350",
+            "e8379253b0f5a406559389dc",
+            "23b28fac7a96d602701105db",
+            "007e95b2ecd16eca41d81b8d",
+            "b927ed9937108f6c248fdca0"
+          ],
+          "hits": 0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0
+        },
+        {
+          "id": "Q12",
+          "category": "decisao_reconsideracao",
+          "question": "Decisão nº 250 de 09/08/2024 publicada no D.O.U sobre pedido de reconsideração",
+          "expected_count": 3,
+          "retrieved_top_k": [
+            "c0e24d07270958cef2dea350",
+            "81ee8c2d87bb5495a6036373",
+            "774ff7e9be41084f7e659653",
+            "b927ed9937108f6c248fdca0",
+            "23b28fac7a96d602701105db"
+          ],
+          "hits": 0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0
+        },
+        {
+          "id": "Q13",
+          "category": "retificacao_dou",
+          "question": "Decisão retificada no DOU nº 247 de 31/12/2021 e mantida pela Decisão nº 6",
+          "expected_count": 4,
+          "retrieved_top_k": [
+            "23b28fac7a96d602701105db",
+            "c0e24d07270958cef2dea350",
+            "b927ed9937108f6c248fdca0",
+            "81ee8c2d87bb5495a6036373",
+            "4ddbd378568013fda481822e"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.25,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 0.3903800499921017
+        },
+        {
+          "id": "Q14",
+          "category": "retificacao_dou",
+          "question": "Sanção aplicada pela Decisão n. 414 publicada em 02/01/2023 com recurso indeferido pela Decisão n. 397",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "c0e24d07270958cef2dea350",
+            "e8379253b0f5a406559389dc",
+            "007e95b2ecd16eca41d81b8d",
+            "b927ed9937108f6c248fdca0",
+            "23b28fac7a96d602701105db"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.5,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 0.6131471927654584
+        },
+        {
+          "id": "Q15",
+          "category": "fundamentacao_detalhada",
+          "question": "Aplicação da Lei 12.846 combinada com o Decreto 11.129/2022",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "007e95b2ecd16eca41d81b8d",
+            "e8379253b0f5a406559389dc",
+            "774ff7e9be41084f7e659653",
+            "23b28fac7a96d602701105db",
+            "87c2078c8db77325641c0362"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.5,
+          "mrr_at_k": 0.3333333333333333,
+          "ndcg_at_k": 0.3065735963827292
+        },
+        {
+          "id": "Q16",
+          "category": "fundamentacao_detalhada",
+          "question": "Publicação extraordinária com afixação de edital pelo prazo mínimo de 30 dias",
+          "expected_count": 7,
+          "retrieved_top_k": [
+            "9246403b7a27ccc208a83714",
+            "29695e1de20de2a260a7d44b",
+            "81ee8c2d87bb5495a6036373",
+            "6ba2da7c8671449a69250d17",
+            "5519e2576d4fa5a6238fba36"
+          ],
+          "hits": 5,
+          "precision_at_k": 1.0,
+          "recall_at_k": 0.7142857142857143,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        }
+      ]
+    },
+    "fulltext": {
+      "evaluated_queries": 16,
+      "precision_at_k": 0.41250000000000003,
+      "recall_at_k": 0.9821428571428571,
+      "mrr_at_k": 1.0,
+      "ndcg_at_k": 1.0,
+      "hit_rate_at_k": 1.0,
+      "k": 5,
+      "by_category": {
+        "cnpj_exato": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0,
+          "hit_rate_at_k": 1.0
+        },
+        "entidade_mencionada": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.30000000000000004,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0,
+          "hit_rate_at_k": 1.0
+        },
+        "tipo_sancao_especifica": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.30000000000000004,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0,
+          "hit_rate_at_k": 1.0
+        },
+        "dispositivo_legal": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0,
+          "hit_rate_at_k": 1.0
+        },
+        "busca_semantica_parafrase": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0,
+          "hit_rate_at_k": 1.0
+        },
+        "decisao_reconsideracao": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.6,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0,
+          "hit_rate_at_k": 1.0
+        },
+        "retificacao_dou": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.6000000000000001,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0,
+          "hit_rate_at_k": 1.0
+        },
+        "fundamentacao_detalhada": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.7,
+          "recall_at_k": 0.8571428571428572,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0,
+          "hit_rate_at_k": 1.0
+        }
+      },
+      "cases": [
+        {
+          "id": "Q01",
+          "category": "cnpj_exato",
+          "question": "Quais registros mencionam literalmente o CNPJ 01.340.937/0001-79?",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "007e95b2ecd16eca41d81b8d",
+            "774ff7e9be41084f7e659653"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q02",
+          "category": "cnpj_exato",
+          "question": "Registro de multa envolvendo o CNPJ 00.478.727/0001-89",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "774ff7e9be41084f7e659653",
+            "007e95b2ecd16eca41d81b8d",
+            "1bf2823e5133f378aef2ad54",
+            "3cc4d89f8abb6261af61207c",
+            "344bdca6189daeb4629e828f"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q03",
+          "category": "entidade_mencionada",
+          "question": "Decisões que citam nominalmente a empresa GALVÃO ENGENHARIA S/A",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "d76c5d331554b24b2f51157e",
+            "007e95b2ecd16eca41d81b8d",
+            "7e05acacd045d4e1bd15ccf7",
+            "0c195928a121023b7b8c3180",
+            "e8379253b0f5a406559389dc"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q04",
+          "category": "entidade_mencionada",
+          "question": "Desconsideração da personalidade jurídica da Agroservice Empreiteira Agrícola EIRELI",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "774ff7e9be41084f7e659653",
+            "e60322e3edc8134b46f6b717",
+            "5519e2576d4fa5a6238fba36",
+            "f3bd501d347ae374eb0ab6cd",
+            "a1c322c234696b48ba1dfcbd"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q05",
+          "category": "tipo_sancao_especifica",
+          "question": "Descumprimento dos termos do acordo de leniência no CNEP",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "f3bd501d347ae374eb0ab6cd",
+            "97de6dae3f0e10d37e333d0c",
+            "121ccdfa2acdb6b97f9aba3b",
+            "671a41dbebd827e213de814d",
+            "23b28fac7a96d602701105db"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q06",
+          "category": "tipo_sancao_especifica",
+          "question": "Parcelamento do débito de multa em 60 vezes pelo REFIS",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "9415a6e425ab906d32125d74",
+            "121ccdfa2acdb6b97f9aba3b",
+            "344bdca6189daeb4629e828f",
+            "1bf2823e5133f378aef2ad54",
+            "2cb56ad7bd5b6053a449b3b9"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q07",
+          "category": "dispositivo_legal",
+          "question": "Sanções baseadas na Lei 13.303 artigo 83 das empresas estatais",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "0c195928a121023b7b8c3180",
+            "7e05acacd045d4e1bd15ccf7",
+            "47407e0fea9ecbbe3a777e85",
+            "87c2078c8db77325641c0362",
+            "e8379253b0f5a406559389dc"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q08",
+          "category": "dispositivo_legal",
+          "question": "Impedimento de contratar com fundamento no artigo 7º da Lei 10.520",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "4ddbd378568013fda481822e",
+            "907fc40336afd9a789f2c176",
+            "e8379253b0f5a406559389dc",
+            "007e95b2ecd16eca41d81b8d",
+            "774ff7e9be41084f7e659653"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q09",
+          "category": "busca_semantica_parafrase",
+          "question": "Condenação cível com perda patrimonial e suspensão de direitos políticos de agente público",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "121ccdfa2acdb6b97f9aba3b",
+            "9415a6e425ab906d32125d74",
+            "774ff7e9be41084f7e659653",
+            "6e6e9265b4e3f2e82812cb53",
+            "f5cde44191dd1a9ab969eb09"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q10",
+          "category": "busca_semantica_parafrase",
+          "question": "Restrição estadual no Rio Grande do Sul prevista no cadastro CFIL",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "340b0572640273e7aea2d96a",
+            "9415a6e425ab906d32125d74",
+            "57d29069ac7a86ba07452000",
+            "92377f31d80260059a9fc327",
+            "0ae039c4593cc7fe2d648d05"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q11",
+          "category": "decisao_reconsideracao",
+          "question": "Sanções da Decisão nº 209 mantidas pela Decisão nº 120 após pedido de reconsideração",
+          "expected_count": 3,
+          "retrieved_top_k": [
+            "6ba2da7c8671449a69250d17",
+            "774ff7e9be41084f7e659653",
+            "4ddbd378568013fda481822e",
+            "007e95b2ecd16eca41d81b8d",
+            "e8379253b0f5a406559389dc"
+          ],
+          "hits": 3,
+          "precision_at_k": 0.6,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q12",
+          "category": "decisao_reconsideracao",
+          "question": "Decisão nº 250 de 09/08/2024 publicada no D.O.U sobre pedido de reconsideração",
+          "expected_count": 3,
+          "retrieved_top_k": [
+            "f5cde44191dd1a9ab969eb09",
+            "e8379253b0f5a406559389dc",
+            "9246403b7a27ccc208a83714",
+            "6ba2da7c8671449a69250d17",
+            "774ff7e9be41084f7e659653"
+          ],
+          "hits": 3,
+          "precision_at_k": 0.6,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q13",
+          "category": "retificacao_dou",
+          "question": "Decisão retificada no DOU nº 247 de 31/12/2021 e mantida pela Decisão nº 6",
+          "expected_count": 4,
+          "retrieved_top_k": [
+            "671a41dbebd827e213de814d",
+            "23b28fac7a96d602701105db",
+            "29695e1de20de2a260a7d44b",
+            "907fc40336afd9a789f2c176",
+            "6ba2da7c8671449a69250d17"
+          ],
+          "hits": 4,
+          "precision_at_k": 0.8,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q14",
+          "category": "retificacao_dou",
+          "question": "Sanção aplicada pela Decisão n. 414 publicada em 02/01/2023 com recurso indeferido pela Decisão n. 397",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "c0e24d07270958cef2dea350",
+            "81ee8c2d87bb5495a6036373",
+            "6ba2da7c8671449a69250d17",
+            "f5cde44191dd1a9ab969eb09",
+            "e8379253b0f5a406559389dc"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q15",
+          "category": "fundamentacao_detalhada",
+          "question": "Aplicação da Lei 12.846 combinada com o Decreto 11.129/2022",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "9246403b7a27ccc208a83714",
+            "774ff7e9be41084f7e659653",
+            "e8379253b0f5a406559389dc",
+            "92377f31d80260059a9fc327",
+            "57d29069ac7a86ba07452000"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q16",
+          "category": "fundamentacao_detalhada",
+          "question": "Publicação extraordinária com afixação de edital pelo prazo mínimo de 30 dias",
+          "expected_count": 7,
+          "retrieved_top_k": [
+            "5519e2576d4fa5a6238fba36",
+            "e60322e3edc8134b46f6b717",
+            "a1c322c234696b48ba1dfcbd",
+            "29695e1de20de2a260a7d44b",
+            "81ee8c2d87bb5495a6036373"
+          ],
+          "hits": 5,
+          "precision_at_k": 1.0,
+          "recall_at_k": 0.7142857142857143,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        }
+      ]
+    },
+    "hybrid": {
+      "evaluated_queries": 16,
+      "precision_at_k": 0.3,
+      "recall_at_k": 0.7061011904761905,
+      "mrr_at_k": 0.625,
+      "ndcg_at_k": 0.6218207891437199,
+      "hit_rate_at_k": 0.8125,
+      "k": 5,
+      "by_category": {
+        "cnpj_exato": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 0.75,
+          "ndcg_at_k": 0.8154648767857288,
+          "hit_rate_at_k": 1.0
+        },
+        "entidade_mencionada": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.30000000000000004,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 0.9386076576690247,
+          "hit_rate_at_k": 1.0
+        },
+        "tipo_sancao_especifica": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.1,
+          "recall_at_k": 0.5,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.5,
+          "hit_rate_at_k": 0.5
+        },
+        "dispositivo_legal": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.5,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.5,
+          "hit_rate_at_k": 0.5
+        },
+        "busca_semantica_parafrase": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.1,
+          "recall_at_k": 0.5,
+          "mrr_at_k": 0.125,
+          "ndcg_at_k": 0.21533827903669653,
+          "hit_rate_at_k": 0.5
+        },
+        "decisao_reconsideracao": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 0.6666666666666666,
+          "mrr_at_k": 0.375,
+          "ndcg_at_k": 0.4571852065075719,
+          "hit_rate_at_k": 1.0
+        },
+        "retificacao_dou": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.5,
+          "recall_at_k": 0.875,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 0.8545438895334659,
+          "hit_rate_at_k": 1.0
+        },
+        "fundamentacao_detalhada": {
+          "evaluated_queries": 2,
+          "precision_at_k": 0.6,
+          "recall_at_k": 0.6071428571428572,
+          "mrr_at_k": 0.75,
+          "ndcg_at_k": 0.6934264036172708,
+          "hit_rate_at_k": 1.0
+        }
+      },
+      "cases": [
+        {
+          "id": "Q01",
+          "category": "cnpj_exato",
+          "question": "Quais registros mencionam literalmente o CNPJ 01.340.937/0001-79?",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "774ff7e9be41084f7e659653",
+            "007e95b2ecd16eca41d81b8d",
+            "340b0572640273e7aea2d96a",
+            "b927ed9937108f6c248fdca0",
+            "f5cde44191dd1a9ab969eb09"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.6309297535714575
+        },
+        {
+          "id": "Q02",
+          "category": "cnpj_exato",
+          "question": "Registro de multa envolvendo o CNPJ 00.478.727/0001-89",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "774ff7e9be41084f7e659653",
+            "007e95b2ecd16eca41d81b8d",
+            "f3bd501d347ae374eb0ab6cd",
+            "671a41dbebd827e213de814d",
+            "e8379253b0f5a406559389dc"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q03",
+          "category": "entidade_mencionada",
+          "question": "Decisões que citam nominalmente a empresa GALVÃO ENGENHARIA S/A",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "d76c5d331554b24b2f51157e",
+            "7e05acacd045d4e1bd15ccf7",
+            "0c195928a121023b7b8c3180",
+            "007e95b2ecd16eca41d81b8d",
+            "6ba2da7c8671449a69250d17"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 0.8772153153380493
+        },
+        {
+          "id": "Q04",
+          "category": "entidade_mencionada",
+          "question": "Desconsideração da personalidade jurídica da Agroservice Empreiteira Agrícola EIRELI",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "774ff7e9be41084f7e659653",
+            "007e95b2ecd16eca41d81b8d",
+            "6e6e9265b4e3f2e82812cb53",
+            "6ba2da7c8671449a69250d17",
+            "7601376020798d2fc46101f9"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q05",
+          "category": "tipo_sancao_especifica",
+          "question": "Descumprimento dos termos do acordo de leniência no CNEP",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "23b28fac7a96d602701105db",
+            "c0e24d07270958cef2dea350",
+            "4ddbd378568013fda481822e",
+            "87c2078c8db77325641c0362",
+            "007e95b2ecd16eca41d81b8d"
+          ],
+          "hits": 0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0
+        },
+        {
+          "id": "Q06",
+          "category": "tipo_sancao_especifica",
+          "question": "Parcelamento do débito de multa em 60 vezes pelo REFIS",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "9415a6e425ab906d32125d74",
+            "671a41dbebd827e213de814d",
+            "774ff7e9be41084f7e659653",
+            "23b28fac7a96d602701105db",
+            "121ccdfa2acdb6b97f9aba3b"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q07",
+          "category": "dispositivo_legal",
+          "question": "Sanções baseadas na Lei 13.303 artigo 83 das empresas estatais",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "e8379253b0f5a406559389dc",
+            "87c2078c8db77325641c0362",
+            "007e95b2ecd16eca41d81b8d",
+            "47407e0fea9ecbbe3a777e85",
+            "7601376020798d2fc46101f9"
+          ],
+          "hits": 0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0
+        },
+        {
+          "id": "Q08",
+          "category": "dispositivo_legal",
+          "question": "Impedimento de contratar com fundamento no artigo 7º da Lei 10.520",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "4ddbd378568013fda481822e",
+            "907fc40336afd9a789f2c176",
+            "e8379253b0f5a406559389dc",
+            "7601376020798d2fc46101f9",
+            "007e95b2ecd16eca41d81b8d"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        },
+        {
+          "id": "Q09",
+          "category": "busca_semantica_parafrase",
+          "question": "Condenação cível com perda patrimonial e suspensão de direitos políticos de agente público",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "7601376020798d2fc46101f9",
+            "b7b7665d9030d74d05ab0c8a",
+            "c0e24d07270958cef2dea350",
+            "121ccdfa2acdb6b97f9aba3b",
+            "23b28fac7a96d602701105db"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 0.25,
+          "ndcg_at_k": 0.43067655807339306
+        },
+        {
+          "id": "Q10",
+          "category": "busca_semantica_parafrase",
+          "question": "Restrição estadual no Rio Grande do Sul prevista no cadastro CFIL",
+          "expected_count": 1,
+          "retrieved_top_k": [
+            "0c195928a121023b7b8c3180",
+            "6ba2da7c8671449a69250d17",
+            "b7b7665d9030d74d05ab0c8a",
+            "007e95b2ecd16eca41d81b8d",
+            "29695e1de20de2a260a7d44b"
+          ],
+          "hits": 0,
+          "precision_at_k": 0.0,
+          "recall_at_k": 0.0,
+          "mrr_at_k": 0.0,
+          "ndcg_at_k": 0.0
+        },
+        {
+          "id": "Q11",
+          "category": "decisao_reconsideracao",
+          "question": "Sanções da Decisão nº 209 mantidas pela Decisão nº 120 após pedido de reconsideração",
+          "expected_count": 3,
+          "retrieved_top_k": [
+            "c0e24d07270958cef2dea350",
+            "e8379253b0f5a406559389dc",
+            "007e95b2ecd16eca41d81b8d",
+            "774ff7e9be41084f7e659653",
+            "6ba2da7c8671449a69250d17"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 0.6666666666666666,
+          "mrr_at_k": 0.25,
+          "ndcg_at_k": 0.38364913903790027
+        },
+        {
+          "id": "Q12",
+          "category": "decisao_reconsideracao",
+          "question": "Decisão nº 250 de 09/08/2024 publicada no D.O.U sobre pedido de reconsideração",
+          "expected_count": 3,
+          "retrieved_top_k": [
+            "774ff7e9be41084f7e659653",
+            "f5cde44191dd1a9ab969eb09",
+            "e8379253b0f5a406559389dc",
+            "c0e24d07270958cef2dea350",
+            "81ee8c2d87bb5495a6036373"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 0.6666666666666666,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.5307212739772434
+        },
+        {
+          "id": "Q13",
+          "category": "retificacao_dou",
+          "question": "Decisão retificada no DOU nº 247 de 31/12/2021 e mantida pela Decisão nº 6",
+          "expected_count": 4,
+          "retrieved_top_k": [
+            "23b28fac7a96d602701105db",
+            "671a41dbebd827e213de814d",
+            "29695e1de20de2a260a7d44b",
+            "4ddbd378568013fda481822e",
+            "774ff7e9be41084f7e659653"
+          ],
+          "hits": 3,
+          "precision_at_k": 0.6,
+          "recall_at_k": 0.75,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 0.8318724637288826
+        },
+        {
+          "id": "Q14",
+          "category": "retificacao_dou",
+          "question": "Sanção aplicada pela Decisão n. 414 publicada em 02/01/2023 com recurso indeferido pela Decisão n. 397",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "c0e24d07270958cef2dea350",
+            "e8379253b0f5a406559389dc",
+            "007e95b2ecd16eca41d81b8d",
+            "81ee8c2d87bb5495a6036373",
+            "6ba2da7c8671449a69250d17"
+          ],
+          "hits": 2,
+          "precision_at_k": 0.4,
+          "recall_at_k": 1.0,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 0.8772153153380493
+        },
+        {
+          "id": "Q15",
+          "category": "fundamentacao_detalhada",
+          "question": "Aplicação da Lei 12.846 combinada com o Decreto 11.129/2022",
+          "expected_count": 2,
+          "retrieved_top_k": [
+            "e8379253b0f5a406559389dc",
+            "774ff7e9be41084f7e659653",
+            "f5cde44191dd1a9ab969eb09",
+            "b927ed9937108f6c248fdca0",
+            "007e95b2ecd16eca41d81b8d"
+          ],
+          "hits": 1,
+          "precision_at_k": 0.2,
+          "recall_at_k": 0.5,
+          "mrr_at_k": 0.5,
+          "ndcg_at_k": 0.38685280723454163
+        },
+        {
+          "id": "Q16",
+          "category": "fundamentacao_detalhada",
+          "question": "Publicação extraordinária com afixação de edital pelo prazo mínimo de 30 dias",
+          "expected_count": 7,
+          "retrieved_top_k": [
+            "5519e2576d4fa5a6238fba36",
+            "29695e1de20de2a260a7d44b",
+            "9246403b7a27ccc208a83714",
+            "e60322e3edc8134b46f6b717",
+            "81ee8c2d87bb5495a6036373"
+          ],
+          "hits": 5,
+          "precision_at_k": 1.0,
+          "recall_at_k": 0.7142857142857143,
+          "mrr_at_k": 1.0,
+          "ndcg_at_k": 1.0
+        }
+      ]
+    }
+  },
+  "abstention": {
+    "total_cases": 20,
+    "correct": 20,
+    "accuracy": 1.0,
+    "true_abstentions": 4,
+    "true_answers": 16,
+    "false_abstentions": 0,
+    "missed_abstentions": 0,
+    "mismatches": []
+  },
+  "multihop": {
+    "real": {
+      "pairs_tested": 4,
+      "pairs_with_path": 3,
+      "societario_paths": 0,
+      "cnae_paths": 3,
+      "mencao_paths": 0,
+      "other_paths": 0,
+      "lengths": [
+        4,
+        4,
+        4
+      ]
+    },
+    "synthetic": {
+      "paths_found": 1,
+      "societario_paths": 1,
+      "shortest_length": 2
+    }
+  },
+  "multihop_details": {
+    "real_runs": [
+      {
+        "pair": [
+          "00356328",
+          "01340937"
+        ],
+        "paths": [
+          {
+            "kind": "atividade_cnae",
+            "length": 4,
+            "nodes": [
+              "Empresa:00356328",
+              "Estabelecimento:00356328000145",
+              "CNAE:4211101",
+              "Estabelecimento:01340937000179",
+              "Empresa:01340937"
+            ],
+            "relationship_types": [
+              "POSSUI_ESTABELECIMENTO",
+              "EXERCE_CNAE",
+              "EXERCE_CNAE",
+              "POSSUI_ESTABELECIMENTO"
+            ],
+            "text": "(Empresa:00356328)-[:POSSUI_ESTABELECIMENTO]->(Estabelecimento:00356328000145)-[:EXERCE_CNAE]->(CNAE:4211101)<-[:EXERCE_CNAE]-(Estabelecimento:01340937000179)<-[:POSSUI_ESTABELECIMENTO]-(Empresa:01340937)"
+          }
+        ],
+        "warnings": [
+          "Nenhum caminho societário (sócio em comum) entre 00356328 e 01340937 com até 6 relacionamentos no grafo. A ausência no recorte não prova ausência na base completa.",
+          "Caminho por CNAE indica apenas atividade econômica declarada em comum; não é vínculo societário, de controle ou comercial."
+        ]
+      },
+      {
+        "pair": [
+          "00000113",
+          "00000145"
+        ],
+        "paths": [
+          {
+            "kind": "atividade_cnae",
+            "length": 4,
+            "nodes": [
+              "Empresa:00000113",
+              "Estabelecimento:00000113000197",
+              "CNAE:9430800",
+              "Estabelecimento:00000145000192",
+              "Empresa:00000145"
+            ],
+            "relationship_types": [
+              "POSSUI_ESTABELECIMENTO",
+              "EXERCE_CNAE",
+              "EXERCE_CNAE",
+              "POSSUI_ESTABELECIMENTO"
+            ],
+            "text": "(Empresa:00000113)-[:POSSUI_ESTABELECIMENTO]->(Estabelecimento:00000113000197)-[:EXERCE_CNAE]->(CNAE:9430800)<-[:EXERCE_CNAE]-(Estabelecimento:00000145000192)<-[:POSSUI_ESTABELECIMENTO]-(Empresa:00000145)"
+          }
+        ],
+        "warnings": [
+          "Nenhum caminho societário (sócio em comum) entre 00000113 e 00000145 com até 6 relacionamentos no grafo. A ausência no recorte não prova ausência na base completa.",
+          "Caminho por CNAE indica apenas atividade econômica declarada em comum; não é vínculo societário, de controle ou comercial."
+        ]
+      },
+      {
+        "pair": [
+          "00073357",
+          "01278154"
+        ],
+        "paths": [
+          {
+            "kind": "atividade_cnae",
+            "length": 4,
+            "nodes": [
+              "Empresa:00073357",
+              "Estabelecimento:00073357000108",
+              "CNAE:4321500",
+              "Estabelecimento:01278154000102",
+              "Empresa:01278154"
+            ],
+            "relationship_types": [
+              "POSSUI_ESTABELECIMENTO",
+              "EXERCE_CNAE",
+              "EXERCE_CNAE",
+              "POSSUI_ESTABELECIMENTO"
+            ],
+            "text": "(Empresa:00073357)-[:POSSUI_ESTABELECIMENTO]->(Estabelecimento:00073357000108)-[:EXERCE_CNAE]->(CNAE:4321500)<-[:EXERCE_CNAE]-(Estabelecimento:01278154000102)<-[:POSSUI_ESTABELECIMENTO]-(Empresa:01278154)"
+          }
+        ],
+        "warnings": [
+          "Nenhum caminho societário (sócio em comum) entre 00073357 e 01278154 com até 6 relacionamentos no grafo. A ausência no recorte não prova ausência na base completa.",
+          "Caminho por CNAE indica apenas atividade econômica declarada em comum; não é vínculo societário, de controle ou comercial."
+        ]
+      },
+      {
+        "pair": [
+          "00002776",
+          "00356328"
+        ],
+        "paths": [],
+        "warnings": [
+          "Nenhum caminho societário (sócio em comum) entre 00002776 e 00356328 com até 6 relacionamentos no grafo. A ausência no recorte não prova ausência na base completa.",
+          "Nenhum caminho com até 6 relacionamentos entre 00002776 e 00356328."
+        ]
+      }
+    ],
+    "synthetic_run": {
+      "paths": [
+        {
+          "kind": "societario",
+          "length": 2,
+          "nodes": [
+            "Empresa:SINT-0001",
+            "Socio:SINT-SOC-1",
+            "Empresa:SINT-0002"
+          ],
+          "relationship_types": [
+            "PARTICIPA_DE",
+            "PARTICIPA_DE"
+          ],
+          "text": "(Empresa:SINT-0001)<-[:PARTICIPA_DE]-(Socio:SINT-SOC-1)-[:PARTICIPA_DE]->(Empresa:SINT-0002)"
+        }
+      ],
+      "warnings": []
+    }
+  }
+}
