@@ -172,3 +172,15 @@ Para reproduzir a amostra canónica a partir dos arquivos brutos descarregados:
      --ceis data/raw/20261105_CEIS.csv \
      --cnep data/raw/20261105_CNEP.csv \
      --json data/processed/audit_source_counts.json
+   ```
+3. Gerar o conjunto canônico a partir dos arquivos brutos em `data/raw/` e da consulta ao serviço intermediário (`minhareceita.org`), e validar integridade e chaves:
+   ```bash
+   python scripts/build_canonical_dataset.py
+   python scripts/validate_canonical_data.py
+   python scripts/validate_canonical_relations.py
+   ```
+
+> **Observações de reprodutibilidade e limites:**
+> - Os arquivos brutos `data/raw/*` não são versionados no repositório (`.gitignore`). Sem esses arquivos locais, a reprodução completa a partir da fonte bruta não pode ser reexecutada; os CSVs canônicos resultantes já estão versionados em `data/processed/canonical/`.
+> - Os dados representam o snapshot de competência `04/11/2026` (coleta em `05/11/2026`), não uma consulta em tempo real.
+> - A validação de CNPJ realizada pelos scripts é **estrutural** (14 caracteres compatíveis com o padrão alfanumérico vigente, sem cálculo de dígitos verificadores).
