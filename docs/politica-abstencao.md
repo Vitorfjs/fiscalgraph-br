@@ -13,8 +13,9 @@ Este documento define as regras verificáveis implementadas em `app/services/orc
 | **Índices indisponíveis sem trechos** | `not chunks` e `search_status.vector == "indisponivel"` e `search_status.fulltext == "indisponivel"` | `true` | Abster-se, limpar `sources`/`nodes`/`relationships` e registrar indisponibilidade técnica em `warnings`. |
 | **Sem trechos recuperados** | `not chunks` | `true` | Abster-se e informar que não há trechos no recorte consultado (sem afirmar inexistência fora do recorte). |
 | **CNPJ informado sem correspondência** | `query_identifiers` não vazio e nenhum CNPJ pedido aparece em `chunks[].identifier_matches` nem em `Estabelecimento.cnpj` / `Sancao.cnpj_sancionado` de `nodes[]` | `true` | Abster-se, não exibir registros de outros CNPJs como evidência e registrar o CNPJ não encontrado em `warnings`. |
-| **Pergunta sem termos pesquisáveis e fora de escopo** | `fulltext == "nao_executada"`, sem `query_identifiers` e sem âncora de domínio na pergunta ou nos nós | `true` | Abster-se por evidência insuficiente e ausência de termos verificáveis. |
-| **Pergunta fora do domínio** | `fulltext == "sem_resultados"`, `active_searches == ["vector"]`, sem `query_identifiers` e sem âncora de domínio (`_has_domain_anchor == False`) | `true` | Abster-se e não enviar dados a LLM; limpar `sources`/`nodes`/`relationships` para não expor vizinhos irrelevantes. |
+| **Pergunta sem âncora de domínio** | Sem `query_identifiers` e `_has_domain_anchor(query) == False`, independentemente de a busca Full-Text ou vetorial ter retornado trechos | `true` | Abster-se e limpar `sources`/`nodes`/`relationships`; resultados obtidos apenas por coincidência lexical não validam a pergunta. |
+| **Colisão lexical (ex.: João Pessoa / pessoa jurídica)** | A pergunta não contém âncora de domínio; o Full-Text retorna trechos que contêm palavras coincidentes | `true` | Abster-se, descartar fontes e subgrafo recuperados e registrar a colisão lexical em `warnings`. |
+| **Pergunta com âncora de domínio** | Termos ou identificadores reconhecidos na própria pergunta, com evidências recuperadas | `false` ou outra regra aplicável | Avaliar as evidências e manter avisos de busca parcial; a existência de resultados não basta, por si só, para provar pertinência. |
 | **Busca parcialmente indisponível** | `vector == "indisponivel"` ou `fulltext == "indisponivel"` com trechos válidos na outra modalidade | `false` | Apresentar as evidências recuperadas e incluir aviso explícito de cobertura parcial em `warnings`. |
 | **Evidência relacionada apenas semanticamente** | `fulltext == "sem_resultados"`, `active_searches == ["vector"]`, com termos/âncora do domínio presentes | `false` | Apresentar o que foi encontrado e registrar explicitamente em `warnings` que não houve confirmação lexical nos trechos (evidência insuficiente para conclusão definitiva). |
 | **Pergunta com CNPJ encontrado em posição ≥ 2** | `query_identifiers` encontrado em `identifier_matches` | `false` | Responder preservando `sources` e destacar primeiro o trecho com correspondência literal de CNPJ na síntese determinística. |
@@ -22,7 +23,15 @@ Este documento define as regras verificáveis implementadas em `app/services/orc
 
 ---
 
-## 2. Modo Determinístico e LLM Opcional (`_llm_answer`)
+## 2. Validação de Escopo sem Circularidade
+
+A função `_has_domain_anchor(query)` considera somente termos e identificadores presentes na pergunta original. Ela não recebe nem consulta nós, nomes de empresas, descrições ou trechos retornados pelo mecanismo de recuperação.
+
+Essa separação impede que um falso positivo do Full-Text valide a própria pergunta. Por exemplo, a palavra "Pessoa" em "João Pessoa" não pode ser tratada como âncora por causa da expressão "pessoa jurídica" em um documento retornado.
+
+A pergunta "Qual a previsão do tempo para João Pessoa amanhã ou a receita de bolo de milho?" deve resultar em abstenção mesmo quando a busca lexical retorna trechos. O teste unitário simula essa colisão; o teste de integração exige que o Neo4j reproduza um resultado Full-Text antes de verificar a abstenção do orquestrador.
+
+## 3. Modo Determinístico e LLM Opcional (`_llm_answer`)
 
 - **Modo padrão (sem LLM ou `LLM_SEND_EVIDENCE != "true"`):** o sistema gera síntese determinística transparente (`_deterministic_answer`) e registra explicitamente em `warnings` que não houve geração por LLM.
 - **Ativação externa (opt-in):** exige `LLM_CHAT_COMPLETIONS_URL`, `LLM_API_KEY`, `LLM_MODEL` e `LLM_SEND_EVIDENCE=true`. Os dados enviados pelo `_evidence_payload` minimizam propriedades de pessoas naturais.
@@ -31,7 +40,7 @@ Este documento define as regras verificáveis implementadas em `app/services/orc
 
 ---
 
-## 3. Verificação de Citações e Rastreabilidade (`_verify_llm_grounding`)
+## 4. Verificação de Citações e Rastreabilidade (`_verify_llm_grounding`)
 
 Quando o LLM retorna uma resposta:
 
