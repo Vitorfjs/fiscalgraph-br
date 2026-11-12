@@ -182,8 +182,8 @@ def evaluate_abstention_policy(context: Dict[str, Any]) -> Tuple[bool, Optional[
             "identificador do domínio do FiscalGraph BR (empresas, quadro societário, CNAE ou registros CEIS/CNEP). "
             "Os resultados recuperados por coincidência lexical não são evidência suficiente.",
             [
-                "Consulta sem âncora de domínio na pergunta; resultados recuperados por "
-                "coincidência lexical foram descartados."
+                "Consulta fora do domínio/escopo verificável: não há âncora na pergunta; "
+                "resultados recuperados por coincidência lexical foram descartados."
             ],
         )
 
