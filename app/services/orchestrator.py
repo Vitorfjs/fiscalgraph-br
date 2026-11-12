@@ -46,16 +46,6 @@ _DOMAIN_EXACT_WORDS: Tuple[str, ...] = (
     "fontes",
     "fraude",
     "fraudes",
-    "engenharia",
-    "construtora",
-    "empreiteira",
-    "ltda",
-    "eireli",
-    "comercio",
-    "industria",
-    "servicos",
-    "transportadora",
-    "juridica",
 )
 
 _DOMAIN_PREFIXES: Tuple[str, ...] = (
