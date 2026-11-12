@@ -235,6 +235,22 @@ Execução completa em ambiente local macOS após a integração de Dev1, Dev5 e
 
 ---
 
+# Parte D — Consolidação de Orquestração, Interface Streamlit e Benchmark (`dev5`, 2026-11-11)
+
+Após a validação inicial da Parte C, foram concluídas e validadas sobre o Neo4j local (`5.26.33`) as entregas finais da branch `dev5`:
+
+| Frente | Escopo validado | Resultado observado |
+| --- | --- | --- |
+| **Orquestração e Abstenção (`app/services/orchestrator.py`)** | `tests/test_orchestrator.py` + E2E real | `13` testes unitários OK; abstenção verificada E2E em consulta fora do escopo (`"receita de bolo de chocolate"`) e CNPJ ausente (`99.999.999/0001-99`) com limpeza de `sources`/`nodes`/`relationships` e `retrieval_relevance = null`. |
+| **Interface Streamlit (`app/streamlit_app.py`, `app/services/ui_helpers.py`)** | `tests/test_streamlit_app.py` (`AppTest`) + Neo4j real + HTTP `/_stcore/health` | `10` testes automatizados OK (Mock sucesso/abstenção, Real sucesso/abstenção, erro sanitizado, status Cypher 5 sem aviso `01N00`, legenda de nós e `MENCIONA (CANDIDATA)` tracejado em vermelho); servidor headless respondeu `HTTP 200 ok`. |
+| **Benchmark Rotulado (`data/fixtures/retrieval_benchmark.json`)** | `scripts/evaluate_retrieval_benchmark.py --k 5` + `tests/test_retrieval_benchmark.py` | `7` testes OK; em 20 perguntas (10 categorias): Vetorial puro (`MRR@5=0.4479`, `Hit@5=0.5625`), Full-text puro (`MRR@5=1.0000`, `Hit@5=1.0000`), Híbrido RRF (`MRR@5=0.6250`, `nDCG@5=0.6218`, `Hit@5=0.8125`), Abstenção (`100.0%`, `20/20`). |
+| **Multi-hop Real vs. Sintético (`app/services/multi_hop.py`)** | `company_paths` em 4 pares reais + sonda sintética transacional (`rollback`) | `3` pares reais ligados via `EXERCE_CNAE` (4 saltos), `0` societários reais; cenário sintético comprovou caminho `PARTICIPA_DE` em `2` saltos. |
+| **Suíte Completa Pós-Consolidação** | `python -m compileall -q app pipeline scripts tests && python -m unittest discover -s tests -v` | **177 testes aprovados** (0 falhas, 0 skips). |
+
+Referências de evidência geradas: `docs/politica-abstencao.md`, `docs/evidencias/dev5_benchmark_recuperacao.md`, `docs/evidencias/dev5_benchmark_metricas.json` e `docs/RELATORIO_ENTREGA_ACADEMICA.md`.
+
+---
+
 ## Limitações Registradas
 
 * O carregador valida referências por identificadores e não realiza resolução de identidade por nome.

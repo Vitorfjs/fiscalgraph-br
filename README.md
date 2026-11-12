@@ -193,6 +193,12 @@ python -m compileall -q app pipeline scripts tests
 python -m unittest discover -s tests -v
 ```
 
+### Avaliação quantitativa (Benchmark + Multi-hop no Neo4j)
+
+```bash
+python scripts/evaluate_retrieval_benchmark.py --k 5
+```
+
 ---
 
 ## Documentação Complementar
@@ -206,7 +212,9 @@ python -m unittest discover -s tests -v
 - `docs/CONTRATO_INTEGRACAO_FINAL.md` — contrato entre recuperação, orquestração e interface.
 - `docs/politica-abstencao.md` — regras verificáveis de abstenção, fallback determinístico e verificação de citações.
 - `docs/EXECUCAO_APLICACAO_INTEGRADA.md` — guia operacional de execução integrada.
-- `docs/validacao-neo4j.md` — registros de validação do schema, cargas e índices.
+- `docs/validacao-neo4j.md` — registros de validação do schema, cargas, índices e UI/benchmark.
+- `docs/evidencias/dev5_benchmark_recuperacao.md` — benchmark rotulado (20 perguntas em 10 categorias) e análise multi-hop real vs. sintética.
+- `docs/RELATORIO_ENTREGA_ACADEMICA.md` — consolidação de evidências, limitações, cenários de aceitação e roteiro de apresentação.
 
 ---
 
