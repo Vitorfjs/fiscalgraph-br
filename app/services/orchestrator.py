@@ -178,8 +178,8 @@ def evaluate_abstention_policy(context: Dict[str, Any]) -> Tuple[bool, Optional[
     if not query_identifiers and not domain_anchor:
         return (
             True,
-            "A pergunta não contém um termo ou identificador verificável do domínio do "
-            "FiscalGraph BR (empresas, quadro societário, CNAE ou registros CEIS/CNEP). "
+            "A pergunta está fora do escopo verificável: não contém um termo ou "
+            "identificador do domínio do FiscalGraph BR (empresas, quadro societário, CNAE ou registros CEIS/CNEP). "
             "Os resultados recuperados por coincidência lexical não são evidência suficiente.",
             [
                 "Consulta sem âncora de domínio na pergunta; resultados recuperados por "
