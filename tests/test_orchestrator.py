@@ -350,5 +350,48 @@ class OrchestratorTests(unittest.TestCase):
         self.assertTrue(any("identificador" in w.lower() or "rastreável" in w.lower() for w in result["warnings"]))
 
 
+    def test_joao_pessoa_lexical_collision_abstains_even_when_fulltext_returns_results(self):
+        question = "Qual a previsão do tempo para João Pessoa amanhã ou a receita de bolo de milho?"
+        context = valid_context(
+            query=question,
+            chunks_override=[{
+                "trecho_id": "TR-PESSOA",
+                "texto": "Registro de sanção administrativa envolvendo pessoa jurídica.",
+                "registro_id": "CEIS-315329",
+                "fonte_id": "F-CGU-CEIS",
+                "url_fonte": "https://example.org/ceis",
+                "vector_rank": 1,
+                "fulltext_rank": 1,
+                "vector_score": 0.82,
+                "fulltext_score": 2.4,
+                "rrf_score": float(2 / 61),
+                "graph_paths": [],
+                "identifier_matches": [],
+            }],
+            nodes_override=[
+                {"id": "Trecho:TR-PESSOA", "label": "Trecho", "properties": {"trecho_id": "TR-PESSOA"}},
+                {
+                    "id": "Sancao:CEIS-315329",
+                    "label": "Sancao",
+                    "properties": {"registro_id": "CEIS-315329", "descricao": "Sanção aplicada a pessoa jurídica"},
+                },
+            ],
+        )
+        # Reproduz o caso problemático: as duas modalidades encontraram um trecho,
+        # e o texto/nó recuperado contém "pessoa jurídica", coincidindo com "João Pessoa".
+        self.assertEqual(context["parameters"]["search_status"]["fulltext"], "com_resultados")
+        retriever = FakeRetriever(context)
+
+        with patch.dict("os.environ", {}, clear=True):
+            result = answer_question(question, retriever=retriever)
+
+        self.assertTrue(result["abstained"])
+        self.assertEqual(result["sources"], [])
+        self.assertEqual(result["nodes"], [])
+        self.assertEqual(result["relationships"], [])
+        self.assertIsNone(result["retrieval_relevance"])
+        self.assertIn("fora", result["answer"].lower())
+        self.assertTrue(any("coincidência lexical" in warning.lower() for warning in result["warnings"]))
+
 if __name__ == "__main__":
     unittest.main()
