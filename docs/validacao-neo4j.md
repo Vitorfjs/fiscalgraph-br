@@ -258,3 +258,35 @@ Referências de evidência geradas: `docs/politica-abstencao.md`, `docs/evidenci
 * Ausência de `data_fim` em uma sanção não prova vigência atual.
 * Os dados representam o snapshot documentado nos arquivos de fonte (competência 04/11/2026, coleta em 05/11/2026).
 * O nó `Trecho` é gerado a partir dos campos textuais do registro de compliance; `MENCIONA` permanece como relação candidata (`status = "CANDIDATA"`).
+
+---
+
+# Parte E — Regressão de Escopo/Abstenção e CI do PR #10 (2026-11-12)
+
+Após a correção da política de abstenção na branch `dev5`, o Pull Request #10 executou novamente os dois workflows de CI em ambiente GitHub Actions:
+
+| Item | Valor observado |
+| --- | --- |
+| Data | 2026-11-12 |
+| Branch / PR | `dev5` → `main`, PR #10 (rascunho; não integrado) |
+| Neo4j | Serviço temporário `neo4j:5.26-community` do workflow |
+| Workflow de integração | Run `43311839908` — **success** |
+| Workflow completo | Run `43311839745` — **success** |
+| Preparação do banco | Schema aplicado; dados canônicos e trechos carregados; índice vetorial e embeddings gerados com sucesso |
+| Suíte completa | **179 testes aprovados** em 8.405s, sem falhas |
+| Regressão unitária João Pessoa | `test_joao_pessoa_lexical_collision_abstains_even_when_fulltext_returns_results` — aprovado |
+| Regressão de integração João Pessoa | `test_joao_pessoa_fulltext_collision_abstains_against_real_neo4j` — aprovado |
+
+### Evidência da colisão lexical
+
+A regressão de integração usa exatamente a pergunta:
+
+`Qual a previsão do tempo para João Pessoa amanhã ou a receita de bolo de milho?`
+
+O teste exige que a recuperação no Neo4j real do CI retorne pelo menos um trecho e que `parameters.search_status.fulltext == "com_resultados"`, além de confirmar que algum trecho retornado tem `fulltext_rank`. Assim, o caso não passa simplesmente porque o índice Full-Text ficou vazio.
+
+Com a colisão lexical presente, o orquestrador retorna `abstained = true`, sem fontes, nós, relacionamentos ou relevância residual. Isso comprova a correção da política de escopo no backend integrado ao Neo4j do CI.
+
+### Limite desta evidência
+
+Esta Parte E registra validação automatizada em Neo4j temporário do CI. Ela **não substitui** a repetição manual dos oito cenários na instância local e no navegador Streamlit do grupo. A validação manual local pós-correção permanece pendente e deve ser registrada separadamente depois da execução.
