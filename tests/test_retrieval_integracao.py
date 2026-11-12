@@ -22,6 +22,7 @@ from app.services.contract import (  # noqa: E402
     validate_company_paths_response,
     validate_retrieval_response,
 )
+from app.services.orchestrator import answer_question  # noqa: E402
 from app.services.embeddings import EMBEDDING_DIMENSIONS, EMBEDDING_PIPELINE_VERSION, MODEL_NAME  # noqa: E402
 
 QUESTIONS = (
@@ -114,6 +115,40 @@ class RetrieveContextIntegrationTests(unittest.TestCase):
         self.assertLessEqual(position, 2)
         if position > 1:
             self.assertTrue(any("2º trecho" in w and "CEIS-289814" in w for w in result["warnings"]))
+
+    def test_joao_pessoa_fulltext_collision_abstains_against_real_neo4j(self):
+        question = (
+            "Qual a previsão do tempo para João Pessoa amanhã ou a receita de bolo de milho?"
+        )
+        context = self.retriever.retrieve_context(question, top_k=5)
+
+        # O teste reproduz a falha original somente se houver match lexical real.
+        self.assertTrue(context["chunks"], "A consulta não recuperou trechos para reproduzir a colisão.")
+        self.assertEqual(
+            context["parameters"]["search_status"]["fulltext"],
+            "com_resultados",
+            "A busca Full-Text não reproduziu a colisão lexical observada manualmente.",
+        )
+        self.assertTrue(
+            any(chunk["fulltext_rank"] is not None for chunk in context["chunks"]),
+            "Os trechos retornados não incluem contribuição Full-Text.",
+        )
+
+        class StaticContextRetriever:
+            def retrieve_context(self, _question, top_k=5):
+                return context
+
+        response = answer_question(question, top_k=5, retriever=StaticContextRetriever())
+
+        self.assertTrue(response["abstained"])
+        self.assertEqual(response["sources"], [])
+        self.assertEqual(response["nodes"], [])
+        self.assertEqual(response["relationships"], [])
+        self.assertIsNone(response["retrieval_relevance"])
+        self.assertIn("não contém", response["answer"].lower())
+        self.assertTrue(
+            any("coincidência lexical" in warning.lower() for warning in response["warnings"])
+        )
 
     def test_out_of_scope_question_is_flagged(self):
         result = self.results[OUT_OF_SCOPE]
