@@ -98,7 +98,7 @@ class NlCypherTests(unittest.TestCase):
             def __init__(self):
                 self.driver = driver
         plan = {"intent": "sancoes_por_cnpj",
-                "parameters": {"cnpj": "01340937000179", "limit": 5}}
+                "cnpj": "01340937000179", "limit": 5}
         with patch.dict("os.environ", {
             "LLM_CYPHER_ENABLED": "true", "LLM_SEND_EVIDENCE": "true",
         }, clear=True), patch("app.services.nl_cypher._request_plan", return_value=plan):

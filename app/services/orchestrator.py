@@ -416,10 +416,10 @@ def answer_question(
                 additional_warnings.append(cypher_warning)
             if generated:
                 audit = (
-                    "\\n\\n// Plano LLM validado e compilado por allowlist; "
-                    "transação somente leitura.\\n"
+                    "\n\n// Plano LLM validado e compilado por allowlist; "
+                    "transação somente leitura.\n"
                     + generated["query"]
-                    + "\\n// Parâmetros: "
+                    + "\n// Parâmetros: "
                     + json.dumps(generated["parameters"], ensure_ascii=False)
                 )
                 response_context = {**context, "cypher": context.get("cypher", "") + audit}
