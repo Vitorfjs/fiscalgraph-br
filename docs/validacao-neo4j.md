@@ -311,3 +311,20 @@ Esta seção atualiza o estado pendente registrado na Parte E, sem apagar o hist
 ### Limite de reprodução
 
 Os resultados de CI foram observados em Neo4j descartável do GitHub Actions. Os oito cenários manuais foram relatados pelo grupo e documentados separadamente. Não há, nesta seção, uma nova execução local limpa independente. A reprodução limpa deve ser registrada pelo grupo seguindo `docs/CHECKLIST_ENTREGA_FINAL.md`.
+
+
+---
+
+# Parte G — CI de fechamento no PR #11 (2026-11-13)
+
+| Item | Resultado observado |
+| --- | --- |
+| Commit avaliado | `1f5577be3148d7d9294841bcfc6d55abaf1cd305` |
+| Workflow completo | Run `43436377286` — **success** |
+| Workflow de integração | Run `43436377182` — **success** |
+| Aplicação do schema | `scripts/apply_schema.py` concluiu; 7 constraints e 6 índices de busca esperados foram encontrados e os índices ficaram `ONLINE` |
+| Preparação do Neo4j | Carga canônica, carga dos trechos e geração dos embeddings/índice vetorial concluídas |
+| Suíte automatizada | **181 testes aprovados em 8.220s**, sem falhas |
+| Log de testes | Artefato `dev5-ci-test-results` associado ao run `43436377286` |
+
+A validação foi executada em Neo4j temporário do GitHub Actions. A reprodução local independente, em clone e volume isolados, permanece pendente de execução e registro pelo grupo conforme `docs/CHECKLIST_ENTREGA_FINAL.md`.

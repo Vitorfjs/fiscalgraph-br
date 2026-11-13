@@ -2,7 +2,7 @@
 
 **Data de consolidação:** 2026-11-13  
 **Banco validado localmente:** Neo4j Kernel `5.26.33` (Community Edition, via `infra/compose.yaml`)  
-**Última suíte automatizada completa confirmada no CI:** **179 testes aprovados** (0 falhas; execução em 2026-11-12)
+**Última suíte automatizada completa confirmada no CI:** **181 testes aprovados** (0 falhas; PR #11, execução em 2026-11-13)
 
 ---
 
@@ -94,13 +94,13 @@ Fonte reproduzível: `python scripts/evaluate_retrieval_benchmark.py --k 5` -> `
    - Testar `"Qual a situação do CNPJ 99.999.999/0001-99?"` e `"receita de bolo de chocolate"` -> mostrar abstenção imediata (`st.error`), explicação clara do limite do recorte/escopo e subgrafo vazio (zero alucinação).
    - Alternar rapidamente para **"Demonstração (Mock)"** na barra lateral para demonstrar o funcionamento desacoplado do banco com fixtures sintéticas sinalizadas.
 6. **Resultados Quantitativos e Encerramento (~2 min):**
-   - Exibir a tabela comparativa do benchmark (`Vetorial` vs. `Full-text` vs. `Híbrido RRF`), destacar **100% de acurácia de abstenção (20/20)** e a diferença entre multi-hop real por `CNAE` (`4` saltos) e o teste societário sintético (`PARTICIPA_DE`, `2` saltos), encerrando com as limitações registradas e os **179 testes aprovados na execução de CI de 2026-11-12**.
+   - Exibir a tabela comparativa do benchmark (`Vetorial` vs. `Full-text` vs. `Híbrido RRF`), destacar **100% de acurácia de abstenção (20/20)** e a diferença entre multi-hop real por `CNAE` (`4` saltos) e o teste societário sintético (`PARTICIPA_DE`, `2` saltos), encerrando com as limitações registradas e os **181 testes aprovados na execução de CI do PR #11 em 2026-11-13**.
 
 ### Sugestões de Capturas de Tela para Anexar ao Relatório/Slides
 1. Tela inicial mostrando disclaimer acadêmico + `Status da conexão Neo4j` (`210` nós / `405` relacionamentos).
 2. Resultado completo de `"Qual a situação do CNPJ 01.340.937/0001-79?"` com fontes expandidas e subgrafo `agraph` evidenciando aresta vermelha tracejada `MENCIONA (CANDIDATA)`.
 3. Tela de abstenção para `"receita de bolo de chocolate"` evidenciando ausência de fontes/grafo fabricados.
-4. Terminal exibindo saída de `python scripts/evaluate_retrieval_benchmark.py --k 5` e `unittest discover` (`179 tests ... OK`, execução de 2026-11-12).
+4. Terminal exibindo saída de `python scripts/evaluate_retrieval_benchmark.py --k 5` e `unittest discover` (`181 tests ... OK`, execução de 2026-11-13).
 
 
 ---
@@ -118,3 +118,16 @@ A Parte E foi redigida durante a preparação do PR #10. O estado final posterio
 ### O que esta evidência não afirma
 
 A execução do CI em ambiente Neo4j descartável e o relato de validação manual do grupo não equivalem a uma nova instalação limpa executada localmente. Antes da entrega final, o grupo ainda deve executar o roteiro de `docs/CHECKLIST_ENTREGA_FINAL.md` em uma máquina/volume novo e guardar a saída e as capturas reais dessa execução. A instalação local limpa não deve ser marcada como concluída antes desse passo.
+
+
+---
+
+## 7. Validação do pacote de fechamento (PR #11, 2026-11-13)
+
+- **Commit validado:** `1f5577be3148d7d9294841bcfc6d55abaf1cd305`.
+- **Workflow completo:** run `43436377286` — **success**. O pipeline aplicou e validou o schema via `scripts/apply_schema.py`, carregou dados canônicos e trechos, gerou embeddings/índice vetorial e executou a suíte completa.
+- **Suíte completa:** **181 testes aprovados em 8.220 segundos**, sem falhas (`OK`). Os dois testes novos validam a separação de comentários e comandos no parser do schema.
+- **Workflow de integração:** run `43436377182` — **success**.
+- **Artefato de log:** `dev5-ci-test-results` anexado ao run `43436377286` (retenção configurada no workflow: 14 dias).
+
+Esta execução comprova a reprodutibilidade do pipeline no ambiente limpo e temporário do GitHub Actions. Ela não substitui a reprodução local final pelo grupo nem o preenchimento dos dados acadêmicos e capturas previstos no checklist.

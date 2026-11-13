@@ -6,7 +6,8 @@ Este documento organiza a última validação e a entrega acadêmica. Não marqu
 
 - [x] PR #10 integrado em main (merge commit 5dc7269e330d90175a7cf78d09e6543d4356bc6d).
 - [x] Workflows do PR #10 aprovados: runs 43327963350 e 43327963370.
-- [x] Suíte automatizada do CI: 179 testes aprovados.
+- [x] Workflows do PR #11 aprovados: runs 43436377286 e 43436377182.
+- [x] Suíte automatizada do CI: 181 testes aprovados no PR #11 (run `43436377286`).
 - [x] Rodada manual reportada pelo grupo: 8/8 cenários aprovados.
 - [x] Regressão para colisão lexical João Pessoa coberta por teste unitário e integração em Neo4j real do CI.
 - [x] Benchmark registrado com a conclusão desfavorável ao RRF frente ao Full-Text neste dataset.
