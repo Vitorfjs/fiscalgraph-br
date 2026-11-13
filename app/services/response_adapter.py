@@ -1,6 +1,6 @@
 """Converte a resposta de recuperação do Dev5 para o contrato final da aplicação."""
 
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 
 
