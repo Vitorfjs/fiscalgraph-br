@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Carrega nós Trecho e relações MENCIONA candidatas no Neo4j.
+"""Carrega nós Trecho e relações de menções candidatas no Neo4j.
 
 Requer o schema de dev3 integrado (constraint de unicidade em ``Trecho.trecho_id``)
 e um arquivo ``.env`` local com NEO4J_URI, NEO4J_USER e NEO4J_PASSWORD.
@@ -8,12 +8,15 @@ Relações criadas:
 - (Trecho)-[:EXTRATO_DE]->(registro de compliance)  quando o registro existir no grafo;
 - (Trecho)-[:ORIGINADO_DE]->(Fonte)                  quando a fonte existir no grafo;
 - (Trecho)-[:MENCIONA {metodo, status:'CANDIDATA', inicio, fim}]->(Estabelecimento)
-  somente por igualdade EXATA entre o CNPJ mencionado e ``Estabelecimento.cnpj``.
+  somente por igualdade EXATA entre o CNPJ mencionado e ``Estabelecimento.cnpj``;
+- (Trecho)-[:MENCAO_NOME {metodo, status:'CANDIDATA', valor_normalizado, inicio, fim}]->(Empresa)
+  somente por igualdade do nome normalizado com uma única razão social no catálogo.
 
 O registro de compliance é procurado pelos rótulos ``Sancao`` (modelagem dev3) ou
 ``RegistroCompliance`` (contrato do coordenador), sempre por ``registro_id``.
-Menções de organização (NER) nunca geram relação: ficam apenas no JSONL e no
-atributo ``mencoes_json`` do Trecho. Nenhum vínculo é criado por semelhança de nome.
+Menções de organização só geram aresta quando o nome normalizado corresponde a
+exatamente uma empresa do catálogo. Colisões e ausências não geram relação.
+As arestas permanecem candidatas e não representam vínculo jurídico confirmado.
 
 Uso:
     python pipeline/text_to_graph/load_graph.py --input data/processed/trechos.jsonl
