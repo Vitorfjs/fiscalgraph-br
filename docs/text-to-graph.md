@@ -9,7 +9,7 @@ GraphRAG (dev5). **Nenhuma menção extraída de texto é tratada como vínculo 
 | Arquivo | Função |
 | --- | --- |
 | `pipeline/text_to_graph/extractor.py` | Lê `compliance.csv`, monta trechos, mascara CPF e extrai menções (CNPJ por regex, ORG por spaCy). Gera `trechos.jsonl`. |
-| `pipeline/text_to_graph/load_graph.py` | Carrega `Trecho` no Neo4j e cria `EXTRATO_DE`, `ORIGINADO_DE` e `MENCIONA` (candidata). Suporta `--database` e `--dry-run`. |
+| `pipeline/text_to_graph/load_graph.py` | Carrega `Trecho`, cria `EXTRATO_DE`, `ORIGINADO_DE`, `MENCIONA` por CNPJ exato e `MENCAO_NOME` por nome normalizado exato e unívoco. Suporta `--database`, `--companies-csv` e `--dry-run`. |
 | `tests/test_text_to_graph.py` | 31 testes unitários com dados sintéticos (sem Neo4j e sem spaCy). |
 | `data/fixtures/compliance_sintetico.csv` | Fixture 100% sintética; não representa registro real. |
 | `requirements-dev4.txt` | Dependência adicional: spaCy. |
@@ -30,9 +30,17 @@ GraphRAG (dev5). **Nenhuma menção extraída de texto é tratada como vínculo 
    - linhas com mais de 80% de letras maiúsculas (transcrição de lei em `fundamentacao_legal`) são descartadas,
      pois o modelo marca quase toda palavra em CAIXA ALTA como `ORG` nesse tipo de texto;
    - entidades com menos de 3 caracteres, sem letras ou em lista de termos genéricos (`DOU`, `CNPJ`, `Decisão`…).
-5. **Relação (RE por regra).** Cada menção recebe `status = "CANDIDATA"`. No grafo, apenas menções de **CNPJ**
-   com igualdade **exata** a `Estabelecimento.cnpj` geram `(Trecho)-[:MENCIONA {metodo, status, inicio, fim}]->(Estabelecimento)`.
-   Menções de organização ficam somente no JSONL e na propriedade `Trecho.mencoes_json`. Nome nunca funde entidades.
+5. **Resolução de entidades e relações candidatas.** Cada menção recebe `status = "CANDIDATA"`.
+   - CNPJ: igualdade exata entre o valor normalizado e `Estabelecimento.cnpj` gera
+     `(Trecho)-[:MENCIONA {metodo, status, inicio, fim}]->(Estabelecimento)`.
+   - Organização: `load_graph.py` compara `valor_normalizado` com a razão social do catálogo canônico,
+     usando o mesmo normalizador do extrator. Só cria
+     `(Trecho)-[:MENCAO_NOME {metodo, status, valor_normalizado, inicio, fim}]->(Empresa)`
+     quando o nome normalizado aponta para exatamente um `cnpj_basico`.
+   - Colisões entre duas ou mais empresas são marcadas como ambíguas e não geram aresta. Ausência de
+     correspondência também não gera aresta. Não há fuzzy matching, deduplicação por homonímia nem
+     criação/fusão de nós a partir de texto. A aresta nominal continua candidata e não prova identidade
+     jurídica ou participação societária.
 6. **Procedência.** Cada trecho preserva `registro_id`, `fonte_id`, `url_fonte`, `registro_origem` e
    `metodo_extracao`; os offsets `inicio`/`fim` apontam para o trecho exato de `texto`.
 
@@ -83,7 +91,7 @@ registrada como pendente.
 - **CPFs mascarados:** 0.
 - **Menções CNPJ:** 2 (2 CNPJs distintos), ambas com correspondência exata ao `cnpj_sancionado` do próprio registro (`CNEP-310577` e `CEIS-289814`).
 - **CNPJs que existem como `Estabelecimento.cnpj` no recorte:** 2 de 2 → ambos vinculados com relação `MENCIONA {status: 'CANDIDATA'}` na carga.
-- **Organizações extraídas via NER:** 0 menções no artefacto de produção (data/processed/trechos.jsonl). Por padrão de reprodutibilidade e execução leve na pipeline canónica, o extractor foi executado no modo regex determinístico (sem a flag --with-spacy). O suporte a NER via spaCy permanece disponível como extração opcional/experimental; caso executado com --with-spacy, identifica 6 menções sintéticas/nominais, as quais ficam restritas ao atributo mencoes_json sem gerar relacionamentos no grafo.
+- **Organizações no snapshot versionado:** o arquivo atual `data/processed/trechos.jsonl` foi gerado sem NER spaCy e, portanto, não comprova extração nominal ativa na amostra real. A nova etapa de resolução nominal só produzirá arestas quando o JSONL for reprocessado com `--with-spacy` e houver correspondência exata, normalizada e unívoca no catálogo canônico. A existência do código e dos testes não deve ser relatada como execução dessa etapa na amostra integrada.
 - **Validação no Neo4j 5.26 integrado com Dev3:**
   - 54 nós `:Trecho` carregados com sucesso (elevando o total de nós de 156 para 210 no grafo);
   - 54 relações `:EXTRATO_DE` conectadas às sanções correspondentes (0 registros não encontrados);
@@ -108,7 +116,7 @@ Não são reportadas métricas de acurácia (precisão/recall), pois não há co
 - O regex de CNPJ não verifica dígitos verificadores; um número de 14 dígitos qualquer pode ser capturado.
 - Apenas CPF formatado é mascarado; CPF sem pontuação não é distinguido de outros números de 11 dígitos.
 - `MENCIONA` indica que o texto cita um CNPJ — não prova que a organização é sancionada, responsável ou parte do processo.
-- Correspondência por nome permanece fora do processo automático.
+- A correspondência nominal é limitada à igualdade após normalização e unicidade no catálogo; não usa similaridade aproximada. Colisões e nomes ausentes ficam sem aresta. O resultado ainda é uma menção candidata, não vínculo jurídico.
 - A fixture é totalmente sintética e não pode ser usada como evidência de domínio real.
 
 ## Pontos de integração (para o coordenador)
