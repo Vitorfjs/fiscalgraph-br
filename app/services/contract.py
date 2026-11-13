@@ -80,10 +80,13 @@ def _graph_problems(nodes: Sequence[Any], relationships: Sequence[Any]) -> List[
         properties = rel.get("properties")
         if not isinstance(properties, dict):
             problems.append(f"{where}.properties deve ser dict")
-        elif rel.get("type") == "MENCIONA":
-            missing = [key for key in MENCIONA_PROPERTIES if key not in properties]
+        elif rel.get("type") in {"MENCIONA", "MENCAO_NOME"}:
+            required = list(MENCIONA_PROPERTIES)
+            if rel.get("type") == "MENCAO_NOME":
+                required.append("valor_normalizado")
+            missing = [key for key in required if key not in properties]
             if missing:
-                problems.append(f"{where} (MENCIONA) sem as propriedades {missing}")
+                problems.append(f"{where} ({rel.get('type')}) sem as propriedades {missing}")
     return problems
 
 
