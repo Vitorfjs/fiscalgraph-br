@@ -125,14 +125,18 @@ def validate_read_only_cypher(query: str) -> str:
     if re.search(r"\bRETURN\s+\*", code, re.IGNORECASE):
         raise CypherSafetyError("RETURN * não é permitido; selecione propriedades explicitamente.")
 
-    labels = set(re.findall(r"\(\s*[A-Za-z][A-Za-z0-9_]*\s*:\s*([A-Za-z][A-Za-z0-9_]*)", code))
-    relationship_types = set(re.findall(r"\[\s*[A-Za-z0-9_]*\s*:\s*([A-Za-z][A-Za-z0-9_]*)", code))
+    relationship_types: set[str] = set()
+    for pattern in re.findall(r"\[([^\]]*)\]", code):
+        relationship_types.update(re.findall(r"[:|]\s*([A-Za-z][A-Za-z0-9_]*)", pattern))
+    labels = set(re.findall(r":\s*([A-Za-z][A-Za-z0-9_]*)", code)) - relationship_types
     if not labels or labels - ALLOWED_LABELS:
         raise CypherSafetyError("Consulta usa label não reconhecido ou não restringe nós ao schema FiscalGraph.")
     if relationship_types - ALLOWED_RELATIONSHIPS:
         raise CypherSafetyError("Consulta usa relacionamento fora do schema FiscalGraph.")
-    if re.search(r"\b(?:apoc|gds|dbms)\s*\.", code, re.IGNORECASE):
+    if re.search(r"\b(?:apoc|gds|dbms|db)\s*\.", code, re.IGNORECASE):
         raise CypherSafetyError("Funções e namespaces administrativos não são permitidos.")
+    if re.search(r"\b[A-Za-z][A-Za-z0-9_]*\s*\[\s*['""]", query):
+        raise CypherSafetyError("Acesso dinâmico a propriedades não é permitido.")
     functions = set(re.findall(r"\b([A-Za-z][A-Za-z0-9_]*)\s*\(", code))
     clause_words = {"MATCH", "OPTIONAL", "WHERE", "WITH", "RETURN", "AND", "OR",
                     "NOT", "IN", "IS", "AS", "CASE", "WHEN", "THEN", "ELSE", "END"}
