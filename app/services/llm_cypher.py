@@ -259,8 +259,9 @@ def _safe_value(value: Any) -> Any:
     items = getattr(value, "items", None)
     if labels is not None and callable(items):
         properties = dict(items())
-        if properties.get("tipo_pessoa") != "PESSOA JURIDICA":
-            properties.pop("nome", None)
+        # O label Socio representa pessoa natural no modelo do projeto; nunca
+        # expor o nome em consultas geradas, mesmo que o registro esteja malformado.
+        properties.pop("nome", None)
         return {"labels": sorted(str(label) for label in labels), "properties": _safe_value(properties)}
     iso_format = getattr(value, "iso_format", None)
     if callable(iso_format):
