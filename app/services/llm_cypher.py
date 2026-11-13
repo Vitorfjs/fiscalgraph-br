@@ -134,6 +134,9 @@ def validate_read_only_cypher(query: str) -> str:
     if re.search(r"\b(?:apoc|gds|dbms)\s*\.", code, re.IGNORECASE):
         raise CypherSafetyError("Funções e namespaces administrativos não são permitidos.")
     functions = set(re.findall(r"\b([A-Za-z][A-Za-z0-9_]*)\s*\(", code))
+    clause_words = {"MATCH", "OPTIONAL", "WHERE", "WITH", "RETURN", "AND", "OR",
+                    "NOT", "IN", "IS", "AS", "CASE", "WHEN", "THEN", "ELSE", "END"}
+    functions -= clause_words
     allowed_functions = {"count", "collect", "head", "min", "max", "avg", "sum", "size", "toString",
                          "toUpper", "toLower", "labels", "type", "length", "nodes", "relationships",
                          "elementId", "id", "coalesce", "toInteger", "toFloat"}
