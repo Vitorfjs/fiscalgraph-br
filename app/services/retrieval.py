@@ -17,6 +17,7 @@ Fluxo de ``retrieve_context(question, top_k)``:
        (Trecho)-[:EXTRATO_DE]->(Sancao)-[:APLICADA_A]->(Estabelecimento)
                <-[:POSSUI_ESTABELECIMENTO]-(Empresa)<-[:PARTICIPA_DE]-(Socio)
        (Trecho)-[:MENCIONA {status: 'CANDIDATA'}]->(Estabelecimento)
+       (Trecho)-[:MENCAO_NOME {status: 'CANDIDATA'}]->(Empresa)
 
 O serviço devolve evidências recuperadas: não gera resposta em linguagem natural nem afirma
 responsabilidade jurídica. ``rrf_score`` é relevância de recuperação, não probabilidade de
@@ -68,7 +69,7 @@ MAX_FULLTEXT_TERMS = 16
 
 NO_EVIDENCE_WARNING = "Nenhum trecho foi recuperado; não há evidência suficiente para responder."
 MENCIONA_WARNING = (
-    "Relações MENCIONA são citações textuais candidatas (status CANDIDATA); "
+    "Relações MENCIONA e MENCAO_NOME são citações textuais candidatas (status CANDIDATA); "
     "não confirmam vínculo nem responsabilidade."
 )
 
@@ -104,7 +105,8 @@ WITH tid, t,
           <-[:POSSUI_ESTABELECIMENTO]-(:Empresa) | p]
    + [p = (t)-[:EXTRATO_DE]->(:Sancao)-[:APLICADA_A]->(:Estabelecimento)
           <-[:POSSUI_ESTABELECIMENTO]-(:Empresa)<-[:PARTICIPA_DE]-(:Socio) | p]
-   + [p = (t)-[:MENCIONA]->(:Estabelecimento) | p] AS paths
+   + [p = (t)-[:MENCIONA]->(:Estabelecimento) | p]
+   + [p = (t)-[:MENCAO_NOME]->(:Empresa) | p] AS paths
 RETURN tid AS trecho_id,
        t.texto AS texto,
        {element_id: elementId(t), labels: labels(t),
@@ -401,7 +403,7 @@ def build_response(
     warning = identifier_warning(query_identifiers or [], chunks)
     if warning:
         warnings.append(warning)
-    if any(rel["type"] == "MENCIONA" for rel in relationships.values()):
+    if any(rel["type"] in {"MENCIONA", "MENCAO_NOME"} for rel in relationships.values()):
         warnings.append(MENCIONA_WARNING)
     if not chunks:
         warnings.append(NO_EVIDENCE_WARNING)
