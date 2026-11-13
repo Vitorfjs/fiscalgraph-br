@@ -26,7 +26,7 @@ jobs:
       - name: Instalar LaTeX e BibTeX
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends texlive-latex-base texlive-latex-recommended texlive-latex-extra texlive-lang-portuguese
+          sudo apt-get install -y --no-install-recommends texlive-latex-base texlive-latex-recommended texlive-latex-extra texlive-lang-portuguese texlive-fonts-recommended
       - name: Compilar artigo SBC
         working-directory: artigo
         run: |
