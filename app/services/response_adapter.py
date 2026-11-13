@@ -46,18 +46,16 @@ def evidence_confidence(context: Dict[str, Any]) -> Dict[str, Any]:
         signals.append(f"{len(records)} registros distintos")
     if len(sources) >= 2:
         signals.append(f"{len(sources)} fontes distintas")
-    if {"vector", "fulltext"}.issubset(active_searches):
-        signals.append("buscas vetorial e full-text disponíveis")
+    if {"vector", "fulltext"}.issubset(executed_searches):
+        signals.append("buscas vetorial e full-text executadas")
     if has_exact_identifier:
         signals.append("correspondência literal de identificador")
     if has_structured_path:
         signals.append("caminho estruturado no subgrafo")
 
-    status = parameters.get("search_status") or {}
-    partial_search = (
-        not {"vector", "fulltext"}.issubset(active_searches)
-        or any(status.get(name) in {"indisponivel", "nao_executada"}
-               for name in ("vector", "fulltext"))
+    partial_search = any(
+        search_status.get(name) not in {"com_resultados", "sem_resultados"}
+        for name in ("vector", "fulltext")
     )
     score = len(signals)
     if score >= 4:
