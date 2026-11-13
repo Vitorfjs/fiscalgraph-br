@@ -236,3 +236,12 @@ python scripts/evaluate_retrieval_benchmark.py --k 5
 
 
 > **Reprodutibilidade das dependências:** os arquivos `requirements*.txt` declaram versões mínimas, não um lockfile de versões exatas. Use Python 3.11 (referência do CI) e registre o ambiente efetivamente usado na validação local com `python --version` e `python -m pip freeze`. Os CSVs canônicos e os trechos utilizados na demonstração já estão versionados; os arquivos brutos originais em `data/raw/` não estão.
+
+
+## Artigo e fechamento
+
+- Fonte inicial do artigo técnico em LaTeX: `paper/main.tex`.
+- Bibliografia: `paper/references.bib`.
+- Orientações e pendências de submissão: `paper/README.md`.
+- Planejamento LLM-to-Cypher restrito e parametrizado: `app/services/nl_cypher.py`.
+- Resolução nominal candidata por igualdade após normalização, sem fuzzy matching.

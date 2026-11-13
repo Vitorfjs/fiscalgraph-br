@@ -44,6 +44,20 @@ class StreamlitHelpersTests(unittest.TestCase):
         self.assertEqual(confirmed_edge.color, "#4A90E2")
         self.assertFalse(confirmed_edge.dashes)
 
+    def test_organization_mention_candidate_is_rendered_as_dashed_edge(self):
+        nodes = [
+            {"id": "t", "label": "Trecho", "properties": {"trecho_id": "T1"}},
+            {"id": "e", "label": "Empresa", "properties": {"cnpj_basico": "00000001"}},
+        ]
+        relationships = [{
+            "source": "t", "target": "e", "type": "MENCIONA_ORGANIZACAO",
+            "properties": {"status": "CANDIDATA"},
+        }]
+        _, edges, count = ui_helpers.build_graph_elements(nodes, relationships)
+        self.assertEqual(count, 1)
+        self.assertEqual(edges[0].label, "MENCIONA_ORGANIZACAO (CANDIDATA)")
+        self.assertTrue(edges[0].dashes)
+
     def test_sanitize_error_message_masks_sensitive_env_values(self):
         sanitized = ui_helpers.sanitize_error_message(
             "Falha ao conectar com senha_local_123 e sk-secret-abc",

@@ -1,0 +1,79 @@
+\documentclass[conference]{IEEEtran}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{cite}
+\usepackage{booktabs}
+\usepackage{url}
+\title{FiscalGraph BR: Um Protótipo GraphRAG Explicável para Recuperação de Evidências de Compliance Empresarial}
+\author{
+\IEEEauthorblockN{[Nome do Integrante 1], [Nome do Integrante 2], [Nome do Integrante 3]}
+\IEEEauthorblockA{[Instituição] \\ [Curso e disciplina] \\ [E-mails institucionais]}
+}
+\begin{document}
+\maketitle
+\begin{abstract}
+Este trabalho apresenta o FiscalGraph BR, um protótipo acadêmico para recuperação e exploração de evidências públicas relacionadas a compliance empresarial. A solução integra dados cadastrais, informações de sanções e trechos documentais em um grafo de propriedades (LPG) no Neo4j. A pipeline Text-to-Graph produz trechos rastreáveis, identifica menções de CNPJs e oferece extração opcional de organizações por reconhecimento de entidades nomeadas. A recuperação combina busca vetorial e full-text por Reciprocal Rank Fusion (RRF), expansão de subgrafo e consultas de caminhos mínimos. A interface Streamlit apresenta fontes, consultas Cypher, subgrafos e política de abstenção. O recorte experimental contém 18 empresas, 54 registros de sanção e 54 trechos documentais, totalizando 210 nós e 405 relacionamentos. Em benchmark interno com 20 perguntas, a busca full-text superou a fusão RRF nas métricas agregadas de recuperação, enquanto RRF superou a busca vetorial isolada. A política de abstenção classificou corretamente os 20 casos desse conjunto. Os resultados demonstram integração e rastreabilidade no recorte estudado, mas não permitem generalização estatística nem inferência de fraude, culpa ou responsabilidade jurídica.
+\end{abstract}
+\begin{IEEEkeywords}
+GraphRAG, Knowledge Graph, Neo4j, recuperação de informação, compliance, explicabilidade.
+\end{IEEEkeywords}
+\section{Introdução}
+A análise de informações públicas sobre empresas pode exigir a combinação de dados cadastrais, registros administrativos, documentos e relações entre entidades. A busca textual localiza passagens, mas não representa diretamente como um documento se conecta a uma empresa, estabelecimento, sócio ou fonte. Grafos de conhecimento oferecem uma representação explícita dessas entidades e relações, permitindo explorar conexões e preservar a proveniência das evidências.
+Retrieval-Augmented Generation (RAG) condiciona respostas de modelos de linguagem a informações recuperadas de uma base externa. Abordagens GraphRAG utilizam estrutura relacional para ampliar a recuperação e a síntese de informações sobre coleções documentais \cite{edge2024}. O FiscalGraph BR investiga essa integração no domínio de compliance empresarial brasileiro. Seu objetivo é organizar um recorte de informações públicas, recuperar evidências relevantes e expor a ligação entre trechos, registros e entidades. O sistema não classifica empresas como fraudulentas ou culpadas; apresenta material de apoio à pesquisa documental, preservando a incerteza do recorte.
+\section{Fundamentação}
+\subsection{GraphRAG e embeddings}
+GraphRAG representa entidades e relações em um grafo para explorar conexões que não estão necessariamente expressas em uma única passagem textual \cite{edge2024}. O protótipo deste artigo utiliza o grafo para expansão explicável de evidências e análise de caminhos, mas não implementa sumarização hierárquica de comunidades de arquiteturas GraphRAG globais.
+Embeddings de sentenças representam textos em vetores comparáveis por similaridade. Sentence-BERT propõe redes siamesas para produzir embeddings semanticamente comparáveis \cite{reimers2019}. Para documentos administrativos, nomes, siglas, números de processos, leis e identificadores também favorecem recuperação lexical. O FiscalGraph BR combina busca vetorial e full-text por Reciprocal Rank Fusion, que agrega listas ranqueadas sem somar scores de escalas heterogêneas \cite{cormack2009}.
+\section{Materiais e Métodos}
+\subsection{Domínio e fontes}
+O domínio é a exploração de informações públicas de cadastro empresarial e registros administrativos de sanções. Foram utilizados dados do Cadastro Nacional da Pessoa Jurídica (CNPJ), Cadastro de Empresas Inidôneas e Suspensas (CEIS), Cadastro Nacional de Empresas Punidas (CNEP) e Classificação Nacional de Atividades Econômicas (CNAE).
+A origem institucional dos dados cadastrais é a Receita Federal do Brasil. No recorte documentado, as consultas cadastrais foram realizadas por meio do serviço intermediário Minha Receita, que disponibiliza dados públicos espelhados da Receita Federal. CEIS e CNEP têm como fonte institucional a Controladoria-Geral da União, por meio do Portal da Transparência \cite{cgu}. A documentação de dados abertos do CNPJ foi consultada na Receita Federal \cite{rfb}. O recorte foi coletado em 5 de novembro de 2026, com competência de referência de 4 de novembro de 2026, conforme os metadados versionados no repositório.
+O conjunto canônico contém 18 CNPJs: dez selecionados da interseção CEIS/CNEP, quatro exclusivos do CEIS e quatro exclusivos do CNEP. A consolidação gerou 18 empresas, 18 estabelecimentos, 26 ocorrências de sócios, 36 CNAEs, 54 registros de sanção, quatro fontes e 54 trechos. Os arquivos brutos integrais não são versionados; o snapshot canônico processado e seus metadados de origem são disponibilizados para reprodução da execução integrada.
+\subsection{Modelagem LPG}
+O grafo contém os rótulos \texttt{Empresa}, \texttt{Estabelecimento}, \texttt{Socio}, \texttt{CNAE}, \texttt{Sancao}, \texttt{Fonte} e \texttt{Trecho}. As relações principais são \texttt{POSSUI\_ESTABELECIMENTO}, \texttt{PARTICIPA\_DE}, \texttt{EXERCE\_CNAE}, \texttt{APLICADA\_A}, \texttt{ORIGINADO\_DE}, \texttt{EXTRATO\_DE} e \texttt{MENCIONA}. Identificadores como CNPJ, código CNAE, registro de sanção e trecho possuem restrições de unicidade. Índices adicionais apoiam filtros cadastrais, busca full-text e busca vetorial.
+A relação \texttt{MENCIONA} registra a ocorrência textual de um CNPJ em um trecho. Ela contém offsets de início e fim, método de extração e status \texttt{CANDIDATA}. Não representa vínculo societário, responsabilidade ou participação no processo. Relações estruturais, como \texttt{PARTICIPA\_DE}, são mantidas distintas de menções encontradas em documentos.
+\subsection{Pipeline Text-to-Graph}
+Cada registro de compliance origina um trecho rastreável por \texttt{registro\_id}, \texttt{fonte\_id}, URL e referência de origem. CPFs formatados são mascarados antes do armazenamento. A extração determinística de CNPJ utiliza expressão regular e verifica a estrutura de 14 posições, com 12 caracteres alfanuméricos e dois dígitos finais; não calcula os dígitos verificadores oficiais.
+A extração de organizações por spaCy e pelo modelo \texttt{pt\_core\_news\_sm} é opcional. Quando habilitada, as menções são normalizadas por caixa, acentuação, pontuação e sufixos societários. A resolução nominal conservadora cria a relação candidata \texttt{MENCIONA\_ORGANIZACAO} somente quando a razão social normalizada corresponde exatamente a uma única empresa no grafo. Menções sem correspondência ou ambíguas não produzem arestas. Não é empregado fuzzy matching. O snapshot de produção versionado foi gerado sem NER e não contém menções organizacionais reais; a regra de resolução é coberta por testes sintéticos e não é contabilizada como cobertura de NER em produção.
+\subsection{Recuperação híbrida e multi-hop}
+O modelo \texttt{paraphrase-multilingual-MiniLM-L12-v2} produz embeddings de 384 dimensões. Para evitar truncamento de trechos longos, os textos são divididos em janelas de 126 tokens, com sobreposição de 32 tokens. Os vetores das janelas são combinados por média ponderada pela quantidade de tokens novos e normalizados em L2. No snapshot integrado, os 54 trechos são representados por 150 janelas, sem tokens omitidos.
+A busca vetorial consulta o índice \texttt{trecho\_embedding\_vector}; a busca lexical utiliza \texttt{fiscalgraph\_text\_fulltext}. As listas são fundidas por RRF com parâmetro $k=60$. Os trechos recuperados são expandidos para fontes, sanções, estabelecimentos, empresas e sócios. Para exploração multi-hop, o serviço utiliza \texttt{shortestPath} em Cypher, com limite de seis relacionamentos. A implementação não depende da biblioteca Neo4j Graph Data Science.
+\subsection{Planejamento de Cypher assistido por LLM}
+O fechamento inclui planejamento de consulta assistido por LLM. O modelo não retorna comandos Cypher livres: seleciona uma intenção dentre opções predefinidas e produz parâmetros JSON. A aplicação valida a intenção, CNPJ ou termo e limite, e compila um template Cypher parametrizado pertencente a uma allowlist. A execução ocorre por transação de leitura (\texttt{execute\_read}). O recurso é desabilitado por padrão e exige habilitação explícita e endpoint compatível. Assim, a geração consiste em selecionar e parametrizar consultas estruturadas, não executar código arbitrário produzido pelo modelo. A validação com provedor externo depende de credenciais autorizadas e deve ser registrada separadamente dos testes simulados.
+\subsection{Interface e explicabilidade}
+A aplicação Streamlit oferece consulta real ao Neo4j e demonstração Mock com dados sintéticos. A interface apresenta fontes, trechos, consulta Cypher e subgrafo retornado, diferenciando relações candidatas de relações estruturais. Também apresenta um nível heurístico de suporte da recuperação, classificado como insuficiente, limitado ou ampliado, com base na quantidade de fontes e relações. Essa classificação é descritiva; não é confiança calibrada nem probabilidade de fraude ou risco.
+\section{Avaliação}
+\subsection{Configuração experimental}
+O snapshot integrado contém 210 nós: 18 \texttt{Empresa}, 18 \texttt{Estabelecimento}, 26 \texttt{Socio}, 36 \texttt{CNAE}, 54 \texttt{Sancao}, quatro \texttt{Fonte} e 54 \texttt{Trecho}. Foram registradas 405 relações. O schema contém sete restrições de unicidade. Os 54 trechos possuem embeddings de 384 dimensões e cobertura integral do texto, distribuídos em 150 janelas.
+A avaliação da recuperação utiliza 20 perguntas em dez categorias. Dezesseis perguntas positivas são usadas nas métricas de ranking; quatro casos adicionais verificam abstenção em identificadores ausentes e perguntas fora do domínio. As métricas são reportadas para $k=5$. A integração contínua aplica o schema, carrega os dados, gera embeddings e executa os testes automatizados.
+\subsection{Resultados de recuperação}
+A Tabela~\ref{tab:retrieval} apresenta os resultados do benchmark versionado. A busca full-text obteve os melhores valores agregados neste recorte. O RRF superou a busca vetorial pura, mas não superou a busca lexical isolada.
+\begin{table}[ht]
+\centering
+\caption{Resultados do benchmark de recuperação ($k=5$, 16 consultas positivas).}
+\label{tab:retrieval}
+\begin{tabular}{lrrrr}
+\toprule
+Modo & P@5 & R@5 & MRR@5 & nDCG@5 \\
+\midrule
+Vetorial & 0.1750 & 0.4353 & 0.4479 & 0.4065 \\
+Full-text & 0.4125 & 0.9821 & 1.0000 & 1.0000 \\
+Híbrido RRF & 0.3000 & 0.7061 & 0.6250 & 0.6218 \\
+\bottomrule
+\end{tabular}
+\end{table}
+O resultado é compatível com a composição do corpus: documentos administrativos contêm números de leis, siglas, CNPJs e identificadores literais, favorecendo correspondência lexical. A fusão não deve ser apresentada como vencedora geral; a conclusão é restrita às 16 consultas positivas, aos 54 trechos e ao snapshot avaliado.
+\subsection{Abstenção e caminhos}
+Nos 20 casos avaliados, a política de abstenção classificou corretamente os 16 casos com evidências e os quatro casos que deveriam resultar em abstenção. A taxa de 20/20 descreve somente o conjunto interno construído para o projeto e não estima desempenho em produção.
+Nos pares de empresas reais selecionados para avaliação multi-hop, foram encontrados três caminhos estruturais por atividade CNAE em comum e nenhum caminho societário. O padrão societário \texttt{Empresa <- Socio -> Empresa}, com dois saltos, foi demonstrado em cenário sintético isolado com rollback. Portanto, não se afirma que o recorte real contenha caminhos societários entre as empresas analisadas.
+A suíte de CI documentada no fechamento anterior executou 181 testes sem falhas e validou schema, carga canônica, carga de trechos e geração de embeddings no ambiente temporário de integração. Essa evidência não substitui a reprodução local limpa pelo grupo.
+\section{Discussão}
+O FiscalGraph BR demonstra integração entre ingestão documental, modelagem LPG, índices de recuperação e interface de exploração. A proveniência é mantida por identificadores de registro, trecho e fonte. A separação entre relações estruturais e menções textuais reduz o risco de interpretar coincidências como vínculos jurídicos. A política de abstenção explicita os limites do recorte consultado.
+Há limitações relevantes. O conjunto é pequeno, estático e não representa a totalidade das bases nacionais. A consulta cadastral dependeu de serviço intermediário. A validação de CNPJ é estrutural, sem cálculo de dígitos verificadores. O NER organizacional não foi ativado na geração do snapshot de produção, e não há conjunto anotado para estimar precisão e revocação dessa extração. O benchmark contém poucas perguntas e favorece busca lexical neste recorte. O indicador heurístico de suporte não é uma medida probabilística calibrada. A geração assistida de Cypher está protegida por allowlist e transação read-only, mas a execução com endpoint externo autorizado ainda precisa ser demonstrada pelo grupo.
+\section{Conclusão}
+O FiscalGraph BR integra dados empresariais e registros públicos de sanções em um grafo consultável, com recuperação lexical e vetorial, expansão multi-hop, proveniência explícita e interface de inspeção de evidências. Os resultados demonstram viabilidade técnica no recorte utilizado, mas indicam que a busca híbrida não supera necessariamente a busca lexical em coleções pequenas e especializadas. O projeto não realiza detecção de fraude nem estabelece responsabilidade jurídica. Trabalhos futuros incluem ampliar dados e perguntas, construir um conjunto de relevância anotado independentemente, avaliar NER em documentos reais e testar a camada LLM em ambiente controlado.
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

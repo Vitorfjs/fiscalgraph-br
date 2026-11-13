@@ -68,7 +68,7 @@ MAX_FULLTEXT_TERMS = 16
 
 NO_EVIDENCE_WARNING = "Nenhum trecho foi recuperado; não há evidência suficiente para responder."
 MENCIONA_WARNING = (
-    "Relações MENCIONA são citações textuais candidatas (status CANDIDATA); "
+    "Relações MENCIONA e MENCIONA_ORGANIZACAO são citações textuais candidatas (status CANDIDATA); "
     "não confirmam vínculo nem responsabilidade."
 )
 
@@ -104,7 +104,8 @@ WITH tid, t,
           <-[:POSSUI_ESTABELECIMENTO]-(:Empresa) | p]
    + [p = (t)-[:EXTRATO_DE]->(:Sancao)-[:APLICADA_A]->(:Estabelecimento)
           <-[:POSSUI_ESTABELECIMENTO]-(:Empresa)<-[:PARTICIPA_DE]-(:Socio) | p]
-   + [p = (t)-[:MENCIONA]->(:Estabelecimento) | p] AS paths
+   + [p = (t)-[:MENCIONA]->(:Estabelecimento) | p]
+   + [p = (t)-[:MENCIONA_ORGANIZACAO]->(:Empresa) | p] AS paths
 RETURN tid AS trecho_id,
        t.texto AS texto,
        {element_id: elementId(t), labels: labels(t),

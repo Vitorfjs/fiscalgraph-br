@@ -345,3 +345,7 @@ flowchart LR
 ```
 
 Propriedades dos nós, regras de associação, cardinalidades e limitações metodológicas estão detalhadas nas seções anteriores.
+
+## Relação candidata de menção organizacional
+
+A pipeline pode criar `MENCIONA_ORGANIZACAO` entre um `Trecho` e uma `Empresa` somente quando o NER está habilitado e a razão social normalizada gera exatamente uma correspondência no grafo. A relação é armazenada com `status = "CANDIDATA"`, offsets e método `match_nome_normalizado_exato`. Correspondências ausentes ou ambíguas não produzem arestas. Não há fuzzy matching ou inferência de vínculo jurídico. Como o snapshot versionado foi carregado sem NER, a nova relação não altera a volumetria histórica do grafo; os cenários de correspondência são cobertos por testes sintéticos.

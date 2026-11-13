@@ -116,3 +116,15 @@ Não são reportadas métricas de acurácia (precisão/recall), pois não há co
 - A modelagem e schema de Dev3 já incorporaram a constraint `trecho_trecho_id_unique` e o índice `fiscalgraph_text_fulltext` contemplando `Trecho.texto`.
 - O loader Dev4 suporta configuração de banco via parâmetro `--database` e variável de ambiente `NEO4J_DATABASE` (padrão `neo4j`).
 - O índice vetorial e a geração de embeddings de 384 dimensões em `Trecho.embedding` pertencem à etapa Dev5.
+
+
+## Resolução nominal conservadora
+
+Quando o NER spaCy está habilitado, menções ORGANIZACAO passam por normalização de caixa,
+acentos, pontuação e sufixos societários. O loader compara o nome normalizado com a razão
+social normalizada das empresas presentes no grafo. Uma relação
+`MENCIONA_ORGANIZACAO {status: 'CANDIDATA'}` só é criada quando há exatamente uma
+empresa correspondente. Zero correspondências e múltiplas correspondências são
+contabilizadas separadamente e não geram arestas. Não há fuzzy matching ou inferência de
+equivalência jurídica. O snapshot de produção atualmente versionado não contém menções
+organizacionais extraídas; os novos testes usam fixtures sintéticas.

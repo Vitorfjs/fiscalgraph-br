@@ -29,6 +29,7 @@ from pipeline.text_to_graph.extractor import (  # noqa: E402
 from pipeline.text_to_graph.load_graph import (  # noqa: E402
     chunk_row,
     mention_rows,
+    organization_resolution_rows,
     positive_int,
     read_jsonl,
     summarize,
@@ -203,6 +204,42 @@ class ChunkTests(unittest.TestCase):
         chunk = build_chunk(self._record(descricao="Multa", observacoes="Cita 12.345.678/0001-90"))
         m = chunk["mencoes"][0]
         self.assertEqual(chunk["texto"][m["inicio"]:m["fim"]], "12.345.678/0001-90")
+
+
+class OrganizationResolutionTests(unittest.TestCase):
+    def test_unique_normalized_name_creates_candidate_row(self):
+        items = [{"trecho_id": "T1", "mencoes": [{
+            "tipo": "ORGANIZACAO", "valor": "Fictícia Engenharia Ltda",
+            "valor_normalizado": "FICTICIA ENGENHARIA", "inicio": 0, "fim": 22,
+        }]}]
+        companies = [{"cnpj_basico": "00000001", "razao_social": "FICTICIA ENGENHARIA S/A"}]
+        rows, stats = organization_resolution_rows(items, companies)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["cnpj_basico"], "00000001")
+        self.assertEqual(rows[0]["metodo"], "match_nome_normalizado_exato")
+        self.assertEqual(stats["mencoes_org_ligadas"], 1)
+
+    def test_ambiguous_normalized_name_is_not_linked(self):
+        items = [{"trecho_id": "T1", "mencoes": [{
+            "tipo": "ORGANIZACAO", "valor": "Empresa Alfa",
+            "valor_normalizado": "EMPRESA ALFA", "inicio": 0, "fim": 12,
+        }]}]
+        companies = [
+            {"cnpj_basico": "00000001", "razao_social": "Empresa Alfa Ltda"},
+            {"cnpj_basico": "00000002", "razao_social": "Empresa Alfa S/A"},
+        ]
+        rows, stats = organization_resolution_rows(items, companies)
+        self.assertEqual(rows, [])
+        self.assertEqual(stats["mencoes_org_ambiguas"], 1)
+
+    def test_unmatched_name_is_not_linked(self):
+        items = [{"trecho_id": "T1", "mencoes": [{
+            "tipo": "ORGANIZACAO", "valor": "Desconhecida SA",
+            "valor_normalizado": "DESCONHECIDA", "inicio": 0, "fim": 15,
+        }]}]
+        rows, stats = organization_resolution_rows(items, [])
+        self.assertEqual(rows, [])
+        self.assertEqual(stats["mencoes_org_sem_correspondencia"], 1)
 
 
 class PipelineTests(unittest.TestCase):

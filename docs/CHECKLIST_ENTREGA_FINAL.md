@@ -104,7 +104,18 @@ Preencha com valores observados, sem copiar os valores históricos:
 
 Salve a saída de python -m pip freeze como evidência do ambiente efetivamente usado, por exemplo docs/evidencias/ambiente-local-freeze.txt. Os arquivos requirements*.txt atuais declaram versões mínimas; eles não fixam todas as versões transitivas como um lockfile.
 
-## 3. Preparação da entrega acadêmica
+## 3. Fechamento técnico e artigo
+
+- [x] Fonte inicial de artigo técnico em `paper/main.tex`, com estrutura IEEEtran Conference.
+- [x] Bibliografia inicial em `paper/references.bib`.
+- [x] Planejamento LLM-to-Cypher restrito, parametrizado e read-only, desabilitado por padrão.
+- [x] Resolução nominal exata após normalização; menções ambíguas não geram arestas.
+- [x] Indicador heurístico de nível de suporte na interface, sem alegação de confiança calibrada.
+- [ ] Configurar endpoint LLM autorizado e executar teste real de ponta a ponta.
+- [ ] Executar NER no corpus real e avaliar com amostra anotada independente.
+- [ ] Substituir autores/instituição/docente no artigo e confirmar template exato da disciplina.
+
+## 4. Preparação da entrega acadêmica
 
 - [ ] Conferir o enunciado e a rubrica da disciplina; ajustar o documento somente quando a rubrica justificar.
 - [ ] Conferir se o relatório identifica problema, objetivos, domínio, fontes, modelagem LPG, arquitetura, implementação, método de avaliação, resultados e limitações.
@@ -115,7 +126,7 @@ Salve a saída de python -m pip freeze como evidência do ambiente efetivamente 
 - [ ] Conferir referências das bases públicas e explicar o serviço intermediário usado para o cadastro CNPJ.
 - [ ] Revisar a linguagem para não afirmar fraude, culpa ou vínculo jurídico com base em coincidência, menção candidata ou score de recuperação.
 
-## 4. Divisão interna do grupo
+## 5. Divisão interna do grupo
 
 Preencham entre os integrantes antes da apresentação:
 
@@ -127,6 +138,6 @@ Preencham entre os integrantes antes da apresentação:
 | Demonstração técnica | | Interface e plano B |
 | Revisão da rubrica/submissão | | Pacote de entrega |
 
-## 5. Critério de encerramento
+## 6. Critério de encerramento
 
 O projeto pode ser considerado tecnicamente integrado quando main, CI, evidências e documentação estiverem coerentes. A entrega acadêmica só deve ser considerada concluída depois da reprodução limpa, do preenchimento da identificação dos integrantes e da revisão com base na rubrica real da disciplina.

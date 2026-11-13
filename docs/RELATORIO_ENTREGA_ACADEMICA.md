@@ -131,3 +131,16 @@ A execução do CI em ambiente Neo4j descartável e o relato de validação manu
 - **Artefato de log:** `dev5-ci-test-results` anexado ao run `43436377286` (retenção configurada no workflow: 14 dias).
 
 Esta execução comprova a reprodutibilidade do pipeline no ambiente limpo e temporário do GitHub Actions. Ela não substitui a reprodução local final pelo grupo nem o preenchimento dos dados acadêmicos e capturas previstos no checklist.
+
+
+---
+
+## 8. Melhorias adicionadas na branch de fechamento (2026-11-13)
+
+A branch `entrega-final-2026-11-13` adiciona três complementos, sujeitos à execução do CI dessa branch:
+
+1. **Planejamento LLM-to-Cypher restrito:** o modelo retorna uma intenção e parâmetros em JSON; a aplicação valida a allowlist, compila templates Cypher parametrizados e executa-os por transação somente leitura. A execução exige `LLM_CYPHER_ENABLED=true` e `LLM_SEND_EVIDENCE=true`. Não se executa Cypher livre produzido pelo LLM. Sem endpoint externo autorizado, a validação de ponta a ponta permanece pendente.
+2. **Resolução de menções organizacionais:** com NER habilitado, nomes normalizados são comparados por igualdade exata com razões sociais existentes. Somente correspondência única produz `MENCIONA_ORGANIZACAO {status: "CANDIDATA"}`; nomes ambíguos ou sem correspondência não geram arestas. O snapshot de produção anterior não contém menções organizacionais, de modo que a volumetria histórica 210/405 não é alterada por essa funcionalidade.
+3. **Indicador de suporte na interface:** a UI apresenta nível heurístico (insuficiente, limitado ou ampliado), derivado da presença de fontes e relações. O indicador não é confiança calibrada nem probabilidade de fraude, risco ou responsabilidade.
+
+O artigo técnico inicial está em `paper/main.tex`, com referências BibTeX em `paper/references.bib`. Ele usa a classe IEEEtran Conference como base. Autores, instituição, disciplina e e-mails permanecem como campos de preenchimento, e o grupo deve confirmar se o docente forneceu um template institucional específico. Os resultados históricos descritos neste relatório não devem ser apresentados como resultados da nova branch até que seu CI termine com sucesso.

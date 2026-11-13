@@ -12,8 +12,8 @@ Relações criadas:
 
 O registro de compliance é procurado pelos rótulos ``Sancao`` (modelagem dev3) ou
 ``RegistroCompliance`` (contrato do coordenador), sempre por ``registro_id``.
-Menções de organização (NER) nunca geram relação: ficam apenas no JSONL e no
-atributo ``mencoes_json`` do Trecho. Nenhum vínculo é criado por semelhança de nome.
+Menções de organização (NER) só podem gerar relação candidata após correspondência exata
+do nome normalizado e quando há uma única empresa correspondente; casos ambíguos permanecem sem aresta.
 
 Uso:
     python pipeline/text_to_graph/load_graph.py --input data/processed/trechos.jsonl
@@ -28,6 +28,10 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from pipeline.text_to_graph.extractor import normalize_organization_name
 
 UPSERT_CHUNKS = """
 UNWIND $rows AS row
@@ -58,6 +62,21 @@ FOREACH (_ IN CASE WHEN e IS NULL THEN [] ELSE [1] END |
     MERGE (t)-[m:MENCIONA {inicio: row.inicio, fim: row.fim}]->(e)
     SET m.metodo = row.metodo, m.status = 'CANDIDATA')
 RETURN row.cnpj AS cnpj, e IS NOT NULL AS linked
+"""
+
+COMPANY_NAMES_QUERY = """
+MATCH (e:Empresa)
+RETURN e.cnpj_basico AS cnpj_basico, e.razao_social AS razao_social
+"""
+
+LINK_ORG_MENTIONS = """
+UNWIND $rows AS row
+MATCH (t:Trecho {trecho_id: row.trecho_id})
+MATCH (e:Empresa {cnpj_basico: row.cnpj_basico})
+MERGE (t)-[m:MENCIONA_ORGANIZACAO {inicio: row.inicio, fim: row.fim}]->(e)
+SET m.metodo = row.metodo, m.status = 'CANDIDATA',
+    m.nome_normalizado = row.valor_normalizado
+RETURN row.trecho_id AS trecho_id
 """
 
 CHUNK_FIELDS = ("trecho_id", "texto", "url_fonte", "registro_origem", "metodo_extracao", "registro_id", "fonte_id")
@@ -121,6 +140,42 @@ def mention_rows(item: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def organization_resolution_rows(
+    items: list[dict[str, Any]], companies: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Resolve nomes apenas por igualdade normalizada única; ambiguidades não geram arestas."""
+    candidates: dict[str, list[str]] = {}
+    for company in companies:
+        normalized = normalize_organization_name(company.get("razao_social") or "")
+        cnpj_basico = str(company.get("cnpj_basico") or "")
+        if normalized and cnpj_basico:
+            candidates.setdefault(normalized, []).append(cnpj_basico)
+    rows: list[dict[str, Any]] = []
+    stats = {"mencoes_org_ligadas": 0, "mencoes_org_sem_correspondencia": 0,
+             "mencoes_org_ambiguas": 0}
+    for item in items:
+        for mention in item.get("mencoes", []):
+            if mention.get("tipo") != "ORGANIZACAO":
+                continue
+            normalized = mention.get("valor_normalizado") or normalize_organization_name(
+                mention.get("valor") or ""
+            )
+            matches = list(dict.fromkeys(candidates.get(normalized, [])))
+            if len(matches) == 1:
+                rows.append({
+                    "trecho_id": item["trecho_id"], "cnpj_basico": matches[0],
+                    "valor": mention.get("valor", ""), "valor_normalizado": normalized,
+                    "metodo": "match_nome_normalizado_exato",
+                    "inicio": mention.get("inicio"), "fim": mention.get("fim"),
+                })
+                stats["mencoes_org_ligadas"] += 1
+            elif len(matches) > 1:
+                stats["mencoes_org_ambiguas"] += 1
+            else:
+                stats["mencoes_org_sem_correspondencia"] += 1
+    return rows, stats
+
+
 def summarize(items: list[dict[str, Any]]) -> dict[str, int]:
     """Contagens que não dependem do banco (úteis para --dry-run)."""
     cnpj = sum(1 for i in items for m in i.get("mencoes", []) if m.get("tipo") == "CNPJ")
@@ -130,28 +185,40 @@ def summarize(items: list[dict[str, Any]]) -> dict[str, int]:
 
 def load(items: list[dict[str, Any]], driver: Any, batch_size: int = 200, database: str | None = None) -> dict[str, int]:
     stats = {
-        "trechos_carregados": 0,
-        "registros_nao_encontrados": 0,
-        "fontes_nao_encontradas": 0,
-        "mencoes_cnpj_ligadas": 0,
-        "mencoes_cnpj_nao_resolvidas": 0,
-        "mencoes_org_nao_ligadas": 0,
+        "trechos_carregados": 0, "registros_nao_encontrados": 0,
+        "fontes_nao_encontradas": 0, "mencoes_cnpj_ligadas": 0,
+        "mencoes_cnpj_nao_resolvidas": 0, "mencoes_org_nao_ligadas": 0,
+        "mencoes_org_ligadas": 0, "mencoes_org_sem_correspondencia": 0,
+        "mencoes_org_ambiguas": 0,
     }
     with driver.session(database=database) as session:
+        companies = session.run(COMPANY_NAMES_QUERY).data()
+        org_rows, org_stats = organization_resolution_rows(items, companies)
+        stats.update(org_stats)
+        rows_by_chunk: dict[str, list[dict[str, Any]]] = {}
+        for row in org_rows:
+            rows_by_chunk.setdefault(row["trecho_id"], []).append(row)
+
         for batch in batched(items, batch_size):
             records = session.run(UPSERT_CHUNKS, rows=[chunk_row(i) for i in batch]).data()
             stats["trechos_carregados"] += len(records)
             stats["registros_nao_encontrados"] += sum(1 for r in records if not r["registro_encontrado"])
             stats["fontes_nao_encontradas"] += sum(1 for r in records if not r["fonte_encontrada"])
-
             rows = [row for item in batch for row in mention_rows(item)]
             if rows:
                 linked = session.run(LINK_MENTIONS, rows=rows).data()
                 stats["mencoes_cnpj_ligadas"] += sum(1 for r in linked if r["linked"])
                 stats["mencoes_cnpj_nao_resolvidas"] += sum(1 for r in linked if not r["linked"])
-            stats["mencoes_org_nao_ligadas"] += sum(
-                1 for item in batch for m in item.get("mencoes", []) if m.get("tipo") == "ORGANIZACAO"
+            batch_org_rows = [
+                row for item in batch for row in rows_by_chunk.get(item["trecho_id"], [])
+            ]
+            if batch_org_rows:
+                session.run(LINK_ORG_MENTIONS, rows=batch_org_rows).consume()
+            org_count = sum(
+                1 for item in batch for mention in item.get("mencoes", [])
+                if mention.get("tipo") == "ORGANIZACAO"
             )
+            stats["mencoes_org_nao_ligadas"] += org_count - len(batch_org_rows)
     return stats
 
 
@@ -208,7 +275,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Fontes não encontradas no grafo: {stats['fontes_nao_encontradas']}")
     print(f"Menções CNPJ ligadas como CANDIDATA: {stats['mencoes_cnpj_ligadas']}")
     print(f"Menções CNPJ não resolvidas (sem Estabelecimento exato): {stats['mencoes_cnpj_nao_resolvidas']}")
-    print(f"Menções ORGANIZACAO mantidas só no JSONL (sem relação): {stats['mencoes_org_nao_ligadas']}")
+    print(f"Menções ORGANIZACAO ligadas por nome normalizado único: {stats['mencoes_org_ligadas']}")
+    print(f"Menções ORGANIZACAO sem correspondência: {stats['mencoes_org_sem_correspondencia']}")
+    print(f"Menções ORGANIZACAO ambíguas (sem aresta): {stats['mencoes_org_ambiguas']}")
+    print(f"Menções ORGANIZACAO não ligadas: {stats['mencoes_org_nao_ligadas']}")
     return 0
 
 
