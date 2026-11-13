@@ -48,7 +48,11 @@ python -m pip install -r requirements.txt -r requirements-ci.txt
    python scripts/check_neo4j.py
    ```
    *(O Compose usa volume persistente; `docker compose down` preserva os dados, enquanto `down -v` apaga o banco local.)*
-3. Aplique o schema completo de `cypher/01_schema_fiscalgraph.cypher` no Neo4j Browser (`http://localhost:7474`), comando por comando.
+3. Aplique e valide o schema pelo script do projeto (idempotente):
+   ```bash
+   python scripts/apply_schema.py
+   ```
+   O script executa os comandos declarativos com `IF NOT EXISTS`, aguarda a criação dos índices e verifica as 7 constraints e os 6 índices de busca. O Neo4j Browser (`http://localhost:7474`) pode ser usado para inspeção, mas não é necessário para essa etapa.
 4. Execute a carga dos dados canônicos e confirme a idempotência na reexecução:
    ```bash
    python scripts/load_canonical_data.py

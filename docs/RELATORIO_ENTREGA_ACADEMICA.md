@@ -1,8 +1,8 @@
 # Consolidação de Evidências, Limitações e Roteiro de Apresentação — FiscalGraph BR
 
-**Data de consolidação:** 2026-11-11  
+**Data de consolidação:** 2026-11-13  
 **Banco validado localmente:** Neo4j Kernel `5.26.33` (Community Edition, via `infra/compose.yaml`)  
-**Suíte automatizada completa:** **177 testes aprovados** (0 falhas, 0 skips)
+**Última suíte automatizada completa confirmada no CI:** **179 testes aprovados** (0 falhas; execução em 2026-11-12)
 
 ---
 
@@ -94,10 +94,27 @@ Fonte reproduzível: `python scripts/evaluate_retrieval_benchmark.py --k 5` -> `
    - Testar `"Qual a situação do CNPJ 99.999.999/0001-99?"` e `"receita de bolo de chocolate"` -> mostrar abstenção imediata (`st.error`), explicação clara do limite do recorte/escopo e subgrafo vazio (zero alucinação).
    - Alternar rapidamente para **"Demonstração (Mock)"** na barra lateral para demonstrar o funcionamento desacoplado do banco com fixtures sintéticas sinalizadas.
 6. **Resultados Quantitativos e Encerramento (~2 min):**
-   - Exibir a tabela comparativa do benchmark (`Vetorial` vs. `Full-text` vs. `Híbrido RRF`), destacar **100% de acurácia de abstenção (20/20)** e a diferença entre multi-hop real por `CNAE` (`4` saltos) e o teste societário sintético (`PARTICIPA_DE`, `2` saltos), encerrando com as limitações registradas e os **177 testes aprovados**.
+   - Exibir a tabela comparativa do benchmark (`Vetorial` vs. `Full-text` vs. `Híbrido RRF`), destacar **100% de acurácia de abstenção (20/20)** e a diferença entre multi-hop real por `CNAE` (`4` saltos) e o teste societário sintético (`PARTICIPA_DE`, `2` saltos), encerrando com as limitações registradas e os **179 testes aprovados na execução de CI de 2026-11-12**.
 
 ### Sugestões de Capturas de Tela para Anexar ao Relatório/Slides
 1. Tela inicial mostrando disclaimer acadêmico + `Status da conexão Neo4j` (`210` nós / `405` relacionamentos).
 2. Resultado completo de `"Qual a situação do CNPJ 01.340.937/0001-79?"` com fontes expandidas e subgrafo `agraph` evidenciando aresta vermelha tracejada `MENCIONA (CANDIDATA)`.
 3. Tela de abstenção para `"receita de bolo de chocolate"` evidenciando ausência de fontes/grafo fabricados.
-4. Terminal exibindo saída de `python scripts/evaluate_retrieval_benchmark.py --k 5` e `unittest discover` (`177 tests ... OK`).
+4. Terminal exibindo saída de `python scripts/evaluate_retrieval_benchmark.py --k 5` e `unittest discover` (`179 tests ... OK`, execução de 2026-11-12).
+
+
+---
+
+## 6. Fechamento após a integração final na main (2026-11-13)
+
+A Parte E foi redigida durante a preparação do PR #10. O estado final posterior é:
+
+- **PR #10:** integrado em main em 2026-11-12 às 23:24 UTC, pelo merge commit `5dc7269e330d90175a7cf78d09e6543d4356bc6d`.
+- **CI do PR #10:** workflow completo `43327963350` e workflow de integração `43327963370`, ambos com conclusão success. A suíte completa reportou **179 testes aprovados**, sem falhas.
+- **Validação manual do grupo:** **8/8 cenários aprovados** na rodada informada em 2026-11-12, incluindo o caso exato de colisão lexical com João Pessoa. O registro está em `docs/evidencias/validacao_manual_dev5_etapa4_2026-11-12.md`.
+- **Política de abstenção:** a pergunta de João Pessoa foi classificada como fora do escopo, apesar de resultados de Full-Text por coincidência lexical; a resposta não expôs fontes nem subgrafo.
+- **Benchmark:** permanece a conclusão de que Full-text puro superou RRF neste dataset específico. Não apresentar a busca híbrida como vencedora geral.
+
+### O que esta evidência não afirma
+
+A execução do CI em ambiente Neo4j descartável e o relato de validação manual do grupo não equivalem a uma nova instalação limpa executada localmente. Antes da entrega final, o grupo ainda deve executar o roteiro de `docs/CHECKLIST_ENTREGA_FINAL.md` em uma máquina/volume novo e guardar a saída e as capturas reais dessa execução. A instalação local limpa não deve ser marcada como concluída antes desse passo.
