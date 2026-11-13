@@ -70,7 +70,7 @@ def _render_graph_section(nodes_data: list, relationships_data: list) -> None:
     )
     st.caption(
         "Arestas — Azul contínuo: relação estrutural do grafo. "
-        "Vermelho tracejado: MENCIONA (CANDIDATA), menção textual que exige validação. "
+        "Vermelho tracejado: MENCIONA ou MENCAO_NOME (CANDIDATA), menção textual que exige validação. "
         "As arestas exibidas são somente as retornadas pelo Neo4j."
     )
     st.caption(f"Cores dos nós — {node_legend}.")
@@ -91,6 +91,18 @@ def render_payload(payload: dict) -> None:
     if payload.get("cypher"):
         with st.expander("Consulta Cypher"):
             st.code(payload["cypher"], language="cypher")
+
+    confidence_level = payload.get("confidence_level")
+    if confidence_level:
+        st.subheader("Nível de sustentação documental (heurístico)")
+        st.metric("Nível de confiança documental", confidence_level)
+        basis = payload.get("confidence_basis") or []
+        if basis:
+            st.caption("Sinais observados: " + " · ".join(basis))
+        st.caption(
+            payload.get("confidence_disclaimer")
+            or "Classificação documental heurística; não representa probabilidade de fraude ou responsabilidade."
+        )
 
     relevance = payload.get("retrieval_relevance")
     if relevance is not None:
