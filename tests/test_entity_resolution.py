@@ -22,7 +22,7 @@ class OrganizationResolutionTests(unittest.TestCase):
 
     def test_exact_normalized_name_resolves_to_unique_cnpj_root(self):
         path = self._write_companies([
-            {"cnpj_basico": "12345678", "razao_social": "Companhia Árvore Ltda."},
+            {"cnpj_basico": "12345678", "razao_social": "Árvore Ltda."},
             {"cnpj_basico": "87654321", "razao_social": "Outra Organização S.A."},
         ])
         index = build_organization_index(path)
@@ -30,7 +30,7 @@ class OrganizationResolutionTests(unittest.TestCase):
             "trecho_id": "TR-1",
             "mencoes": [{
                 "tipo": "ORGANIZACAO",
-                "valor": "COMPANHIA ARVORE",
+                "valor": "ARVORE",
                 "valor_normalizado": "COMPANHIA ARVORE",
                 "inicio": 4,
                 "fim": 19,
