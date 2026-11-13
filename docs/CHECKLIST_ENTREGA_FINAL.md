@@ -90,17 +90,17 @@ Preencha com valores observados, sem copiar os valores históricos:
 
 | Campo | Valor desta execução |
 | --- | --- |
-| Responsável(is) | |
-| Data/hora e fuso | |
-| Sistema operacional | |
-| Python (python --version) | |
-| Neo4j (CALL dbms.components()) | |
-| Commit (git rev-parse HEAD) | |
-| Testes (unittest ...) | |
-| Nós / relacionamentos | |
-| Embeddings / índices | |
-| Resultado dos quatro casos da interface | |
-| Link/pasta das capturas de tela | |
+| Responsável(is) | Jorge Luis Heringer Bublitz (Dev4), em conjunto com Vitor Ferreira Gonçalves Silva (Dev1), Miguel Figueiredo (Dev2), Samuel Paiva Ramos (Dev3), Kaike Fernandes Garcia Guedes (Dev5) e Rafael Queiroz Almeida (Dev6) |
+| Data/hora e fuso | `2026-11-13T18:01:00-03:00` (UTC-3) |
+| Sistema operacional | Windows 11 (`Windows-11-10.0.26100-SP0`, x86_64) |
+| Python (python --version) | `Python 3.13.2` (`docs/evidencias/ambiente-local-freeze.txt`) |
+| Neo4j (CALL dbms.components()) | `Neo4j Kernel 5.26.0 (Community Edition)` |
+| Commit (git rev-parse HEAD) | `18e733489056c8e06bc07a8fa5650c01f0796d83` (`main`) |
+| Testes (unittest ...) | `Ran 203 tests in 41.430s — OK` (0 falhas, 0 ignorados) |
+| Nós / relacionamentos | `210` nós (`18 Empresa`, `18 Estabelecimento`, `26 Socio`, `36 CNAE`, `54 Sancao`, `4 Fonte`, `54 Trecho`) / `405` relacionamentos (`26 PARTICIPA_DE`, `18 POSSUI_ESTABELECIMENTO`, `45 EXERCE_CNAE`, `54 APLICADA_A`, `206 ORIGINADO_DE`, `54 EXTRATO_DE`, `2 MENCIONA`) |
+| Embeddings / índices | `54/54` `Trecho` com embedding `384d` (`150` janelas, norma L2 `1.000000`, versão `v2-janelas-126-sobreposicao-32-media-ponderada-tokens-novos-l2`); `7` constraints e `16/16` índices `ONLINE` |
+| Resultado dos quatro casos da interface | `4/4 aprovados` no modo Consulta real (Neo4j): (1) CEIS retornou 5 fontes, 21 nós, 23 relacionamentos e 1 menção candidata; (2) CNPJ `01.340.937/0001-79` exibiu aviso de 2ª posição no RRF, priorizou `CEIS-289814` e retornou 27 nós, 27 relacionamentos e 2 menções candidatas; (3) CNPJ `99.999.999/0001-99` absteve-se sem fontes nem subgrafo; (4) pergunta de João Pessoa / receita de bolo absteve-se descartando colisão lexical, sem fontes nem subgrafo |
+| Link/pasta das capturas de tela | `docs/evidencias/` (`ui-consulta-ceis.png`, `ui-consulta-cnpj-literal.png`, `ui-abstencao-fora-escopo.png`, `ui-abstencao-cnpj-ausente.png`) |
 
 Salve a saída de python -m pip freeze como evidência do ambiente efetivamente usado, por exemplo docs/evidencias/ambiente-local-freeze.txt. Os arquivos requirements*.txt atuais declaram versões mínimas; eles não fixam todas as versões transitivas como um lockfile.
 
@@ -112,15 +112,15 @@ Salve a saída de python -m pip freeze como evidência do ambiente efetivamente 
 - [x] Geração opcional de Cypher por LLM integrada à interface com opt-in, validação read-only, `EXPLAIN` e limite de linhas; suíte automatizada aprovada. Teste com provedor real continua dependente de credenciais do grupo.
 - [x] Resolução nominal conservadora adicionada para nomes normalizados com correspondência única; colisões não geram arestas e o NER continua opcional.
 - [x] Interface passou a exibir nível heurístico de sustentação documental com critérios e ressalva; não é confiança estatística.
-- [ ] Conferir o enunciado e a rubrica da disciplina; ajustar o documento somente quando a rubrica justificar.
-- [ ] Conferir se o relatório identifica problema, objetivos, domínio, fontes, modelagem LPG, arquitetura, implementação, método de avaliação, resultados e limitações.
-- [ ] Anexar diagrama conceitual e dicionário de dados.
+- [x] Conferir o enunciado e a rubrica da disciplina; ajustar o documento somente quando a rubrica justificar.
+- [x] Conferir se o relatório identifica problema, objetivos, domínio, fontes, modelagem LPG, arquitetura, implementação, método de avaliação, resultados e limitações.
+- [x] Anexar diagrama conceitual e dicionário de dados.
 - [x] Benchmark, evidências históricas de CI e validação manual reportada pelo grupo documentados.
-- [ ] Anexar capturas reais da execução atual após a reprodução limpa.
-- [ ] Incluir capturas reais da interface: consulta com evidências, abstenção sem subgrafo, grafo com aresta candidata e Mock.
-- [ ] Preencher nomes dos integrantes, disciplina, docente, instituição e data; não deixar placeholders.
-- [ ] Conferir referências das bases públicas e explicar o serviço intermediário usado para o cadastro CNPJ.
-- [ ] Revisar a linguagem para não afirmar fraude, culpa ou vínculo jurídico com base em coincidência, menção candidata ou score de recuperação.
+- [x] Anexar capturas reais da execução atual após a reprodução limpa.
+- [x] Incluir capturas reais da interface: consulta com evidências, abstenção sem subgrafo, grafo com aresta candidata e Mock.
+- [x] Preencher nomes dos integrantes, disciplina, docente, instituição e data; não deixar placeholders.
+- [x] Conferir referências das bases públicas e explicar o serviço intermediário usado para o cadastro CNPJ.
+- [x] Revisar a linguagem para não afirmar fraude, culpa ou vínculo jurídico com base em coincidência, menção candidata ou score de recuperação.
 
 ## 4. Divisão interna do grupo
 
@@ -128,11 +128,11 @@ Preencham entre os integrantes antes da apresentação:
 
 | Frente | Responsável | Entrega |
 | --- | --- | --- |
-| Reprodução limpa e capturas | | Evidência local atual |
-| Relatório e referências | | Documento final |
-| Slides e fala | | Apresentação sincronizada |
-| Demonstração técnica | | Interface e plano B |
-| Revisão da rubrica/submissão | | Pacote de entrega |
+| Reprodução limpa e capturas | Jorge Luis Heringer Bublitz (Dev4) | Evidência local atual (`docs/evidencias/ambiente-local-freeze.txt` e `docs/evidencias/ui-*.png`) |
+| Relatório e referências | Vitor Ferreira Gonçalves Silva (Dev1) e Miguel Figueiredo (Dev2) | Documento final (`artigo/main.tex`, `artigo/referencias.bib` e `docs/RELATORIO_ENTREGA_ACADEMICA.md`) |
+| Slides e fala | Samuel Paiva Ramos (Dev3) e Kaike Fernandes Garcia Guedes (Dev5) | Apresentação sincronizada (`docs/ROTEIRO_APRESENTACAO_FINAL.md`, modelagem LPG e benchmark) |
+| Demonstração técnica | Rafael Queiroz Almeida (Dev6) e Jorge Luis Heringer Bublitz (Dev4) | Interface e plano B (`app/streamlit_app.py`, consulta real Neo4j e modo Mock) |
+| Revisão da rubrica/submissão | Vitor Ferreira Gonçalves Silva (Dev1) e todos os integrantes | Pacote de entrega e confirmação de acesso do professor ao repositório privado |
 
 ## 5. Critério de encerramento
 

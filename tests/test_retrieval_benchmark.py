@@ -238,5 +238,19 @@ class BenchmarkDatasetIntegrityTests(unittest.TestCase):
                     self.assertEqual(set(case["expected_registro_ids"]), actual_regs)
 
 
+    def test_positive_benchmark_cases_have_domain_anchor_or_identifier(self):
+        from app.services.orchestrator import _has_domain_anchor
+        from app.services.retrieval import cnpj_identifiers
+
+        dataset = json.loads(BENCHMARK_PATH.read_text(encoding="utf-8"))
+        for case in dataset.get("cases", []):
+            q = case["question"]
+            has_anchor = _has_domain_anchor(q) or bool(cnpj_identifiers(q))
+            if not case["expected_abstained"]:
+                self.assertTrue(has_anchor, f"{case['id']} deveria possuir ancora de dominio: {q}")
+            elif case["category"] == "fora_de_dominio":
+                self.assertFalse(has_anchor, f"{case['id']} nao deveria possuir ancora de dominio: {q}")
+
+
 if __name__ == "__main__":
     unittest.main()

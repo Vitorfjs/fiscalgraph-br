@@ -75,12 +75,15 @@ _DOMAIN_PREFIXES: Tuple[str, ...] = (
     "extraordinar",
     "mencion",
     "vincul",
+    "decis",
+    "reconsiderac",
 )
 
 _DOMAIN_PHRASES: Tuple[str, ...] = (
     "receita federal",
     "portal da transparencia",
     "quadro societario",
+    "personalidade juridica",
 )
 
 _RECORD_ID_PATTERN = re.compile(r"\b(?:CEIS|CNEP|REG|TR|SOC|F)-[A-Za-z0-9_-]+\b", re.IGNORECASE)
