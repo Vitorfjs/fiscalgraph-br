@@ -23,7 +23,11 @@ def evidence_confidence(context: Dict[str, Any]) -> Dict[str, Any]:
         if chunk.get("registro_id") or chunk.get("trecho_id")
     }
     sources = {chunk.get("fonte_id") for chunk in chunks if chunk.get("fonte_id")}
-    active_searches = set(parameters.get("active_searches") or [])
+    search_status = parameters.get("search_status") or {}
+    executed_searches = {
+        name for name, state in search_status.items()
+        if state in {"com_resultados", "sem_resultados"}
+    }
     has_exact_identifier = any(chunk.get("identifier_matches") for chunk in chunks)
     structural_types = {
         "APLICADA_A", "PARTICIPA_DE", "POSSUI_ESTABELECIMENTO", "EXERCE_CNAE"
@@ -33,9 +37,9 @@ def evidence_confidence(context: Dict[str, Any]) -> Dict[str, Any]:
         for relationship in context.get("relationships", [])
         if isinstance(relationship, dict)
     }
-    has_structured_path = bool(structural_types & relationship_types) or any(
-        chunk.get("graph_paths") for chunk in chunks
-    )
+    # Caminhos de proveniência ou menções candidatas não contam como corroboração
+    # estrutural; apenas relações tipadas do domínio entram neste sinal.
+    has_structured_path = bool(structural_types & relationship_types)
 
     signals: List[str] = []
     if len(records) >= 3:
