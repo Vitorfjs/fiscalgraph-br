@@ -90,7 +90,7 @@ Preencha com valores observados, sem copiar os valores históricos:
 
 | Campo | Valor desta execução |
 | --- | --- |
-| Responsável(is) | Jorge Bublitz (Dev4), em conjunto com Vitor Ferreira Gonçalves Silva (Dev1), Miguel Figueiredo (Dev2), Samuel Paiva Ramos (Dev3), Kaike Fernandes Garcia Guedes (Dev5) e Rafael Queiroz Almeida (Dev6) |
+| Responsável(is) | Jorge Luis Heringer Bublitz (Dev4), em conjunto com Vitor Ferreira Gonçalves Silva (Dev1), Miguel Figueiredo (Dev2), Samuel Paiva Ramos (Dev3), Kaike Fernandes Garcia Guedes (Dev5) e Rafael Queiroz Almeida (Dev6) |
 | Data/hora e fuso | `2026-11-13T18:01:00-03:00` (UTC-3) |
 | Sistema operacional | Windows 11 (`Windows-11-10.0.26100-SP0`, x86_64) |
 | Python (python --version) | `Python 3.13.2` (`docs/evidencias/ambiente-local-freeze.txt`) |
@@ -128,10 +128,10 @@ Preencham entre os integrantes antes da apresentação:
 
 | Frente | Responsável | Entrega |
 | --- | --- | --- |
-| Reprodução limpa e capturas | Jorge Bublitz (Dev4) | Evidência local atual (`docs/evidencias/ambiente-local-freeze.txt` e `docs/evidencias/ui-*.png`) |
+| Reprodução limpa e capturas | Jorge Luis Heringer Bublitz (Dev4) | Evidência local atual (`docs/evidencias/ambiente-local-freeze.txt` e `docs/evidencias/ui-*.png`) |
 | Relatório e referências | Vitor Ferreira Gonçalves Silva (Dev1) e Miguel Figueiredo (Dev2) | Documento final (`artigo/main.tex`, `artigo/referencias.bib` e `docs/RELATORIO_ENTREGA_ACADEMICA.md`) |
 | Slides e fala | Samuel Paiva Ramos (Dev3) e Kaike Fernandes Garcia Guedes (Dev5) | Apresentação sincronizada (`docs/ROTEIRO_APRESENTACAO_FINAL.md`, modelagem LPG e benchmark) |
-| Demonstração técnica | Rafael Queiroz Almeida (Dev6) e Jorge Bublitz (Dev4) | Interface e plano B (`app/streamlit_app.py`, consulta real Neo4j e modo Mock) |
+| Demonstração técnica | Rafael Queiroz Almeida (Dev6) e Jorge Luis Heringer Bublitz (Dev4) | Interface e plano B (`app/streamlit_app.py`, consulta real Neo4j e modo Mock) |
 | Revisão da rubrica/submissão | Vitor Ferreira Gonçalves Silva (Dev1) e todos os integrantes | Pacote de entrega e confirmação de acesso do professor ao repositório privado |
 
 ## 5. Critério de encerramento
