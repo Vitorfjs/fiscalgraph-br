@@ -21,6 +21,7 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import sys
@@ -28,6 +29,8 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator
 
 ROOT = Path(__file__).resolve().parents[2]
+
+from pipeline.text_to_graph.extractor import normalize_organization_name
 
 UPSERT_CHUNKS = """
 UNWIND $rows AS row
@@ -58,6 +61,17 @@ FOREACH (_ IN CASE WHEN e IS NULL THEN [] ELSE [1] END |
     MERGE (t)-[m:MENCIONA {inicio: row.inicio, fim: row.fim}]->(e)
     SET m.metodo = row.metodo, m.status = 'CANDIDATA')
 RETURN row.cnpj AS cnpj, e IS NOT NULL AS linked
+"""
+
+LINK_ORGANIZATION_MENTIONS = """
+UNWIND $rows AS row
+MATCH (t:Trecho {trecho_id: row.trecho_id})
+MATCH (e:Empresa {cnpj_basico: row.cnpj_basico})
+MERGE (t)-[m:MENCAO_NOME {inicio: row.inicio, fim: row.fim}]->(e)
+SET m.metodo = row.metodo,
+    m.status = 'CANDIDATA',
+    m.valor_normalizado = row.valor_normalizado
+RETURN row.cnpj_basico AS cnpj_basico
 """
 
 CHUNK_FIELDS = ("trecho_id", "texto", "url_fonte", "registro_origem", "metodo_extracao", "registro_id", "fonte_id")
@@ -121,6 +135,51 @@ def mention_rows(item: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def build_organization_index(companies_csv: Path) -> dict[str, str | None]:
+    """Indexa nomes legais normalizados; colisões entre CNPJs viram ambiguidades (None)."""
+    index: dict[str, str | None] = {}
+    with companies_csv.open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if not {"cnpj_basico", "razao_social"}.issubset(set(reader.fieldnames or [])):
+            raise ValueError("CSV de empresas precisa conter cnpj_basico e razao_social.")
+        for row in reader:
+            normalized = normalize_organization_name(row.get("razao_social") or "")
+            cnpj_basico = (row.get("cnpj_basico") or "").strip()
+            if not normalized or not cnpj_basico:
+                continue
+            previous = index.get(normalized)
+            if normalized in index and previous != cnpj_basico:
+                index[normalized] = None
+            else:
+                index[normalized] = cnpj_basico
+    return index
+
+
+def organization_rows(
+    item: dict[str, Any], organization_index: dict[str, str | None]
+) -> list[dict[str, Any]]:
+    """Resolve apenas nome normalizado idêntico e não ambíguo; nunca usa fuzzy matching."""
+    rows: list[dict[str, Any]] = []
+    for mention in item.get("mencoes", []):
+        if mention.get("tipo") != "ORGANIZACAO":
+            continue
+        normalized = mention.get("valor_normalizado") or normalize_organization_name(
+            str(mention.get("valor") or "")
+        )
+        cnpj_basico = organization_index.get(normalized)
+        if not cnpj_basico:
+            continue
+        rows.append({
+            "trecho_id": item["trecho_id"],
+            "cnpj_basico": cnpj_basico,
+            "valor_normalizado": normalized,
+            "inicio": mention.get("inicio"),
+            "fim": mention.get("fim"),
+            "metodo": mention.get("metodo", "spacy_ner_pt_core_news_sm"),
+        })
+    return rows
+
+
 def summarize(items: list[dict[str, Any]]) -> dict[str, int]:
     """Contagens que não dependem do banco (úteis para --dry-run)."""
     cnpj = sum(1 for i in items for m in i.get("mencoes", []) if m.get("tipo") == "CNPJ")
@@ -128,15 +187,24 @@ def summarize(items: list[dict[str, Any]]) -> dict[str, int]:
     return {"trechos": len(items), "mencoes_cnpj": cnpj, "mencoes_org": org}
 
 
-def load(items: list[dict[str, Any]], driver: Any, batch_size: int = 200, database: str | None = None) -> dict[str, int]:
+def load(
+    items: list[dict[str, Any]],
+    driver: Any,
+    batch_size: int = 200,
+    database: str | None = None,
+    organization_index: dict[str, str | None] | None = None,
+) -> dict[str, int]:
     stats = {
         "trechos_carregados": 0,
         "registros_nao_encontrados": 0,
         "fontes_nao_encontradas": 0,
         "mencoes_cnpj_ligadas": 0,
         "mencoes_cnpj_nao_resolvidas": 0,
+        "mencoes_org_candidatas_ligadas": 0,
+        "mencoes_org_sem_correspondencia_unica": 0,
         "mencoes_org_nao_ligadas": 0,
     }
+    organization_index = organization_index or {}
     with driver.session(database=database) as session:
         for batch in batched(items, batch_size):
             records = session.run(UPSERT_CHUNKS, rows=[chunk_row(i) for i in batch]).data()
@@ -149,15 +217,31 @@ def load(items: list[dict[str, Any]], driver: Any, batch_size: int = 200, databa
                 linked = session.run(LINK_MENTIONS, rows=rows).data()
                 stats["mencoes_cnpj_ligadas"] += sum(1 for r in linked if r["linked"])
                 stats["mencoes_cnpj_nao_resolvidas"] += sum(1 for r in linked if not r["linked"])
-            stats["mencoes_org_nao_ligadas"] += sum(
-                1 for item in batch for m in item.get("mencoes", []) if m.get("tipo") == "ORGANIZACAO"
-            )
+            all_org_mentions = [
+                (item, mention)
+                for item in batch for mention in item.get("mencoes", [])
+                if mention.get("tipo") == "ORGANIZACAO"
+            ]
+            org_rows = [
+                row for item in batch for row in organization_rows(item, organization_index)
+            ]
+            if org_rows:
+                org_linked = session.run(LINK_ORGANIZATION_MENTIONS, rows=org_rows).data()
+                stats["mencoes_org_candidatas_ligadas"] += len(org_linked)
+            stats["mencoes_org_sem_correspondencia_unica"] += len(all_org_mentions) - len(org_rows)
+            stats["mencoes_org_nao_ligadas"] += len(all_org_mentions) - len(org_rows)
     return stats
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Carrega trechos.jsonl no Neo4j")
     parser.add_argument("--input", type=Path, required=True, help="Arquivo trechos.jsonl gerado pelo extractor")
+    parser.add_argument(
+        "--companies-csv",
+        type=Path,
+        default=ROOT / "data" / "processed" / "canonical" / "empresas.csv",
+        help="CSV canônico para resolução nominal exata e unívoca",
+    )
     parser.add_argument("--batch-size", type=positive_int, default=200, help="Tamanho do lote (deve ser >= 1)")
     parser.add_argument("--database", type=str, default=None, help="Nome do banco de dados Neo4j (opcional)")
     parser.add_argument("--dry-run", action="store_true", help="Apenas lê e resume o JSONL, sem conectar ao banco")
@@ -170,8 +254,17 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     summary = summarize(items)
+    try:
+        organization_index = build_organization_index(args.companies_csv)
+    except (OSError, ValueError) as exc:
+        print(f"Erro ao carregar índice nominal {args.companies_csv}: {exc}", file=sys.stderr)
+        return 1
+    resolved_org = sum(
+        len(organization_rows(item, organization_index)) for item in items
+    )
     print(f"JSONL: {summary['trechos']} trechos, {summary['mencoes_cnpj']} menções CNPJ, "
           f"{summary['mencoes_org']} menções ORGANIZACAO")
+    print(f"Menções ORGANIZACAO com nome normalizado único no catálogo: {resolved_org}")
     if args.dry_run:
         print("Dry-run: nenhuma escrita no Neo4j.")
         return 0
@@ -192,7 +285,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         with GraphDatabase.driver(uri, auth=(user, password)) as driver:
             driver.verify_connectivity()
-            stats = load(items, driver, args.batch_size, database=database)
+            stats = load(
+                items, driver, args.batch_size, database=database,
+                organization_index=organization_index,
+            )
     except AuthError:
         print("Falha de autenticação. Confira NEO4J_USER e NEO4J_PASSWORD no .env.", file=sys.stderr)
         return 1
@@ -208,7 +304,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Fontes não encontradas no grafo: {stats['fontes_nao_encontradas']}")
     print(f"Menções CNPJ ligadas como CANDIDATA: {stats['mencoes_cnpj_ligadas']}")
     print(f"Menções CNPJ não resolvidas (sem Estabelecimento exato): {stats['mencoes_cnpj_nao_resolvidas']}")
-    print(f"Menções ORGANIZACAO mantidas só no JSONL (sem relação): {stats['mencoes_org_nao_ligadas']}")
+    print(f"Menções ORGANIZACAO ligadas por nome normalizado exato e único: {stats['mencoes_org_candidatas_ligadas']}")
+    print(f"Menções ORGANIZACAO sem correspondência nominal única: {stats['mencoes_org_sem_correspondencia_unica']}")
     return 0
 
 
