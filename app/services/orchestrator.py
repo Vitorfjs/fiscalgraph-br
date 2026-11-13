@@ -18,6 +18,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 from .contract import validate_retrieval_response
 from .response_adapter import build_final_response
 from .retrieval import GraphHybridRetriever, cnpj_identifiers
+from .nl_cypher import run_constrained_cypher
 
 _DOMAIN_EXACT_WORDS: Tuple[str, ...] = (
     "cnpj",
@@ -344,7 +345,7 @@ def _llm_answer(context: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
         "explícita de uma menção textual. Uma aresta MENCIONA com status CANDIDATA não confirma "
         "vínculo jurídico, culpa, fraude ou responsabilidade. Similaridade/RRF não é probabilidade. "
         "Se os dados não sustentarem uma conclusão, diga isso claramente. Cite os identificadores "
-        "registro_id/trecho_id ao apresentar evidências. Não invente fatos, datas ou relações."
+        "registro_id/trecho_id ao apresentar evidências. Quando graph_paths estiver disponível, cite os tipos de relação do caminho apresentado e não infira vínculo jurídico além da aresta registrada. Não invente fatos, datas ou relações."
     )
     body = {
         "model": model,
@@ -393,39 +394,64 @@ def answer_question(
     active_retriever = retriever or GraphHybridRetriever.from_env()
     try:
         context = active_retriever.retrieve_context(question, top_k=top_k)
+        problems = validate_retrieval_response(context)
+        if problems:
+            raise ValueError("Resposta do Dev5 fora do contrato: " + "; ".join(problems))
+
+        abstained, abstention_message, policy_warnings = evaluate_abstention_policy(context)
+        additional_warnings: List[str] = list(policy_warnings)
+
+        if abstained:
+            answer = _deterministic_answer(context, abstention_message=abstention_message)
+            response_context = {
+                **context,
+                "chunks": [],
+                "nodes": [],
+                "relationships": [],
+            }
+        else:
+            response_context = context
+            generated, cypher_warning = run_constrained_cypher(question, active_retriever)
+            if cypher_warning:
+                additional_warnings.append(cypher_warning)
+            if generated:
+                audit = (
+                    "\n\n// Plano LLM validado e compilado por allowlist; "
+                    "transação somente leitura.\n"
+                    + generated["query"]
+                    + "\n// Parâmetros: "
+                    + json.dumps(generated["parameters"], ensure_ascii=False)
+                )
+                response_context = {**context, "cypher": context.get("cypher", "") + audit}
+                answer, warning = _llm_answer(context)
+                if answer is None:
+                    answer = _deterministic_answer(context)
+                    if warning:
+                        additional_warnings.append(warning)
+                elif warning:
+                    additional_warnings.append(warning)
+                answer += (
+                    "\\n\\nConsulta estruturada complementar ("
+                    + generated["intent"] + "): "
+                    + str(len(generated["rows"])) + " registro(s). "
+                    + json.dumps(generated["rows"][:5], ensure_ascii=False, default=str)[:1800]
+                )
+            else:
+                answer, warning = _llm_answer(context)
+                if answer is None:
+                    answer = _deterministic_answer(context)
+                    additional_warnings.append(
+                        warning or "LLM não configurado; resposta sintetizada deterministicamente a partir das evidências."
+                    )
+                elif warning:
+                    additional_warnings.append(warning)
+
+        return build_final_response(
+            response_context,
+            answer,
+            abstained=abstained,
+            additional_warnings=additional_warnings,
+        )
     finally:
         if owns_retriever:
             active_retriever.close()
-
-    problems = validate_retrieval_response(context)
-    if problems:
-        raise ValueError("Resposta do Dev5 fora do contrato: " + "; ".join(problems))
-
-    abstained, abstention_message, policy_warnings = evaluate_abstention_policy(context)
-    additional_warnings: List[str] = list(policy_warnings)
-
-    if abstained:
-        answer = _deterministic_answer(context, abstention_message=abstention_message)
-        response_context = {
-            **context,
-            "chunks": [],
-            "nodes": [],
-            "relationships": [],
-        }
-    else:
-        response_context = context
-        answer, warning = _llm_answer(context)
-        if answer is None:
-            answer = _deterministic_answer(context)
-            additional_warnings.append(
-                warning or "LLM não configurado; resposta sintetizada deterministicamente a partir das evidências."
-            )
-        elif warning:
-            additional_warnings.append(warning)
-
-    return build_final_response(
-        response_context,
-        answer,
-        abstained=abstained,
-        additional_warnings=additional_warnings,
-    )

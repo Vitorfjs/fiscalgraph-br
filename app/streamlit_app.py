@@ -70,7 +70,7 @@ def _render_graph_section(nodes_data: list, relationships_data: list) -> None:
     )
     st.caption(
         "Arestas — Azul contínuo: relação estrutural do grafo. "
-        "Vermelho tracejado: MENCIONA (CANDIDATA), menção textual que exige validação. "
+        "Vermelho tracejado: MENCIONA / MENCIONA_ORGANIZACAO (CANDIDATA), menção textual que exige validação. "
         "As arestas exibidas são somente as retornadas pelo Neo4j."
     )
     st.caption(f"Cores dos nós — {node_legend}.")
@@ -91,6 +91,23 @@ def render_payload(payload: dict) -> None:
     if payload.get("cypher"):
         with st.expander("Consulta Cypher"):
             st.code(payload["cypher"], language="cypher")
+
+    sources = payload.get("sources", [])
+    relationships = payload.get("relationships", [])
+    if payload.get("abstained") or not sources:
+        support_level = "Insuficiente"
+        support_reason = "A aplicação se absteve ou não recuperou fontes."
+    elif len(sources) >= 3 and len(relationships) >= 2:
+        support_level = "Ampliado"
+        support_reason = "Há múltiplas fontes e relações no subgrafo retornado."
+    else:
+        support_level = "Limitado"
+        support_reason = "Há evidência recuperada, mas a cobertura é restrita."
+    st.metric("Nível de suporte da recuperação (heurístico)", support_level)
+    st.caption(
+        support_reason + " Não é confiança calibrada nem probabilidade de fraude, "
+        "irregularidade ou responsabilidade."
+    )
 
     relevance = payload.get("retrieval_relevance")
     if relevance is not None:

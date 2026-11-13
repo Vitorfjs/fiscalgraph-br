@@ -653,3 +653,16 @@ Todas geradas depois das alterações desta entrega, por execuções reais:
   CNAEs compartilhados e cenário sintético) e contagens antes/depois.
 - `docs/exemplos/resposta_final_dev1.exemplo.json` — **exemplo demonstrativo** (não é evidência de execução
   do dev1 nem resposta de LLM).
+
+
+## Planejamento LLM-to-Cypher restrito
+
+O módulo `app/services/nl_cypher.py` adiciona planejamento de consulta opcional. O LLM
+retorna somente JSON com uma intenção permitida e parâmetros; o código valida a intenção,
+o identificador e o limite, e compila um template Cypher parametrizado da allowlist. A
+execução usa `session.execute_read`; não há execução de Cypher arbitrário, comandos de
+escrita, APOC ou escolha livre de labels e propriedades. O recurso exige
+`LLM_CYPHER_ENABLED=true` e `LLM_SEND_EVIDENCE=true`, ambos desligados por padrão.
+Falha de endpoint ou validação não interrompe a recuperação híbrida. Sem endpoint e
+credenciais autorizados, a execução externa permanece pendente; os testes automatizados
+cobrem validação, parametrização e transação read-only simulada.

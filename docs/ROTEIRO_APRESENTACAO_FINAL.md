@@ -153,3 +153,14 @@ O corpus é pequeno e contém muitos termos legais, números de processo, CNPJs 
 
 **O que significa não encontrar um CNPJ?**  
 Significa que não foi encontrada evidência correspondente no recorte local. Não significa inexistência de registro em toda a base pública nacional.
+
+
+## Demonstração adicional: planejamento LLM-to-Cypher
+
+O recurso `app/services/nl_cypher.py` planeja consultas a partir de uma intenção JSON
+e compila somente templates previamente permitidos, com parâmetros vinculados e
+transação Neo4j somente leitura. O recurso permanece desligado por padrão. Para
+demonstrá-lo ao vivo, o grupo precisa configurar um endpoint compatível, autorizar o
+envio da pergunta ao provedor e habilitar explicitamente as duas variáveis de ambiente.
+Sem essas condições, demonstre a recuperação híbrida já validada e informe que a
+integração externa não foi testada.
