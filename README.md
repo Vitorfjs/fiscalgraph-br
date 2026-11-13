@@ -6,7 +6,7 @@
 
 O **FiscalGraph BR** é um protótipo acadêmico de **GraphRAG** sobre **Neo4j** que integra dados cadastrais públicos de empresas brasileiras (CNPJ/QSA/CNAE) e registros públicos de sanções administrativas (**CEIS** e **CNEP**), permitindo consultas explicáveis com fontes, trechos documentais e caminhos no grafo.
 
-> **Aviso metodológico e uso responsável:** Uma ligação societária, coincidência de nome, atividade CNAE compartilhada, menção textual ou registro em cadastro público **não constitui, isoladamente, prova de fraude, sonegação, culpa ou irregularidade atual**. O sistema apoia análise preliminar rastreável e não substitui auditoria ou decisão jurídica.
+> **Aviso metodológico e uso responsável:** Uma ligação societária, coincidência de nome, atividade CNAE compartilhada, menção textual ou registro em cadastro público **não constitui, isoladamente, prova de fraude, sonegação, culpa ou irregularidade atual**. O sistema apoia análise preliminar rastreável e não substitui auditoria ou decisão jurídica. A geração de Cypher por LLM e a resolução nominal são extensões opcionais; não alteram as métricas históricas até serem validadas em nova execução.
 
 ---
 
@@ -223,6 +223,8 @@ python scripts/evaluate_retrieval_benchmark.py --k 5
 - `docs/RELATORIO_ENTREGA_ACADEMICA.md` — consolidação de evidências, limitações e cenários de aceitação.
 - `docs/CHECKLIST_ENTREGA_FINAL.md` — checklist de reprodução limpa e submissão.
 - `docs/ROTEIRO_APRESENTACAO_FINAL.md` — roteiro de demonstração em aproximadamente 8 minutos.
+- `artigo/README.md` — compilação e pendências do artigo técnico SBC.
+- `artigo/main.tex` e `artigo/referencias.bib` — fonte do artigo técnico e bibliografia.
 
 ---
 
