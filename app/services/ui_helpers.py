@@ -132,7 +132,7 @@ def build_graph_elements(
             continue
         properties = relationship.get("properties") or {}
         relation_type = relationship.get("type", "UNKNOWN")
-        is_candidate = relation_type == "MENCIONA" and properties.get("status") == "CANDIDATA"
+        is_candidate = relation_type in {"MENCIONA", "MENCAO_NOME"} and properties.get("status") == "CANDIDATA"
         if is_candidate:
             candidate_count += 1
         edge_label = f"{relation_type} (CANDIDATA)" if is_candidate else relation_type

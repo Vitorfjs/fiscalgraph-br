@@ -126,7 +126,7 @@ Reforçar que ausência no recorte não prova inexistência na base pública nac
 
 - Tabela de benchmark.
 - Limitações: snapshot pequeno, dependência de fonte intermediária para CNPJ, ausência de inferência jurídica e relações MENCIONA candidatas.
-- Status da suíte automatizada com referência ao run de CI 43327963350 (179 testes) e à validação manual reportada (8/8 cenários).
+- Status da suíte automatizada com referência ao run de CI 43436377286 (181 testes na versão de referência) e à validação manual reportada pelo grupo (8/8 cenários). Não atribuir essa contagem às extensões posteriores até nova CI.
 
 ## Plano B para a demonstração
 

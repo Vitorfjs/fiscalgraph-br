@@ -22,6 +22,7 @@ class StreamlitHelpersTests(unittest.TestCase):
         ]
         relationships_data = [
             {"source": "n-tr", "target": "n-est", "type": "MENCIONA", "properties": {"status": "CANDIDATA"}},
+            {"source": "n-tr", "target": "n-emp", "type": "MENCAO_NOME", "properties": {"status": "CANDIDATA"}},
             {"source": "n-emp", "target": "n-est", "type": "POSSUI_ESTABELECIMENTO", "properties": {}},
             {"source": "n-tr", "target": "missing-node", "type": "ORIGINADO_DE", "properties": {}},
         ]
@@ -31,16 +32,19 @@ class StreamlitHelpersTests(unittest.TestCase):
         )
 
         self.assertEqual(len(graph_nodes), 3)
-        self.assertEqual(len(graph_edges), 2)
-        self.assertEqual(candidate_count, 1)
+        self.assertEqual(len(graph_edges), 3)
+        self.assertEqual(candidate_count, 2)
 
         colors_by_id = {node.id: node.color for node in graph_nodes}
         self.assertNotEqual(colors_by_id["n-emp"], colors_by_id["n-tr"])
 
         candidate_edge = next(edge for edge in graph_edges if edge.label == "MENCIONA (CANDIDATA)")
+        candidate_name_edge = next(edge for edge in graph_edges if edge.label == "MENCAO_NOME (CANDIDATA)")
         confirmed_edge = next(edge for edge in graph_edges if edge.label == "POSSUI_ESTABELECIMENTO")
         self.assertEqual(candidate_edge.color, "#FF4B4B")
         self.assertTrue(candidate_edge.dashes)
+        self.assertEqual(candidate_name_edge.color, "#FF4B4B")
+        self.assertTrue(candidate_name_edge.dashes)
         self.assertEqual(confirmed_edge.color, "#4A90E2")
         self.assertFalse(confirmed_edge.dashes)
 

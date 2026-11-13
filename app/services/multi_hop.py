@@ -19,7 +19,7 @@ from .retrieval import MENCIONA_WARNING, _primary_label, node_payload, path_to_t
 
 MAX_HOPS = 6
 SOCIETARIO_TYPES = ("PARTICIPA_DE",)
-ESTRUTURAL_TYPES = ("PARTICIPA_DE", "POSSUI_ESTABELECIMENTO", "EXERCE_CNAE", "APLICADA_A", "EXTRATO_DE", "MENCIONA")
+ESTRUTURAL_TYPES = ("PARTICIPA_DE", "POSSUI_ESTABELECIMENTO", "EXERCE_CNAE", "APLICADA_A", "EXTRATO_DE", "MENCIONA", "MENCAO_NOME")
 
 CNAE_WARNING = (
     "Caminho por CNAE indica apenas atividade econômica declarada em comum; não é vínculo "
@@ -52,7 +52,7 @@ def classify_path(path: Dict[str, Any]) -> str:
     labels = {_primary_label(node.get("labels") or [])[0] for node in path["nodes"][1:-1]}
     if types and all(t == "PARTICIPA_DE" for t in types):
         return "societario"
-    if "MENCIONA" in types:
+    if {"MENCIONA", "MENCAO_NOME"} & set(types):
         return "mencao_candidata"
     if "CNAE" in labels:
         return "atividade_cnae"

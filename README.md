@@ -6,7 +6,7 @@
 
 O **FiscalGraph BR** é um protótipo acadêmico de **GraphRAG** sobre **Neo4j** que integra dados cadastrais públicos de empresas brasileiras (CNPJ/QSA/CNAE) e registros públicos de sanções administrativas (**CEIS** e **CNEP**), permitindo consultas explicáveis com fontes, trechos documentais e caminhos no grafo.
 
-> **Aviso metodológico e uso responsável:** Uma ligação societária, coincidência de nome, atividade CNAE compartilhada, menção textual ou registro em cadastro público **não constitui, isoladamente, prova de fraude, sonegação, culpa ou irregularidade atual**. O sistema apoia análise preliminar rastreável e não substitui auditoria ou decisão jurídica.
+> **Aviso metodológico e uso responsável:** Uma ligação societária, coincidência de nome, atividade CNAE compartilhada, menção textual ou registro em cadastro público **não constitui, isoladamente, prova de fraude, sonegação, culpa ou irregularidade atual**. O sistema apoia análise preliminar rastreável e não substitui auditoria ou decisão jurídica. A geração de Cypher por LLM e a resolução nominal são extensões opcionais; não alteram as métricas históricas até serem validadas em nova execução.
 
 ---
 
@@ -16,8 +16,8 @@ O **FiscalGraph BR** é um protótipo acadêmico de **GraphRAG** sobre **Neo4j**
 2. **Modelagem LPG no Neo4j (`cypher/`):** nós `Empresa`, `Estabelecimento`, `Socio`, `CNAE`, `Sancao`, `Fonte` e `Trecho`, com constraints de unicidade e índices de filtro, full-text (`fiscalgraph_text_fulltext`) e vetorial (`trecho_embedding_vector`).
 3. **Pipeline Text-to-Graph (`pipeline/text_to_graph/`):** extração de nós `Trecho` a partir dos textos de compliance com preservação de procedência, mascaramento de CPF formatado e vinculação de menções de CNPJ como relações `MENCIONA` com `status = "CANDIDATA"`.
 4. **Recuperação Híbrida e Multi-hop (`app/services/retrieval.py`, `embeddings.py`, `ranking.py`, `multi_hop.py`):** embeddings de 384 dimensões (`paraphrase-multilingual-MiniLM-L12-v2`), busca vetorial + busca full-text combinadas por **Reciprocal Rank Fusion (RRF)**, expansão de subgrafo e consultas multi-hop entre empresas.
-5. **Orquestração (`app/services/orchestrator.py`, `response_adapter.py`, `contract.py`):** validação de contrato, síntese determinística transparente e suporte opcional a endpoint compatível com OpenAI Chat Completions (opt-in via `LLM_SEND_EVIDENCE=true`).
-6. **Interface Streamlit (`app/streamlit_app.py`, `mock_service.py`, `source_adapter.py`):** alternância explícita entre **Consulta real (Neo4j)** e **Demonstração (Mock)**, exibição de fontes/trechos e visualização interativa do subgrafo com `streamlit-agraph`.
+5. **Orquestração e consultas Cypher com LLM (`app/services/orchestrator.py`, `app/services/llm_cypher.py`):** síntese determinística por padrão; resposta em linguagem natural por provedor externo com opt-in (`LLM_SEND_EVIDENCE=true`); geração opcional de consultas Cypher somente leitura, com allowlist do schema, bloqueio de cláusulas de escrita, `EXPLAIN` e limite de 100 linhas (`LLM_CYPHER_ENABLED=true`).
+6. **Interface Streamlit (`app/streamlit_app.py`, `mock_service.py`, `source_adapter.py`): alternância explícita entre **Consulta real (Neo4j)** e **Demonstração (Mock)**, exibição de fontes/trechos e visualização interativa do subgrafo com `streamlit-agraph`.
 
 ---
 
@@ -114,10 +114,12 @@ LLM_API_KEY=
 LLM_MODEL=
 LLM_SEND_EVIDENCE=false
 LLM_TIMEOUT_SECONDS=45
+LLM_CYPHER_ENABLED=false
 ```
 
 - Sem `LLM_CHAT_COMPLETIONS_URL`, `LLM_API_KEY` e `LLM_MODEL`, a aplicação utiliza **síntese determinística** a partir dos trechos recuperados.
-- Mesmo quando configurado, o envio de evidências ao provedor externo só ocorre se `LLM_SEND_EVIDENCE=true` for definido explicitamente.
+- Mesmo quando configurado, o envio de evidências recuperadas para síntese em linguagem natural só ocorre se `LLM_SEND_EVIDENCE=true` for definido explicitamente.
+- A geração de Cypher tem opt-in separado: `LLM_CYPHER_ENABLED=true`. Ela envia apenas a pergunta e a descrição do schema (não envia registros recuperados), rejeita escrita, procedimentos e funções fora da allowlist, exige `MATCH`/`RETURN`, inclui `LIMIT` de até 100 e executa `EXPLAIN` antes da consulta. Esse controle reduz a superfície de risco, mas não substitui revisão de segurança nem deve ser exposto a usuários não confiáveis em produção.
 
 ---
 
@@ -211,7 +213,7 @@ python scripts/evaluate_retrieval_benchmark.py --k 5
 - `docs/fontes-datasets.md` — procedência das fontes (RFB/Minha Receita, CEIS, CNEP, IBGE/CNAE) e reprodutibilidade.
 - `docs/dicionario-dados.md` — contrato dos 7 CSVs canônicos e regras de minimização de dados.
 - `docs/modelagem-lpg.md` — modelagem conceitual de nós, propriedades e relacionamentos.
-- `docs/text-to-graph.md` — pipeline de extração de `Trecho` e menções `MENCIONA (CANDIDATA)`.
+- `docs/text-to-graph.md` — pipeline de extração de `Trecho`, menções `MENCIONA (CANDIDATA)` e resolução nominal exata/unívoca `MENCAO_NOME (CANDIDATA)`.
 - `docs/recuperacao-hibrida.md` — embeddings, busca vetorial/full-text, RRF e multi-hop.
 - `docs/CONTRATO_INTEGRACAO_FINAL.md` — contrato entre recuperação, orquestração e interface.
 - `docs/politica-abstencao.md` — regras verificáveis de abstenção, fallback determinístico e verificação de citações.
@@ -221,6 +223,8 @@ python scripts/evaluate_retrieval_benchmark.py --k 5
 - `docs/RELATORIO_ENTREGA_ACADEMICA.md` — consolidação de evidências, limitações e cenários de aceitação.
 - `docs/CHECKLIST_ENTREGA_FINAL.md` — checklist de reprodução limpa e submissão.
 - `docs/ROTEIRO_APRESENTACAO_FINAL.md` — roteiro de demonstração em aproximadamente 8 minutos.
+- `artigo/README.md` — compilação e pendências do artigo técnico SBC.
+- `artigo/main.tex` e `artigo/referencias.bib` — fonte do artigo técnico e bibliografia.
 
 ---
 

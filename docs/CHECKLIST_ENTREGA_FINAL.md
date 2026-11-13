@@ -106,10 +106,17 @@ Salve a saída de python -m pip freeze como evidência do ambiente efetivamente 
 
 ## 3. Preparação da entrega acadêmica
 
+- [x] Fonte do artigo técnico em LaTeX no template SBC adicionada em `artigo/` (`main.tex`, `referencias.bib` e arquivos de estilo).
+- [x] Workflow de compilação do artigo SBC adicionado; aguarda execução no PR para confirmar PDF compilável.
+- [x] Slides de apresentação técnica gerados em PPTX e PDF no ambiente de trabalho desta sessão; identificação do grupo ainda é placeholder.
+- [x] Geração opcional de Cypher por LLM integrada à interface com opt-in, validação read-only, `EXPLAIN` e limite de linhas; aguarda CI e teste com provedor configurado.
+- [x] Resolução nominal conservadora adicionada para nomes normalizados com correspondência única; colisões não geram arestas e o NER continua opcional.
+- [x] Interface passou a exibir nível heurístico de sustentação documental com critérios e ressalva; não é confiança estatística.
 - [ ] Conferir o enunciado e a rubrica da disciplina; ajustar o documento somente quando a rubrica justificar.
 - [ ] Conferir se o relatório identifica problema, objetivos, domínio, fontes, modelagem LPG, arquitetura, implementação, método de avaliação, resultados e limitações.
 - [ ] Anexar diagrama conceitual e dicionário de dados.
-- [ ] Anexar benchmark, evidências de testes e validação manual.
+- [x] Benchmark, evidências históricas de CI e validação manual reportada pelo grupo documentados.
+- [ ] Anexar capturas reais da execução atual após a reprodução limpa.
 - [ ] Incluir capturas reais da interface: consulta com evidências, abstenção sem subgrafo, grafo com aresta candidata e Mock.
 - [ ] Preencher nomes dos integrantes, disciplina, docente, instituição e data; não deixar placeholders.
 - [ ] Conferir referências das bases públicas e explicar o serviço intermediário usado para o cadastro CNPJ.
@@ -129,4 +136,4 @@ Preencham entre os integrantes antes da apresentação:
 
 ## 5. Critério de encerramento
 
-O projeto pode ser considerado tecnicamente integrado quando main, CI, evidências e documentação estiverem coerentes. A entrega acadêmica só deve ser considerada concluída depois da reprodução limpa, do preenchimento da identificação dos integrantes e da revisão com base na rubrica real da disciplina.
+A branch de fechamento reúne as extensões de software e os artefatos acadêmicos iniciais. Não considere o fechamento técnico concluído antes de a CI desta branch aprovar testes e compilação do artigo. A entrega acadêmica só deve ser considerada concluída depois da reprodução limpa, do preenchimento da identificação dos integrantes, da revisão do artigo e dos slides com base na rubrica real da disciplina, e da confirmação de acesso do professor ao repositório se ele permanecer privado.

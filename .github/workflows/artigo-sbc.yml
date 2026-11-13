@@ -1,0 +1,43 @@
+name: Artigo SBC - compilacao
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "artigo/**"
+      - ".github/workflows/artigo-sbc.yml"
+  push:
+    branches: [main]
+    paths:
+      - "artigo/**"
+      - ".github/workflows/artigo-sbc.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Instalar LaTeX e BibTeX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends texlive-latex-base texlive-latex-recommended texlive-latex-extra texlive-lang-portuguese texlive-fonts-recommended
+      - name: Compilar artigo SBC
+        working-directory: artigo
+        run: |
+          pdflatex -interaction=nonstopmode -halt-on-error main.tex
+          bibtex main
+          pdflatex -interaction=nonstopmode -halt-on-error main.tex
+          pdflatex -interaction=nonstopmode -halt-on-error main.tex
+      - name: Publicar PDF compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: artigo-fiscalgraph-br-sbc
+          path: artigo/main.pdf
+          if-no-files-found: error
+          retention-days: 30

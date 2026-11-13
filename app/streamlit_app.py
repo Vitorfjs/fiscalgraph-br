@@ -14,7 +14,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 load_dotenv(ROOT / ".env")
 
-from app.services import mock_service, orchestrator, retrieval, source_adapter, ui_helpers
+from app.services import mock_service, orchestrator, retrieval, source_adapter, ui_helpers, llm_cypher
 
 # Re-exportações explícitas para compatibilidade e organização de testes.
 build_graph_elements = ui_helpers.build_graph_elements
@@ -70,7 +70,7 @@ def _render_graph_section(nodes_data: list, relationships_data: list) -> None:
     )
     st.caption(
         "Arestas — Azul contínuo: relação estrutural do grafo. "
-        "Vermelho tracejado: MENCIONA (CANDIDATA), menção textual que exige validação. "
+        "Vermelho tracejado: MENCIONA ou MENCAO_NOME (CANDIDATA), menção textual que exige validação. "
         "As arestas exibidas são somente as retornadas pelo Neo4j."
     )
     st.caption(f"Cores dos nós — {node_legend}.")
@@ -91,6 +91,18 @@ def render_payload(payload: dict) -> None:
     if payload.get("cypher"):
         with st.expander("Consulta Cypher"):
             st.code(payload["cypher"], language="cypher")
+
+    confidence_level = payload.get("confidence_level")
+    if confidence_level:
+        st.subheader("Nível de sustentação documental (heurístico)")
+        st.metric("Nível de confiança documental", confidence_level)
+        basis = payload.get("confidence_basis") or []
+        if basis:
+            st.caption("Sinais observados: " + " · ".join(basis))
+        st.caption(
+            payload.get("confidence_disclaimer")
+            or "Classificação documental heurística; não representa probabilidade de fraude ou responsabilidade."
+        )
 
     relevance = payload.get("retrieval_relevance")
     if relevance is not None:
@@ -143,6 +155,13 @@ def main() -> None:
         help="A demonstração usa fixtures sintéticas e não executa recuperação.",
     )
     top_k = st.sidebar.slider("Quantidade de evidências (top_k)", min_value=1, max_value=10, value=5)
+    enable_llm_cypher = st.sidebar.checkbox(
+        "Habilitar consulta Cypher gerada por LLM",
+        value=False,
+        help="Requer LLM_CYPHER_ENABLED=true e credenciais configuradas no ambiente.",
+    )
+    if not llm_cypher.cypher_generation_is_configured():
+        st.sidebar.caption("Cypher via LLM está indisponível até ser habilitado explicitamente no ambiente.")
     mock_scenario = st.sidebar.radio(
         "Cenário de demonstração",
         ["Sucesso (grafo e fontes)", "Abstenção (sem conclusão)"],
@@ -190,6 +209,49 @@ def main() -> None:
                     )
     else:
         st.caption("Escolha o modo, informe uma pergunta e pressione Pesquisar.")
+
+    st.divider()
+    st.subheader("Consulta estruturada Cypher via LLM")
+    st.caption(
+        "Recurso experimental e opcional. A pergunta e o schema são enviados ao provedor LLM; "
+        "nenhum registro recuperado é enviado. A consulta é validada, limitada e executada somente para leitura."
+    )
+    with st.form("llm_cypher_form"):
+        cypher_question = st.text_input(
+            "Pergunta para gerar Cypher",
+            placeholder="Ex.: Liste empresas e estabelecimentos localizados no Ceará.",
+            disabled=not enable_llm_cypher or mode != "Consulta real (Neo4j)",
+        )
+        cypher_submitted = st.form_submit_button(
+            "Gerar e executar consulta somente leitura",
+            disabled=not enable_llm_cypher or mode != "Consulta real (Neo4j)",
+        )
+
+    if cypher_submitted:
+        if not cypher_question.strip():
+            st.warning("Digite uma pergunta para gerar a consulta.")
+        elif not llm_cypher.cypher_generation_is_configured():
+            st.error("O recurso exige LLM_CYPHER_ENABLED=true e as credenciais do provedor.")
+        else:
+            try:
+                with st.spinner("Gerando, validando e executando consulta Cypher..."):
+                    active_retriever = get_retriever()
+                    generated = llm_cypher.generate_cypher(cypher_question)
+                    rows = llm_cypher.execute_read_only_cypher(
+                        active_retriever.driver,
+                        generated["cypher"],
+                        database=active_retriever.database,
+                    )
+                st.code(generated["cypher"], language="cypher")
+                if generated.get("rationale"):
+                    st.caption(generated["rationale"])
+                st.metric("Registros retornados", len(rows))
+                st.json(rows)
+                st.caption("Consulta aprovada pelo validador local e executada sem cláusulas de escrita.")
+            except Exception as exc:
+                st.error("Não foi possível gerar ou executar a consulta Cypher.")
+                with st.expander("Detalhes técnicos"):
+                    st.code(ui_helpers.sanitize_error_message(f"{type(exc).__name__}: {exc}"))
 
 
 if __name__ == "__main__":

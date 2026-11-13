@@ -1,0 +1,144 @@
+\documentclass[12pt]{article}
+
+\usepackage{sbc-template}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{graphicx,url}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\sloppy
+
+\title{FiscalGraph BR: GraphRAG explicável para dados empresariais e de compliance}
+
+\author{[Nomes completos dos integrantes do grupo]}
+
+\address{[Curso e instituição; Município -- UF -- Brasil; e-mail institucional do grupo]}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This paper presents FiscalGraph BR, an explainable GraphRAG prototype that integrates public Brazilian company records and administrative compliance data in a Neo4j property graph. The system combines structured graph traversal, vector and full-text retrieval, reciprocal-rank fusion, document-level provenance, and an interactive interface. Its canonical snapshot contains 18 companies, 54 administrative sanctions, and 54 text excerpts. A labeled benchmark with 16 positive queries compares vector, full-text, and hybrid retrieval; four additional cases assess abstention. Full-text retrieval outperformed the hybrid configuration in this specific corpus, while reciprocal-rank fusion improved over vector retrieval alone. The prototype prioritizes traceability and explicit uncertainty rather than automated legal conclusions.
+\end{abstract}
+
+\begin{resumo}
+Este artigo apresenta o FiscalGraph BR, um protótipo de GraphRAG explicável que integra dados públicos empresariais e registros administrativos de compliance em um grafo de propriedades no Neo4j. A solução combina travessia estruturada, recuperação vetorial e textual, fusão por Reciprocal Rank Fusion, procedência documental e interface interativa. O recorte canônico contém 18 empresas, 54 sanções administrativas e 54 trechos textuais. Um benchmark rotulado com 16 consultas positivas compara busca vetorial, full-text e híbrida; outros quatro casos avaliam a política de abstenção. Neste corpus, a busca full-text superou a configuração híbrida, enquanto a fusão melhorou o resultado vetorial isolado. O protótipo prioriza rastreabilidade e explicitação de incerteza, sem produzir conclusões jurídicas automatizadas.
+\end{resumo}
+
+\section{Introdução}
+
+Informações sobre empresas, estabelecimentos, sócios, atividades econômicas e sanções administrativas estão distribuídas em diferentes bases públicas. A análise conjunta desses registros exige conciliar identificadores, preservar a origem dos dados e percorrer relações que nem sempre aparecem no mesmo documento. Uma consulta baseada apenas em texto pode recuperar trechos lexicalmente semelhantes sem explicar como os registros se conectam; por outro lado, consultas estruturadas isoladas podem não localizar passagens documentais relevantes.
+
+Grafos de conhecimento representam entidades e relações de forma explícita, favorecendo consultas relacionais e percursos multi-hop \cite{hogan2021}. Abordagens de Retrieval-Augmented Generation (RAG) combinam recuperação de evidências com modelos de linguagem para responder perguntas apoiadas em fontes externas \cite{lewis2020}. No contexto deste projeto, a recuperação não é tratada como decisão automatizada: os resultados organizam evidências públicas para inspeção humana.
+
+O objetivo deste trabalho é desenvolver e avaliar um protótipo que conecte dados cadastrais de pessoas jurídicas brasileiras a registros públicos do Cadastro de Empresas Inidôneas e Suspensas (CEIS) e do Cadastro Nacional de Empresas Punidas (CNEP). As contribuições são: (i) um modelo LPG no Neo4j com preservação de proveniência; (ii) um pipeline Text-to-Graph com menções candidatas; (iii) recuperação vetorial, full-text e híbrida com expansão do subgrafo; (iv) uma interface que expõe evidências, consultas e relações retornadas; e (v) uma avaliação reproduzível em um conjunto delimitado de perguntas.
+
+\section{Trabalhos relacionados}
+
+Grafos de conhecimento organizam fatos como entidades e relações tipadas, permitindo consultas e inferências sobre estruturas conectadas \cite{hogan2021}. Em sistemas RAG, a recuperação fornece contexto externo ao componente gerador, reduzindo a dependência exclusiva do conhecimento paramétrico do modelo \cite{lewis2020}. A qualidade da recuperação, entretanto, depende da representação documental, do índice e da formulação das consultas.
+
+Embeddings de sentenças permitem comparar trechos por similaridade semântica. O Sentence-BERT foi proposto para produzir representações vetoriais adequadas à comparação de sentenças em larga escala \cite{reimers2019}. Recuperação lexical, por sua vez, é especialmente relevante quando a pergunta contém nomes próprios, códigos, números de processo ou dispositivos legais. A fusão de rankings pode combinar modalidades diferentes; Reciprocal Rank Fusion (RRF) agrega posições sem exigir a calibração direta das pontuações originais \cite{cormack2009}. A escolha entre recuperação lexical, vetorial ou híbrida deve ser verificada empiricamente para o corpus utilizado.
+
+\section{Materiais e métodos}
+
+\subsection{Domínio e fontes de dados}
+
+O domínio escolhido abrange dados cadastrais empresariais, quadro societário, Classificação Nacional de Atividades Econômicas (CNAE) e registros públicos de sanções administrativas. As fontes institucionais incluem a Receita Federal do Brasil (RFB), a Controladoria-Geral da União (CGU), por meio dos conjuntos CEIS e CNEP, e a classificação CNAE disponibilizada pelo IBGE/CONCLA \cite{rfb2026,cguceis2026,cgucnep2026,ibge2026}.
+
+A origem institucional dos dados cadastrais é a RFB; contudo, o meio técnico utilizado no recorte foi o serviço de terceiros Minha Receita, que espelha dados públicos cadastrais. Essa distinção é relevante para a avaliação de proveniência e disponibilidade: o protótipo não declara consumir diretamente os arquivos brutos integrais da RFB. Os arquivos brutos do CEIS e do CNEP foram consultados em 5 de novembro de 2026, considerando a competência de 4 de novembro de 2026. Registros de pessoas físicas foram excluídos do conjunto de sanções.
+
+O recorte foi construído de forma determinística a partir de 18 CNPJs: dez presentes simultaneamente no CEIS e no CNEP, quatro exclusivos do CEIS e quatro exclusivos do CNEP. O conjunto canônico resultante contém 18 empresas, 18 estabelecimentos, 26 registros de sócios, 36 códigos CNAE, 45 associações estabelecimento--CNAE, 54 sanções (30 CEIS e 24 CNEP) e quatro fontes. Os identificadores CNPJ e os códigos são armazenados como texto para preservar zeros à esquerda. A validação de CNPJ é estrutural e não calcula os dígitos verificadores.
+
+\subsection{Modelagem do grafo LPG}
+
+A solução utiliza o modelo Labeled Property Graph (LPG) no Neo4j. Os nós principais são \texttt{Empresa}, \texttt{Estabelecimento}, \texttt{Socio}, \texttt{CNAE}, \texttt{Sancao}, \texttt{Fonte} e \texttt{Trecho}. A entidade \texttt{Empresa} é identificada pela raiz do CNPJ (\texttt{cnpj\_basico}); \texttt{Estabelecimento} utiliza o CNPJ completo. Essa separação evita confundir a pessoa jurídica com suas unidades cadastrais.
+
+As relações estruturadas incluem \texttt{PARTICIPA\_DE}, \texttt{POSSUI\_ESTABELECIMENTO}, \texttt{EXERCE\_CNAE} e \texttt{APLICADA\_A}. Relações de proveniência incluem \texttt{ORIGINADO\_DE} e \texttt{EXTRATO\_DE}. A aresta \texttt{APLICADA\_A} é criada por correspondência exata entre o CNPJ sancionado e o CNPJ do estabelecimento. Não se utiliza similaridade de nomes para inferir vínculos jurídicos.
+
+O esquema possui sete constraints de unicidade, cinco índices de filtro, um índice full-text e um índice vetorial. A execução integrada documentada registrou 16 índices em estado \texttt{ONLINE}. O carregamento utiliza operações idempotentes com \texttt{MERGE}, e as consultas de integridade verificam relações órfãs.
+
+\subsection{Pipeline Text-to-Graph e proveniência}
+
+Os campos \texttt{descricao}, \texttt{observacoes} e \texttt{fundamentacao\_legal} dos registros de compliance são concatenados em trechos textuais. Cada \texttt{Trecho} recebe identificador estável, identificador do registro original, fonte, URL, referência de origem e método de extração. O pipeline mascara CPFs formatados antes da extração textual.
+
+Menções de CNPJ são extraídas por expressão regular estrutural e só geram \texttt{MENCIONA} quando há igualdade exata com \texttt{Estabelecimento.cnpj}. A aresta recebe \texttt{status=CANDIDATA}; portanto, representa citação textual, e não vínculo jurídico confirmado. O extrator também oferece NER de organizações por spaCy, ativado explicitamente. O artefato de produção avaliado foi gerado sem essa opção: contém duas menções CNPJ e nenhuma menção ORGANIZACAO. Assim, o resultado quantitativo apresentado neste artigo não atribui desempenho ao NER.
+
+Uma extensão experimental desenvolvida na branch de fechamento permite comparar nomes organizacionais normalizados com o catálogo canônico. A extensão só pretende criar \texttt{MENCAO\_NOME} como relação candidata quando a correspondência normalizada é única; colisões e nomes não encontrados não geram aresta. Essa extensão não foi executada sobre o snapshot que originou as métricas deste artigo e não integra os resultados quantitativos reportados.
+
+\subsection{Recuperação híbrida e consultas multi-hop}
+
+Cada trecho recebe embedding de 384 dimensões utilizando \texttt{paraphrase-multilingual-MiniLM-L12-v2}. Para textos longos, o pipeline utiliza janelas de até 126 tokens, sobreposição de 32 tokens e média ponderada pelos tokens novos, seguida de normalização L2. A busca vetorial utiliza similaridade cosseno. Em paralelo, a busca full-text consulta o índice Lucene do Neo4j.
+
+Os rankings são combinados por Reciprocal Rank Fusion com parâmetro $k=60$ \cite{cormack2009}. Após a fusão, os trechos selecionados orientam a expansão do subgrafo via Cypher. A aplicação também disponibiliza \texttt{shortestPath} para explorar caminhos entre empresas, limitados a seis arestas. O caminho é interpretado conforme seus tipos de relação: uma conexão via CNAE indica atividade declarada em comum, não sociedade ou parceria comercial.
+
+\subsection{Orquestração, interface e proteção contra conclusões indevidas}
+
+A interface foi construída em Streamlit. Ela apresenta fontes, trechos, consulta Cypher, nós e relações retornados, bem como contagens do subgrafo. A pontuação de relevância da recuperação é normalizada para visualização, mas é explicitamente identificada como medida de recuperação, não como probabilidade de fraude ou irregularidade.
+
+A síntese determinística é o comportamento padrão. A geração opcional de resposta por LLM requer configuração e autorização explícita para enviar evidências ao provedor externo. O orquestrador valida identificadores citados e substitui uma resposta que contenha identificadores não rastreáveis pela síntese determinística. Perguntas fora do domínio verificável e casos sem evidência suficiente provocam abstenção, com remoção de fontes e subgrafo da resposta final.
+
+Uma extensão de geração de Cypher por LLM foi adicionada como módulo experimental e desativada por padrão. Ela foi projetada para enviar apenas a pergunta e o schema, validar labels, propriedades, relacionamentos e cláusulas, limitar o volume retornado e executar \texttt{EXPLAIN} antes da leitura. Por ter sido incorporada após a execução de CI usada como referência, não é contabilizada como funcionalidade validada pelos resultados experimentais aqui apresentados. Seu uso depende de nova validação automatizada e de teste com um provedor configurado.
+
+\section{Implementação e ambiente experimental}
+
+O backend foi desenvolvido em Python e Neo4j 5 Community. A aplicação utiliza Streamlit e \texttt{streamlit-agraph} para a visualização do subgrafo. Os arquivos canônicos, os trechos e os scripts de validação estão versionados no repositório do projeto. O workflow de integração contínua cria um Neo4j temporário, aplica o schema, carrega os dados, gera embeddings e executa a suíte automatizada.
+
+A versão de referência para os resultados reportados é o fechamento técnico do PR \#11, integrado à branch principal em 13 de novembro de 2026. A execução de CI associada ao commit de código anterior ao complemento documental aprovou 181 testes automatizados, sem falhas. Essa contagem não inclui os testes acrescentados posteriormente na branch experimental de fechamento, que ainda precisam de uma nova execução de CI antes de serem tratados como aprovados.
+
+\section{Avaliação}
+
+\subsection{Benchmark de recuperação}
+
+O benchmark contém 20 perguntas distribuídas em dez categorias. Dezesseis consultas positivas foram utilizadas para avaliar a ordenação dos trechos; quatro casos adicionais testaram a política de abstenção. A avaliação de recuperação compara três configurações: busca vetorial, busca full-text e busca híbrida com RRF. Foram calculadas Precision@5, Recall@5, Mean Reciprocal Rank (MRR@5), normalized Discounted Cumulative Gain (nDCG@5) e Hit@5.
+
+\begin{table}[ht]
+\centering
+\caption{Resultados de recuperação para as 16 consultas positivas ($k=5$).}
+\label{tab:benchmark}
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Modo} & \textbf{P@5} & \textbf{R@5} & \textbf{MRR@5} & \textbf{nDCG@5} & \textbf{Hit@5}\\
+\midrule
+Vetorial & 0,1750 & 0,4353 & 0,4479 & 0,4065 & 0,5625\\
+Full-text & 0,4125 & 0,9821 & 1,0000 & 1,0000 & 1,0000\\
+Híbrido (RRF) & 0,3000 & 0,7061 & 0,6250 & 0,6218 & 0,8125\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Política de abstenção e multi-hop}
+
+A política de abstenção foi avaliada nos 20 casos do benchmark. Os 16 casos positivos retornaram evidências e os quatro casos negativos foram corretamente abstidos, resultando em acurácia observada de 100\% (20/20) nesse conjunto. Os casos negativos incluíram CNPJs ausentes do recorte e consultas fora do domínio. Essa medida representa o desempenho no conjunto de teste construído pelo grupo, não uma garantia para perguntas arbitrárias.
+
+Para multi-hop, quatro pares de empresas foram avaliados no snapshot real. Três pares apresentaram caminho estrutural por \texttt{EXERCE\_CNAE}, com quatro saltos; nenhum apresentou caminho societário por \texttt{PARTICIPA\_DE}. O padrão societário de dois saltos (\texttt{Empresa <- Socio -> Empresa}) foi demonstrado em um cenário sintético isolado por transação com rollback. A distinção entre evidência real e demonstração sintética é mantida no relatório de avaliação.
+
+\section{Resultados e discussão}
+
+Os resultados mostram que, neste recorte, a recuperação full-text superou as outras duas configurações em todas as métricas agregadas reportadas. A vantagem é compatível com as características do corpus: os trechos contêm números de processos, siglas, dispositivos legais e expressões administrativas que favorecem correspondência lexical. A busca vetorial obteve menor desempenho e perdeu consultas por diluição semântica em textos jurídicos repetitivos. A fusão RRF recuperou parte dessas perdas, melhorando MRR@5 de 0,4479 para 0,6250 e Hit@5 de 0,5625 para 0,8125 em relação ao vetor puro; contudo, não superou o full-text.
+
+Esse resultado não invalida a busca híbrida, mas limita a conclusão que pode ser extraída. Em um corpus pequeno e lexicalmente específico, a modalidade full-text foi suficiente para recuperar os itens rotulados. Outros domínios, maior diversidade de paráfrases ou mudanças no corpus podem alterar o desempenho. A configuração 1:1 do RRF também pode elevar trechos genéricos quando palavras comuns aparecem em documentos padronizados.
+
+A política de abstenção apresentou resultado integral no benchmark construído, mas os testes não demonstram ausência de falsos positivos em produção. A cobertura de apenas 18 empresas limita a interpretação de ausência: não encontrar um registro no snapshot não equivale a afirmar que ele inexiste nas bases públicas nacionais. Do mesmo modo, caminhos por CNAE representam atividade econômica declarada em comum e não evidenciam vínculo societário ou comercial.
+
+A interface favorece a auditabilidade ao expor fontes, textos, consulta e subgrafo. Ainda assim, a visualização depende do que foi retornado pela consulta corrente e não substitui a inspeção do documento de origem. Menções candidatas devem ser interpretadas apenas como ocorrências textuais que demandam validação.
+
+\section{Limitações e ameaças à validade}
+
+A principal limitação é o tamanho e a seleção do recorte: 18 empresas, 54 sanções e 54 trechos não representam a cobertura nacional das bases. O benchmark possui apenas 16 consultas positivas e quatro cenários negativos; as métricas são sensíveis à composição desse conjunto. A amostra foi selecionada a partir de registros CEIS/CNEP e não constitui amostra probabilística.
+
+A consulta cadastral utilizou um serviço intermediário que espelha dados públicos da RFB, o que introduz dependência de disponibilidade e de transformação externa. A validação do CNPJ no pipeline é estrutural e não verifica os dígitos verificadores. O modelo NER é opcional e não foi ativado na geração do artefato de produção avaliado. Por isso, não há resultado de precisão ou recall de NER nem evidência de resolução nominal executada na amostra real.
+
+O caminho societário foi testado sinteticamente, pois não havia conexões societárias reais entre os quatro pares avaliados. A implementação opcional de Cypher gerado por LLM foi criada após a validação principal e ainda requer CI e teste com provedor real; ela não sustenta as conclusões quantitativas deste artigo. Finalmente, a política de abstenção é avaliada em um benchmark delimitado e não garante cobertura de todos os tipos de pergunta ou de manipulação adversarial.
+
+\section{Conclusão}
+
+O FiscalGraph BR demonstra uma arquitetura acadêmica de GraphRAG que conecta dados públicos empresariais e de compliance em um grafo LPG, recupera evidências textuais e apresenta fontes e caminhos para inspeção. O protótipo combina busca vetorial, full-text, fusão RRF, expansão do subgrafo e consultas multi-hop, além de uma interface que explicita a origem dos resultados e os limites da inferência.
+
+A avaliação revelou que o full-text foi a configuração mais eficaz no benchmark específico, enquanto a fusão híbrida superou a busca vetorial isolada. Esse achado reforça a necessidade de medir as modalidades em vez de presumir superioridade da arquitetura híbrida. A política de abstenção atingiu 20/20 casos no conjunto elaborado, mas o tamanho da amostra exige cautela. Como trabalhos futuros, destacam-se ampliar e diversificar o corpus e o benchmark, ativar e avaliar NER em dados reais com conjunto de referência anotado, testar a resolução nominal em casos ambíguos e validar a extensão de geração de Cypher por LLM em ambiente controlado. O sistema permanece um instrumento de exploração rastreável, não um classificador de fraude nem um mecanismo de decisão jurídica.
+
+\bibliographystyle{sbc}
+\bibliography{referencias}
+
+\end{document}
