@@ -136,4 +136,4 @@ Preencham entre os integrantes antes da apresentação:
 
 ## 5. Critério de encerramento
 
-A branch de fechamento reúne as extensões de software e os artefatos acadêmicos iniciais. Não considere o fechamento técnico concluído antes de a CI desta branch aprovar testes e compilação do artigo. A entrega acadêmica só deve ser considerada concluída depois da reprodução limpa, do preenchimento da identificação dos integrantes, da revisão do artigo e dos slides com base na rubrica real da disciplina, e da confirmação de acesso do professor ao repositório se ele permanecer privado.
+O fechamento técnico está integrado em `main`; a CI final aprovou 203 testes, integração e compilação do artigo SBC. A entrega acadêmica ainda depende da reprodução limpa pelo grupo, do preenchimento da identificação dos integrantes, da revisão do artigo e dos slides conforme a rubrica real da disciplina e da confirmação de acesso do professor ao repositório privado.
