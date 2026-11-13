@@ -53,7 +53,7 @@ O **FiscalGraph BR** é um protótipo acadêmico de **GraphRAG** sobre **Neo4j**
 ├── fixtures/                    # Fixtures sintéticas do Modo Mock (sucesso e abstenção)
 ├── infra/compose.yaml           # Serviço Docker do Neo4j 5 Community
 ├── pipeline/text_to_graph/      # Extrator e carregador de Trecho e MENCIONA
-├── scripts/                     # Validação, carga canônica, geração de embeddings e auditorias
+├── scripts/                     # Schema, validação, carga canônica, embeddings e auditorias
 ├── tests/                       # Suíte automatizada (unittest)
 ├── .env.example
 ├── requirements.txt
@@ -143,7 +143,11 @@ O Neo4j Browser fica disponível em `http://localhost:7474` (o volume em `infra/
 
 ### 3. Aplicar schema, carregar dados e gerar embeddings
 
-1. Execute todos os comandos de `cypher/01_schema_fiscalgraph.cypher` no Neo4j Browser (ou via driver/`cypher-shell`).
+1. Aplique o schema de forma automatizada e idempotente:
+   ```bash
+   python scripts/apply_schema.py
+   ```
+   O script lê as credenciais do `.env`, aguarda os índices e falha se as 7 constraints ou os 6 índices de busca esperados não estiverem disponíveis/ONLINE. O Neo4j Browser continua disponível para inspeção, mas não é necessário para essa etapa.
 2. Carregue os CSVs canônicos (18 empresas, 18 estabelecimentos, 26 sócios, 36 CNAEs, 45 vínculos CNAE, 54 sanções, 4 fontes):
    ```bash
    python scripts/load_canonical_data.py
@@ -159,7 +163,7 @@ O Neo4j Browser fica disponível em `http://localhost:7474` (o volume em `infra/
    ```
 5. Execute as consultas de `cypher/02_validacao_schema.cypher` e verifique `SHOW CONSTRAINTS` e `SHOW INDEXES` (`ONLINE`).
 
-Consulte também `docs/EXECUCAO_APLICACAO_INTEGRADA.md` para detalhes operacionais.
+Consulte também `docs/EXECUCAO_APLICACAO_INTEGRADA.md` para detalhes operacionais, `docs/CHECKLIST_ENTREGA_FINAL.md` para reprodução limpa e `docs/ROTEIRO_APRESENTACAO_FINAL.md` para a demonstração.
 
 ---
 
@@ -214,7 +218,9 @@ python scripts/evaluate_retrieval_benchmark.py --k 5
 - `docs/EXECUCAO_APLICACAO_INTEGRADA.md` — guia operacional de execução integrada.
 - `docs/validacao-neo4j.md` — registros de validação do schema, cargas, índices e UI/benchmark.
 - `docs/evidencias/dev5_benchmark_recuperacao.md` — benchmark rotulado (20 perguntas em 10 categorias) e análise multi-hop real vs. sintética.
-- `docs/RELATORIO_ENTREGA_ACADEMICA.md` — consolidação de evidências, limitações, cenários de aceitação e roteiro de apresentação.
+- `docs/RELATORIO_ENTREGA_ACADEMICA.md` — consolidação de evidências, limitações e cenários de aceitação.
+- `docs/CHECKLIST_ENTREGA_FINAL.md` — checklist de reprodução limpa e submissão.
+- `docs/ROTEIRO_APRESENTACAO_FINAL.md` — roteiro de demonstração em aproximadamente 8 minutos.
 
 ---
 
@@ -227,3 +233,6 @@ python scripts/evaluate_retrieval_benchmark.py --k 5
 - **Menções `MENCIONA`:** possuem `status = "CANDIDATA"` e representam apenas ocorrências textuais de CNPJ, não vínculo jurídico confirmado.
 - **Caminhos multi-hop:** nos 153 pares de empresas do recorte canônico atual, não há caminho societário real; os caminhos identificados são estruturais por CNAE compartilhado (atividade declarada em comum, não vínculo societário ou comercial).
 - **Ausência de inferência jurídica:** o sistema não determina fraude, culpa ou responsabilidade legal; `rrf_score` e `retrieval_relevance` medem apenas relevância de recuperação.
+
+
+> **Reprodutibilidade das dependências:** os arquivos `requirements*.txt` declaram versões mínimas, não um lockfile de versões exatas. Use Python 3.11 (referência do CI) e registre o ambiente efetivamente usado na validação local com `python --version` e `python -m pip freeze`. Os CSVs canônicos e os trechos utilizados na demonstração já estão versionados; os arquivos brutos originais em `data/raw/` não estão.

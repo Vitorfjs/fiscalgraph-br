@@ -3,6 +3,7 @@ name: Dev5 - testes integrados
 on:
   push:
     branches:
+      - main
       - dev5-integracao-final
   pull_request:
     branches:
@@ -68,32 +69,8 @@ jobs:
       - name: Instalar dependências de teste
         run: pip install --no-cache-dir -r requirements-ci.txt
 
-      - name: Aplicar schema Neo4j
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          from neo4j import GraphDatabase
-          import os
-
-          source = Path("cypher/01_schema_fiscalgraph.cypher").read_text(encoding="utf-8")
-          source = "\n".join(
-              line for line in source.splitlines()
-              if not line.lstrip().startswith("//")
-          )
-          statements = [part.strip() for part in source.split(";") if part.strip()]
-
-          with GraphDatabase.driver(
-              os.environ["NEO4J_URI"],
-              auth=(os.environ["NEO4J_USER"], os.environ["NEO4J_PASSWORD"]),
-          ) as driver:
-              driver.verify_connectivity()
-              with driver.session(database=os.environ["NEO4J_DATABASE"]) as session:
-                  for statement in statements:
-                      session.run(statement).consume()
-                  session.run("CALL db.awaitIndexes(300)").consume()
-
-          print(f"Schema aplicado: {len(statements)} comandos.")
-          PY
+      - name: Aplicar e validar schema Neo4j
+        run: python scripts/apply_schema.py
 
       - name: Carregar dados canônicos
         run: python scripts/load_canonical_data.py

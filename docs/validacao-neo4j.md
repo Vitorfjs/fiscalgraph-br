@@ -290,3 +290,41 @@ Com a colisão lexical presente, o orquestrador retorna `abstained = true`, sem 
 ### Limite desta evidência
 
 Esta Parte E registra validação automatizada em Neo4j temporário do CI. Ela **não substitui** a repetição manual dos oito cenários na instância local e no navegador Streamlit do grupo. A validação manual local pós-correção permanece pendente e deve ser registrada separadamente depois da execução.
+
+
+---
+
+# Parte F — Estado final após integração do PR #10 (2026-11-13)
+
+Esta seção atualiza o estado pendente registrado na Parte E, sem apagar o histórico daquela etapa.
+
+| Item | Resultado final |
+| --- | --- |
+| PR #10 (dev5 → main) | **Merged** em 2026-11-12 23:24 UTC |
+| Merge commit | `5dc7269e330d90175a7cf78d09e6543d4356bc6d` |
+| Workflow completo | Run `43327963350` — **success** |
+| Workflow de integração | Run `43327963370` — **success** |
+| Suíte completa no CI | **179 testes aprovados**, sem falhas |
+| Validação manual do grupo | **8/8 cenários aprovados**, conforme relatório recebido e versionado em `docs/evidencias/validacao_manual_dev5_etapa4_2026-11-12.md` |
+| Regressão João Pessoa | Aprovada manualmente e automatizada; Full-Text retornou correspondências lexicais, mas a aplicação se absteve e não retornou fontes nem subgrafo |
+
+### Limite de reprodução
+
+Os resultados de CI foram observados em Neo4j descartável do GitHub Actions. Os oito cenários manuais foram relatados pelo grupo e documentados separadamente. Não há, nesta seção, uma nova execução local limpa independente. A reprodução limpa deve ser registrada pelo grupo seguindo `docs/CHECKLIST_ENTREGA_FINAL.md`.
+
+
+---
+
+# Parte G — CI de fechamento no PR #11 (2026-11-13)
+
+| Item | Resultado observado |
+| --- | --- |
+| Commit avaliado | `1f5577be3148d7d9294841bcfc6d55abaf1cd305` |
+| Workflow completo | Run `43436377286` — **success** |
+| Workflow de integração | Run `43436377182` — **success** |
+| Aplicação do schema | `scripts/apply_schema.py` concluiu; 7 constraints e 6 índices de busca esperados foram encontrados e os índices ficaram `ONLINE` |
+| Preparação do Neo4j | Carga canônica, carga dos trechos e geração dos embeddings/índice vetorial concluídas |
+| Suíte automatizada | **181 testes aprovados em 8.220s**, sem falhas |
+| Log de testes | Artefato `dev5-ci-test-results` associado ao run `43436377286` |
+
+A validação foi executada em Neo4j temporário do GitHub Actions. A reprodução local independente, em clone e volume isolados, permanece pendente de execução e registro pelo grupo conforme `docs/CHECKLIST_ENTREGA_FINAL.md`.

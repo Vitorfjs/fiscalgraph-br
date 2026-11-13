@@ -3,6 +3,7 @@ name: Integration - Dev1 + Dev5 + Dev6
 on:
   push:
     branches:
+      - main
       - integracao-e2e
   pull_request:
     branches:
