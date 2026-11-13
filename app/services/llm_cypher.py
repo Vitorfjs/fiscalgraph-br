@@ -125,9 +125,22 @@ def validate_read_only_cypher(query: str) -> str:
     if re.search(r"\bRETURN\s+\*", code, re.IGNORECASE):
         raise CypherSafetyError("RETURN * não é permitido; selecione propriedades explicitamente.")
 
-    labels = set(re.findall(r":\s*([A-Za-z][A-Za-z0-9_]*)", code))
+    labels = set(re.findall(r"\\(\\s*[A-Za-z][A-Za-z0-9_]*\\s*:\\s*([A-Za-z][A-Za-z0-9_]*)", code))
+    relationship_types = set(re.findall(r"\\[\\s*[A-Za-z0-9_]*\\s*:\\s*([A-Za-z][A-Za-z0-9_]*)", code))
     if not labels or labels - ALLOWED_LABELS:
         raise CypherSafetyError("Consulta usa label não reconhecido ou não restringe nós ao schema FiscalGraph.")
+    if relationship_types - ALLOWED_RELATIONSHIPS:
+        raise CypherSafetyError("Consulta usa relacionamento fora do schema FiscalGraph.")
+    if re.search(r"\\b(?:apoc|gds|dbms)\\s*\\.", code, re.IGNORECASE):
+        raise CypherSafetyError("Funções e namespaces administrativos não são permitidos.")
+    functions = set(re.findall(r"\\b([A-Za-z][A-Za-z0-9_]*)\\s*\\(", code))
+    allowed_functions = {"count", "collect", "head", "min", "max", "avg", "sum", "size", "toString",
+                         "toUpper", "toLower", "labels", "type", "length", "nodes", "relationships",
+                         "elementId", "id", "coalesce", "toInteger", "toFloat"}
+    if functions - allowed_functions:
+        raise CypherSafetyError("Consulta usa função não permitida: " + ", ".join(sorted(functions - allowed_functions)))
+    if "$" in code:
+        raise CypherSafetyError("Parâmetros externos não são aceitos nesta execução.")
 
     properties = set(re.findall(r"\.\s*([A-Za-z][A-Za-z0-9_]*)", code))
     properties.update(re.findall(r"\{\s*([A-Za-z][A-Za-z0-9_]*)\s*:", code))
