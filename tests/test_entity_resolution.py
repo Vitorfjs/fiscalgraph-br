@@ -31,7 +31,7 @@ class OrganizationResolutionTests(unittest.TestCase):
             "mencoes": [{
                 "tipo": "ORGANIZACAO",
                 "valor": "ARVORE",
-                "valor_normalizado": "COMPANHIA ARVORE",
+                "valor_normalizado": "ARVORE",
                 "inicio": 4,
                 "fim": 19,
                 "metodo": "spacy_ner_pt_core_news_sm",
